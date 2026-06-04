@@ -1,0 +1,25 @@
+/* Design-system tokens first (defines the CSS variables Tailwind maps to),
+   then Tailwind's layers. */
+@import '@app/ui/styles/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* App-wide defaults from the Carbon foundations. */
+html {
+  box-sizing: border-box;
+}
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}

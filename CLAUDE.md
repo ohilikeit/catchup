@@ -1,0 +1,95 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## 이 레포지토리란
+
+CatchUP 플랫폼 모노레포(pnpm workspaces)입니다. 현재는 **IBM Carbon** 파운데이션 위에 구축한
+프로덕티브 엔터프라이즈 UI 시스템인 **CatchUP 디자인 시스템**과, 이를 보여주는 Next.js 앱이
+들어 있습니다. 최종 제품은 AI 테스트 평가 플랫폼이며, 그 아키텍처 결정은 [docs/](docs/)(한국어)에
+정리돼 있고 [docs/README.md](docs/README.md)가 색인입니다.
+
+## 명령어
+
+```bash
+pnpm install            # 워크스페이스 부트스트랩
+pnpm dev                # apps/web 실행 (Next dev 서버) → http://localhost:3000
+pnpm build              # apps/web 프로덕션 빌드
+pnpm typecheck          # 모든 패키지(ui, core, web)에 tsc --noEmit
+pnpm lint               # apps/web에 next lint
+```
+
+**아직 테스트 스위트가 없습니다.** 변경 검증은 `pnpm typecheck`와 `pnpm build`로 합니다 — 빌드가
+타입 체크와 전 라우트 정적 생성을 수행하므로, **빌드가 통과하면 "완료" 기준**입니다.
+단일 패키지만 타입 체크하려면: `pnpm --filter @app/ui typecheck`.
+
+## ⚠️ 프론트엔드 작업은 반드시 디자인 시스템을 따른다
+
+**이 레포에서 UI를 만들 때는 무조건 CatchUP 디자인 시스템을 사용해야 합니다. 컴포넌트를
+직접 손으로 만들거나, raw 색상·임의의 Tailwind 색상 값을 쓰지 마세요.**
+
+- 컴포넌트는 `@app/ui`에서 import합니다 (`Button`, `Input`, `Field`, `Select`, `Checkbox`,
+  `Radio`, `Toggle`, `Tag`, `Notification`, `Tile`, `Menu`, `Link`, `Icon`) — 그리고 조합형 킷
+  (`AppHeader`, `SideNav`, `Modal`, `Breadcrumb`, `MetricTile`/`MetricGrid`, `DataTable`)도 마찬가지.
+- 스타일링은 Tailwind preset의 **시맨틱 토큰 유틸리티만** 사용합니다 — `bg-background`,
+  `bg-layer-02`, `text-text-secondary`, `border-border-subtle-01`, `text-support-error`,
+  `shadow-focus-inset`, 그리고 `gap-05`/`p-07` 같은 스페이싱. **절대 금지:** `bg-blue-500`, `#hex`,
+  `rounded-lg`. raw Carbon 램프(`bg-blue-60`)도 존재하지만 최후의 수단이며, 역할 토큰을 우선합니다.
+- CatchUP 룩을 지킵니다 (이건 일반 shadcn이 아니라 Carbon입니다): **샤프한 모서리**(`rounded-pill`
+  태그 / `rounded-sm` 외에는 border-radius 없음), 구조는 1px 보더 + 배경 단계로 그리고, 그림자는
+  **떠 있는 레이어(menu/modal/toast)에만**, 강렬한 2px 블루 포커스 링, `.cds-*` 스케일의 IBM Plex
+  타입, 동사 우선 문장형(sentence-case) 카피, **이모지·그라디언트·둥근 "친근한" 카드 금지**.
+  상태 표현 = 채워진(filled) 아이콘 + 고정 support 4종(error/success/warning/info).
+- 없는 컴포넌트가 필요하면? **`@app/ui`에 추가**하세요 (기존 패턴을 따라서) — 앱 안에 일회용으로
+  만들지 마세요.
+- 전체 가이드라인: [packages/ui/README.md](packages/ui/README.md).
+
+## 아키텍처
+
+```
+apps/web        @app/web   Next.js App Router — 유일한 배포 대상; 패키지를 조립
+packages/ui     @app/ui    디자인 시스템: 토큰, 아이콘, 컴포넌트   (내부 의존성 없음)
+packages/core   @app/core  테마(next-themes) + 토스트              (@app/ui에 의존)
+```
+
+의존성 방향은 단방향·비순환입니다: **`ui ← core ← web`**. `@app/ui`에서 `@app/core`나 앱 코드를
+import하면 안 됩니다.
+
+**빌드 없는 내부 패키지.** `@app/ui`와 `@app/core`는 `"main": "src/index.ts"`(원본 소스 직접
+지정, 빌드 스텝 없음)로 두고 React를 `peerDependency`로 둡니다(React 사본 1개 → "Invalid hook
+call" 방지). 앱은 [apps/web/next.config.mjs](apps/web/next.config.mjs)의 `transpilePackages`로
+이들을 컴파일합니다. 그 결과: **패키지에 파일을 추가할 때 빌드가 필요 없지만**, 앱의
+`tailwind.config.ts` `content` glob이 `../../packages/*/src/**`를 계속 스캔해야 합니다 — 그렇지
+않으면 패키지 내부에서 쓰는 유틸리티 클래스가 purge됩니다.
+
+**토큰 시스템이 척추입니다** (테마가 동작하는 원리):
+1. [packages/ui/src/styles/tokens.css](packages/ui/src/styles/tokens.css)가 CSS 변수를 2겹으로
+   정의합니다 — raw Carbon 램프(`--blue-60`)와 **시맨틱 역할**(`--background`, `--text-primary`,
+   `--layer-02`). `.dark` 블록이 시맨틱 변수를 Carbon Gray-100 값으로 다시 가리킵니다.
+2. [packages/ui/tailwind-preset.js](packages/ui/tailwind-preset.js)가 Tailwind 유틸리티 → 그
+   시맨틱 변수로 매핑하며, `presets: [require('@app/ui/tailwind-preset')]`로 공유됩니다.
+3. 컴포넌트는 **역할 유틸리티만** 사용하므로 다크모드는 순수 토큰 스왑입니다 — `next-themes`가
+   `<html>`에 `.dark`를 토글하면 **`dark:` 변형 없이** 전부 리테마됩니다.
+
+앱은 토큰을 한 번만 import하고
+(`@import '@app/ui/styles/tokens.css'` — [apps/web/app/globals.css](apps/web/app/globals.css)),
+조립 지점([apps/web/app/layout.tsx](apps/web/app/layout.tsx))에서 프로바이더를 중첩합니다:
+`ThemeProvider → ToastProvider → app`. `layout.tsx`의 `<html>`에는 `suppressHydrationWarning`이
+필요합니다 (next-themes가 하이드레이션 전에 클래스를 설정하기 때문).
+
+**컴포넌트 컨벤션** (`@app/ui`를 확장할 때 이대로):
+- shadcn 패턴: 변형은 `cva(...)`, 들어온 `className`을 기본값 위에 병합할 땐 `cn()`
+  (`twMerge(clsx())`); `forwardRef`; 링크로 렌더될 수 있는 컴포넌트는 `@radix-ui/react-slot`의
+  `asChild` 사용 ([Button.tsx](packages/ui/src/components/Button.tsx) 참고).
+- 브라우저 상태를 다루는 컴포넌트(`useState`, 그게 필요한 이벤트 핸들러, 포털)는 `'use client'`를
+  답니다 (예: `Modal`, `DataTable`, `@app/core` 전체). 순수 표현형 컴포넌트는 서버 호환으로 둡니다.
+- 아이콘은 `CARBON_ICONS`의 인라인 SVG(43개 글리프, 32-grid)이며 `currentColor`로 리컬러합니다 —
+  색상은 text 유틸리티로 지정하고 `fill`/`stroke` prop을 쓰지 마세요. 이들은 충실한 재구성이며
+  byte-for-byte `@carbon/icons`가 아닙니다.
+
+## 플랫폼 방향 (docs/ 기준)
+
+디자인 시스템을 넘어 제품을 만들 때는 [docs/](docs/)의 결정을 따릅니다: 통합형 Next.js App
+Router 앱(route handler + `lib/` service/repository 레이어), 스키마로 분리한 단일 PostgreSQL DB,
+`{ success, data, error }` API 응답 봉투, 그리고 색상을 하드코딩하는 대신 디자인 시스템에 추가하는
+도메인 토큰(예: `score-pass`/`score-fail`).

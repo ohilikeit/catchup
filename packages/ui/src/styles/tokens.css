@@ -1,0 +1,299 @@
+/* ============================================================================
+   CatchUP Design System — Foundations (color · type · spacing · motion)
+   Built on IBM Carbon Design System foundations (Apache-2.0).
+   Source bundle: "CatchUP Design System" (claude.ai/design) → IBM Carbon.
+
+   Two layers of tokens (per docs/07):
+     1. Raw palette  — --gray-10, --blue-60, …            (source of truth)
+     2. Semantic     — --background, --text-primary, …    (what components use)
+   The Tailwind preset maps utilities → semantic tokens, so dark mode is a
+   pure token swap (.dark / [data-theme="dark"]) with zero component changes.
+   ============================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:wght@300;400;600&display=swap');
+
+:root {
+  /* ---- Raw palette: Gray ------------------------------------------------ */
+  --gray-10: #f4f4f4;
+  --gray-20: #e0e0e0;
+  --gray-30: #c6c6c6;
+  --gray-40: #a8a8a8;
+  --gray-50: #8d8d8d;
+  --gray-60: #6f6f6f;
+  --gray-70: #525252;
+  --gray-80: #393939;
+  --gray-90: #262626;
+  --gray-100: #161616;
+  --white: #ffffff;
+  --black: #000000;
+
+  /* ---- Raw palette: Blue (primary / interactive) ----------------------- */
+  --blue-10: #edf5ff;
+  --blue-20: #d0e2ff;
+  --blue-30: #a6c8ff;
+  --blue-40: #78a9ff;
+  --blue-50: #4589ff;
+  --blue-60: #0f62fe;
+  --blue-70: #0043ce;
+  --blue-80: #002d9c;
+  --blue-90: #001d6c;
+  --blue-100: #001141;
+
+  /* ---- Raw palette: Red (danger / error) ------------------------------- */
+  --red-10: #fff1f1;
+  --red-20: #ffd7d9;
+  --red-30: #ffb3b8;
+  --red-40: #ff8389;
+  --red-50: #fa4d56;
+  --red-60: #da1e28;
+  --red-70: #a2191f;
+  --red-80: #750e13;
+  --red-90: #520408;
+
+  /* ---- Raw palette: support hues --------------------------------------- */
+  --green-10: #defbe6;
+  --green-30: #6fdc8c;
+  --green-40: #42be65;
+  --green-50: #24a148;
+  --green-60: #198038;
+  --yellow-10: #fcf4d6;
+  --yellow-20: #fddc69;
+  --yellow-30: #f1c21b;
+  --teal-50: #009d9a;
+  --cyan-50: #1192e8;
+  --purple-60: #8a3ffc;
+  --magenta-50: #ee5396;
+
+  /* ---- Semantic: background & layers ----------------------------------- */
+  --background: var(--white);
+  --background-inverse: var(--gray-80);
+  --background-hover: rgba(141, 141, 141, 0.12);
+  --background-active: rgba(141, 141, 141, 0.30);
+  --layer-01: var(--gray-10);
+  --layer-02: var(--white);
+  --layer-03: var(--gray-10);
+  --layer-hover-01: #e8e8e8;
+  --layer-accent-01: var(--gray-20);
+  --field-01: var(--gray-10);
+  --field-02: var(--white);
+
+  /* ---- Semantic: text -------------------------------------------------- */
+  --text-primary: var(--gray-100);
+  --text-secondary: var(--gray-70);
+  --text-placeholder: var(--gray-40);
+  --text-helper: var(--gray-60);
+  --text-on-color: var(--white);
+  --text-disabled: rgba(22, 22, 22, 0.25);
+  --text-error: var(--red-60);
+  --text-inverse: var(--white);
+
+  /* ---- Semantic: icon -------------------------------------------------- */
+  --icon-primary: var(--gray-100);
+  --icon-secondary: var(--gray-70);
+  --icon-on-color: var(--white);
+  --icon-disabled: rgba(22, 22, 22, 0.25);
+
+  /* ---- Semantic: links ------------------------------------------------- */
+  --link-primary: var(--blue-60);
+  --link-primary-hover: var(--blue-70);
+  --link-visited: var(--purple-60);
+
+  /* ---- Semantic: borders ----------------------------------------------- */
+  --border-subtle-00: var(--gray-20);
+  --border-subtle-01: var(--gray-20);
+  --border-strong-01: var(--gray-50);
+  --border-interactive: var(--blue-60);
+  --border-inverse: var(--gray-100);
+
+  /* ---- Semantic: interactive / focus ----------------------------------- */
+  --interactive: var(--blue-60);
+  --focus: var(--blue-60);
+  --focus-inset: var(--white);
+  --highlight: var(--blue-20);
+
+  /* ---- Buttons --------------------------------------------------------- */
+  --button-primary: var(--blue-60);
+  --button-primary-hover: #0353e9;
+  --button-primary-active: var(--blue-80);
+  --button-secondary: var(--gray-80);
+  --button-secondary-hover: #4c4c4c;
+  --button-secondary-active: var(--gray-60);
+  --button-tertiary: var(--blue-60);
+  --button-danger-primary: var(--red-60);
+  --button-danger-hover: #ba1b23;
+  --button-danger-active: var(--red-80);
+  --button-disabled: var(--gray-30);
+
+  /* ---- Support / status ------------------------------------------------ */
+  --support-error: var(--red-60);
+  --support-success: var(--green-50);
+  --support-warning: var(--yellow-30);
+  --support-info: var(--blue-70);
+  --support-error-inverse: var(--red-50);
+  --support-success-inverse: var(--green-40);
+
+  /* ---- Notification surfaces ------------------------------------------- */
+  --notification-error-bg: var(--red-10);
+  --notification-success-bg: var(--green-10);
+  --notification-warning-bg: var(--yellow-10);
+  --notification-info-bg: var(--blue-10);
+
+  /* ========================================================================
+     SPACING — Carbon 2px-based mini-unit scale
+     ====================================================================== */
+  --spacing-01: 0.125rem; /* 2px   */
+  --spacing-02: 0.25rem;  /* 4px   */
+  --spacing-03: 0.5rem;   /* 8px   */
+  --spacing-04: 0.75rem;  /* 12px  */
+  --spacing-05: 1rem;     /* 16px  */
+  --spacing-06: 1.5rem;   /* 24px  */
+  --spacing-07: 2rem;     /* 32px  */
+  --spacing-08: 2.5rem;   /* 40px  */
+  --spacing-09: 3rem;     /* 48px  */
+  --spacing-10: 4rem;     /* 64px  */
+  --spacing-11: 5rem;     /* 80px  */
+  --spacing-12: 6rem;     /* 96px  */
+  --spacing-13: 10rem;    /* 160px */
+
+  /* ---- Sizing tokens (control heights) --------------------------------- */
+  --size-sm: 2rem;   /* 32px — small field/button */
+  --size-md: 2.5rem; /* 40px — medium */
+  --size-lg: 3rem;   /* 48px — large (default button/field) */
+  --size-xl: 4rem;   /* 64px */
+  --size-2xl: 5rem;  /* 80px */
+
+  /* ========================================================================
+     RADIUS — Carbon is predominantly sharp (0).
+     ====================================================================== */
+  --radius-none: 0;
+  --radius-sm: 2px;     /* subtle softening (tooltips, some tags) */
+  --radius-pill: 999px; /* round tags / chips */
+
+  /* ========================================================================
+     ELEVATION — overlay shadows only (resting surfaces use borders)
+     ====================================================================== */
+  --shadow-menu: 0 2px 6px rgba(0, 0, 0, 0.20);
+  --shadow-overlay: 0 4px 8px rgba(0, 0, 0, 0.20);
+  --shadow-modal: 0 12px 24px rgba(0, 0, 0, 0.25), 0 0 8px rgba(0, 0, 0, 0.10);
+  --shadow-tooltip: 0 2px 6px rgba(0, 0, 0, 0.30);
+
+  /* ========================================================================
+     MOTION — Carbon productive easing + durations
+     ====================================================================== */
+  --ease-productive-standard: cubic-bezier(0.2, 0, 0.38, 0.9);
+  --ease-productive-entrance: cubic-bezier(0, 0, 0.38, 0.9);
+  --ease-productive-exit: cubic-bezier(0.2, 0, 1, 0.9);
+  --ease-expressive-standard: cubic-bezier(0.4, 0.14, 0.3, 1);
+  --duration-fast-01: 70ms;
+  --duration-fast-02: 110ms;
+  --duration-moderate-01: 150ms;
+  --duration-moderate-02: 240ms;
+  --duration-slow-01: 400ms;
+  --duration-slow-02: 700ms;
+
+  /* ========================================================================
+     TYPE — families + weights
+     ====================================================================== */
+  --font-sans: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+  --font-serif: 'IBM Plex Serif', Georgia, serif;
+  --weight-light: 300;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+}
+
+/* ============================================================================
+   DARK THEME — Carbon Gray-100. Same token names, dark values → components
+   need no `dark:` variants. Toggle via <html class="dark"> (next-themes) or
+   [data-theme="dark"].
+   ============================================================================ */
+.dark,
+[data-theme='dark'] {
+  --background: var(--gray-100);
+  --background-inverse: var(--gray-10);
+  --background-hover: rgba(141, 141, 141, 0.16);
+  --background-active: rgba(141, 141, 141, 0.32);
+  --layer-01: var(--gray-90);
+  --layer-02: var(--gray-80);
+  --layer-03: #4c4c4c;
+  --layer-hover-01: #333333;
+  --layer-accent-01: var(--gray-80);
+  --field-01: var(--gray-90);
+  --field-02: var(--gray-80);
+
+  --text-primary: var(--gray-10);
+  --text-secondary: var(--gray-30);
+  --text-placeholder: var(--gray-60);
+  --text-helper: var(--gray-50);
+  --text-on-color: var(--white);
+  --text-disabled: rgba(244, 244, 244, 0.25);
+  --text-error: var(--red-40);
+  --text-inverse: var(--gray-100);
+
+  --icon-primary: var(--gray-10);
+  --icon-secondary: var(--gray-30);
+  --icon-on-color: var(--white);
+  --icon-disabled: rgba(244, 244, 244, 0.25);
+
+  --link-primary: var(--blue-40);
+  --link-primary-hover: var(--blue-30);
+  --link-visited: #be95ff;
+
+  --border-subtle-00: var(--gray-80);
+  --border-subtle-01: var(--gray-80);
+  --border-strong-01: var(--gray-60);
+  --border-inverse: var(--gray-10);
+
+  --focus: var(--white);
+  --focus-inset: var(--gray-100);
+  --highlight: var(--blue-90);
+
+  --button-secondary: var(--gray-60);
+  --button-secondary-hover: #5e5e5e;
+  --button-secondary-active: var(--gray-80);
+  --button-disabled: rgba(141, 141, 141, 0.30);
+
+  --support-error: var(--red-50);
+  --support-success: var(--green-40);
+  --support-warning: var(--yellow-30);
+  --support-info: var(--blue-50);
+
+  --notification-error-bg: rgba(250, 77, 86, 0.12);
+  --notification-success-bg: rgba(66, 190, 101, 0.12);
+  --notification-warning-bg: rgba(241, 194, 27, 0.12);
+  --notification-info-bg: rgba(69, 137, 255, 0.12);
+}
+
+/* ============================================================================
+   TYPE SCALE — Carbon "Productive" + Expressive headings.
+   Big headings get LIGHTER (weight 300), never heavier.
+   ============================================================================ */
+
+/* Utility / supporting */
+.cds-code-01   { font: 400 0.75rem/1rem var(--font-mono); letter-spacing: 0.32px; }
+.cds-code-02   { font: 400 0.875rem/1.25rem var(--font-mono); letter-spacing: 0.32px; }
+.cds-label-01  { font: 400 0.75rem/1rem var(--font-sans); letter-spacing: 0.32px; }
+.cds-label-02  { font: 400 0.875rem/1.125rem var(--font-sans); letter-spacing: 0.16px; }
+.cds-helper-01 { font: 400 0.75rem/1rem var(--font-sans); letter-spacing: 0.32px; }
+
+/* Body */
+.cds-body-compact-01 { font: 400 0.875rem/1.125rem var(--font-sans); letter-spacing: 0.16px; }
+.cds-body-compact-02 { font: 400 1rem/1.375rem var(--font-sans); letter-spacing: 0; }
+.cds-body-01         { font: 400 0.875rem/1.25rem var(--font-sans); letter-spacing: 0.16px; }
+.cds-body-02         { font: 400 1rem/1.5rem var(--font-sans); letter-spacing: 0; }
+
+/* Headings (productive) */
+.cds-heading-compact-01 { font: 600 0.875rem/1.125rem var(--font-sans); letter-spacing: 0.16px; }
+.cds-heading-compact-02 { font: 600 1rem/1.375rem var(--font-sans); letter-spacing: 0; }
+.cds-heading-01         { font: 600 0.875rem/1.25rem var(--font-sans); letter-spacing: 0.16px; }
+.cds-heading-02         { font: 600 1rem/1.5rem var(--font-sans); letter-spacing: 0; }
+.cds-heading-03         { font: 400 1.25rem/1.75rem var(--font-sans); letter-spacing: 0; }
+.cds-heading-04         { font: 400 1.75rem/2.25rem var(--font-sans); letter-spacing: 0; }
+.cds-heading-05         { font: 400 2rem/2.5rem var(--font-sans); letter-spacing: 0; }
+.cds-heading-06         { font: 300 2.625rem/3.125rem var(--font-sans); letter-spacing: 0; }
+.cds-heading-07         { font: 300 3.375rem/4rem var(--font-sans); letter-spacing: 0; }
+
+/* Fluid expressive display (marketing / heroes, used sparingly) */
+.cds-display-01 { font: 300 clamp(2.625rem, 5vw, 3.75rem)/1.19 var(--font-sans); letter-spacing: 0; }
+.cds-display-02 { font: 600 clamp(2.625rem, 5vw, 3.75rem)/1.19 var(--font-sans); letter-spacing: 0; }
