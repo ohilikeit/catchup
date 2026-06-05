@@ -138,6 +138,20 @@
   --notification-warning-bg: var(--yellow-10);
   --notification-info-bg: var(--blue-10);
 
+  /* ---- UI Shell — always-dark chrome (header / side nav) ---------------- *
+     Theme-INVARIANT by design: Carbon's shell stays Gray-100 in light AND
+     dark. Defined only here in :root; .dark does NOT override these, so the
+     cascade keeps them constant across themes. Use shell-* utilities for the
+     top bar, dark hero panels, and any persistent dark chrome. */
+  --shell-bg: var(--gray-100);
+  --shell-bg-hover: #2c2c2c;
+  --shell-text: var(--white);
+  --shell-text-secondary: var(--gray-30);
+  --shell-text-muted: var(--gray-50);
+  --shell-border: var(--gray-80);
+  --shell-accent: var(--blue-60);
+  --shell-accent-text: var(--blue-40); /* blue-60 lacks contrast on dark; step up */
+
   /* ========================================================================
      SPACING — Carbon 2px-based mini-unit scale
      ====================================================================== */

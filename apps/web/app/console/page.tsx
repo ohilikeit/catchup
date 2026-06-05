@@ -138,9 +138,9 @@ export default function ConsolePage() {
 function Login({ onLogin }: { onLogin: () => void }) {
   return (
     <div className="h-screen grid md:grid-cols-2">
-      <div className="hidden md:flex flex-col bg-gray-100 text-white p-09">
+      <div className="hidden md:flex flex-col bg-shell text-shell-text p-09">
         <div className="flex items-center gap-03">
-          <span className="w-8 h-8 bg-blue-60 flex items-center justify-center text-white">
+          <span className="w-8 h-8 bg-shell-accent flex items-center justify-center text-shell-text">
             <Icon name="arrow-up" size={20} />
           </span>
           <span className="font-sans text-lg font-semibold">
@@ -149,9 +149,9 @@ function Login({ onLogin }: { onLogin: () => void }) {
         </div>
         <div className="mt-auto cds-heading-07">
           Manage your workspace<br />
-          with <b className="font-semibold text-blue-40">clarity</b>.
+          with <b className="font-semibold text-shell-accent-text">clarity</b>.
         </div>
-        <div className="mt-06 font-mono text-xs text-gray-50">
+        <div className="mt-06 font-mono text-xs text-shell-text-muted">
           v0.1.0 · built on IBM Carbon foundations
         </div>
       </div>
@@ -224,7 +224,7 @@ function Users({
       sortable: true,
       render: (u) => (
         <span className="flex items-center gap-03">
-          <span className="w-7 h-7 rounded-pill bg-gray-20 text-gray-70 flex items-center justify-center font-sans text-[11px] font-semibold flex-[0_0_auto]">
+          <span className="w-7 h-7 rounded-pill bg-layer-accent-01 text-text-secondary flex items-center justify-center font-sans text-[11px] font-semibold flex-[0_0_auto]">
             {initials(u.name)}
           </span>
           {u.name}

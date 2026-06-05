@@ -13,7 +13,7 @@ const LINKS = [
 export function SiteHeader() {
   const pathname = usePathname();
   return (
-    <header className="sticky top-0 z-20 h-12 flex items-center bg-gray-100 text-white border-b border-[#393939]">
+    <header className="sticky top-0 z-20 h-12 flex items-center bg-shell text-shell-text border-b border-shell-border">
       <div className="px-05 font-sans text-sm leading-none whitespace-nowrap tracking-[0.1px]">
         CatchUP <b className="font-semibold">Design System</b>
       </div>
@@ -25,8 +25,8 @@ export function SiteHeader() {
               key={l.href}
               href={l.href}
               className={cn(
-                'flex items-center px-05 h-full font-sans text-sm leading-none text-gray-30 no-underline border-b-2 border-transparent hover:bg-[#2c2c2c] hover:text-white',
-                active && 'text-white border-blue-60',
+                'flex items-center px-05 h-full font-sans text-sm leading-none text-shell-text-secondary no-underline border-b-2 border-transparent hover:bg-shell-hover hover:text-shell-text',
+                active && 'text-shell-text border-shell-accent',
               )}
             >
               {l.label}
@@ -35,7 +35,7 @@ export function SiteHeader() {
         })}
       </nav>
       <div className="flex-1" />
-      <div className="text-gray-30">
+      <div className="text-shell-text-secondary">
         <ThemeToggle />
       </div>
     </header>

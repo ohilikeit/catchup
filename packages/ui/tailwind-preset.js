@@ -113,6 +113,19 @@ module.exports = {
           warning: 'var(--notification-warning-bg)',
           info: 'var(--notification-info-bg)',
         },
+
+        // UI Shell — always-dark chrome (header, dark hero panels).
+        // Theme-invariant; see --shell-* in tokens.css.
+        shell: {
+          DEFAULT: 'var(--shell-bg)',
+          hover: 'var(--shell-bg-hover)',
+          text: 'var(--shell-text)',
+          'text-secondary': 'var(--shell-text-secondary)',
+          'text-muted': 'var(--shell-text-muted)',
+          border: 'var(--shell-border)',
+          accent: 'var(--shell-accent)',
+          'accent-text': 'var(--shell-accent-text)',
+        },
       },
 
       fontFamily: {
