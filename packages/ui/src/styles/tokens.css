@@ -10,7 +10,7 @@
    pure token swap (.dark / [data-theme="dark"]) with zero component changes.
    ============================================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:wght@300;400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:wght@300;400;600&display=swap');
 
 :root {
   /* ---- Raw palette: Gray ------------------------------------------------ */
@@ -208,7 +208,7 @@
   /* ========================================================================
      TYPE — families + weights
      ====================================================================== */
-  --font-sans: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+  --font-sans: 'IBM Plex Sans', 'IBM Plex Sans KR', 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
   --font-serif: 'IBM Plex Serif', Georgia, serif;
   --weight-light: 300;
