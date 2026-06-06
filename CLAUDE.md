@@ -6,8 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CatchUP 플랫폼 모노레포(pnpm workspaces)입니다. 현재는 **IBM Carbon** 파운데이션 위에 구축한
 프로덕티브 엔터프라이즈 UI 시스템인 **CatchUP 디자인 시스템**과, 이를 보여주는 Next.js 앱이
-들어 있습니다. 최종 제품은 AI 테스트 평가 플랫폼이며, 그 아키텍처 결정은 [docs/](docs/)(한국어)에
-정리돼 있고 [docs/README.md](docs/README.md)가 색인입니다.
+들어 있습니다. 최종 제품은 AI 테스트 평가 플랫폼이며, 우리 서비스의 웹 플랫폼 개발 계획은
+[docs/1-web-platform-planning.md](docs/1-web-platform-planning.md)에 있습니다. 그 아키텍처 결정의
+**레퍼런스**(타 시니어 코드 분석 노트, 한국어)는 [docs/reference/](docs/reference/)에 정리돼 있고
+[docs/reference/README.md](docs/reference/README.md)가 그 색인입니다.
 
 ## 명령어
 
@@ -90,24 +92,24 @@ call" 방지). 앱은 [apps/web/next.config.mjs](apps/web/next.config.mjs)의 `t
 ## ⚠️ 플랫폼 작업은 반드시 docs/의 결정을 기초로 삼는다
 
 **디자인 시스템을 넘어 제품(백엔드·DB·라우팅·인증·캐시 등)을 계획하거나 구현할 때는,
-시작 전에 반드시 [docs/](docs/)의 해당 문서를 먼저 읽고 그 결정을 기초로 삼아야 합니다.**
-docs는 JABIS 분석에서 추출한 이 플랫폼의 **확정 설계 결정**이며, 임의로 다른 아키텍처를
+시작 전에 반드시 [docs/reference/](docs/reference/)의 해당 문서를 먼저 읽고 그 결정을 기초로 삼아야 합니다.**
+docs/reference는 JABIS 분석에서 추출한 이 플랫폼의 **확정 설계 결정**이며, 임의로 다른 아키텍처를
 즉흥적으로 도입하지 마세요. docs와 충돌하는 접근이 필요하다고 판단되면, 진행하기 전에 먼저
 사용자에게 그 불일치를 알리고 확인을 받습니다.
 
-- **작업 진입점**: [docs/00-master-checklist.md](docs/00-master-checklist.md)가 1~9단계를
+- **작업 진입점**: [docs/reference/00-master-checklist.md](docs/reference/00-master-checklist.md)가 1~9단계를
   실제 구축 순서(Phase 0~)로 종합한 마스터 체크리스트입니다. 새 기능/단계를 시작하면 먼저 이
   체크리스트에서 현재 위치와 의존 단계를 확인하고, 해당 Phase가 가리키는 세부 문서로 들어갑니다.
 - **주제별 매핑** (계획·구현 시 해당 문서를 근거로 인용):
-  - 모노레포·프레임워크·레이어드 백엔드·`{success,data,error}` 봉투 → [01](docs/01-framework-monorepo.md)
-  - DB 스키마(단일 DB + schema 분리, PK/인덱스/FK/트리거) → [02](docs/02-db-schema.md)
-  - 캐시(Redis namespace, TTL, getOrSet, AI 채점 해시캐싱) → [03](docs/03-cache.md)
-  - 인증/인가(roles M:N, 프론트 UX ≠ 백엔드 보안) → [04](docs/04-user-role.md)
-  - 보안(bcrypt/JWT/httpOnly, XSS·SQLi, 프롬프트 인젝션) → [05](docs/05-security.md)
-  - 페이지 설계·라우팅(영속 셸 + 중첩 라우트, 메뉴/라우트) → [06](docs/06-page-routing.md)
-  - 디자인 시스템·도메인 토큰 → [07](docs/07-design-system.md) (+ 위의 디자인 시스템 규칙)
-  - 반응형(모바일 퍼스트, 테이블→카드, `min-w-0` 함정) → [08](docs/08-responsive.md)
-  - 최적화(DB 풀·N+1·페이지네이션, 측정 후 최적화) → [09](docs/09-optimization.md)
+  - 모노레포·프레임워크·레이어드 백엔드·`{success,data,error}` 봉투 → [01](docs/reference/01-framework-monorepo.md)
+  - DB 스키마(단일 DB + schema 분리, PK/인덱스/FK/트리거) → [02](docs/reference/02-db-schema.md)
+  - 캐시(Redis namespace, TTL, getOrSet, AI 채점 해시캐싱) → [03](docs/reference/03-cache.md)
+  - 인증/인가(roles M:N, 프론트 UX ≠ 백엔드 보안) → [04](docs/reference/04-user-role.md)
+  - 보안(bcrypt/JWT/httpOnly, XSS·SQLi, 프롬프트 인젝션) → [05](docs/reference/05-security.md)
+  - 페이지 설계·라우팅(영속 셸 + 중첩 라우트, 메뉴/라우트) → [06](docs/reference/06-page-routing.md)
+  - 디자인 시스템·도메인 토큰 → [07](docs/reference/07-design-system.md) (+ 위의 디자인 시스템 규칙)
+  - 반응형(모바일 퍼스트, 테이블→카드, `min-w-0` 함정) → [08](docs/reference/08-responsive.md)
+  - 최적화(DB 풀·N+1·페이지네이션, 측정 후 최적화) → [09](docs/reference/09-optimization.md)
 - **관통 대원칙 5** (모든 결정이 따라야 함): ① 경계를 이름으로 드러낸다(패키지·DB schema 분리)
   ② 불변식은 DB가 강제한다(NOT NULL/UNIQUE/FK/CHECK/트리거) ③ 단순함은 의도된 선택 — 분리·추상화는
   요구가 생길 때만, 과설계 금지 ④ 패턴 > 도구 ⑤ 클라이언트 입력은 적대적 — 점수·역할·소유권은

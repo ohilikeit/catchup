@@ -6,7 +6,9 @@ the shadcn-style architecture the platform standardizes on (Tailwind tokens + CV
 
 > The design system was handed off from [claude.ai/design](https://claude.ai/design) as an
 > HTML/CSS/JS prototype bundle ("CatchUP Design System") and re-implemented here as real,
-> typed React components. See [docs/](docs/) for the platform's broader design decisions.
+> typed React components. See [docs/1-web-platform-planning.md](docs/1-web-platform-planning.md)
+> for the platform plan, and [docs/reference/](docs/reference/) for the design-decision reference
+> notes (extracted from a senior reference codebase).
 
 ## Structure
 
