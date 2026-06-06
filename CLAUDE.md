@@ -116,3 +116,16 @@ docs는 JABIS 분석에서 추출한 이 플랫폼의 **확정 설계 결정**�
 요약: 통합형 Next.js App Router 앱(route handler + `lib/` service/repository 레이어), 스키마로
 분리한 단일 PostgreSQL DB, `{ success, data, error }` API 응답 봉투, 색상을 하드코딩하는 대신
 디자인 시스템에 추가하는 도메인 토큰(예: `score-pass`/`score-fail`).
+
+## gstack (recommended)
+
+This project uses [gstack](https://github.com/garrytan/gstack) for AI-assisted workflows.
+Install it for the best experience:
+
+```bash
+git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack
+cd ~/.claude/skills/gstack && ./setup --team
+```
+
+Skills like /qa, /ship, /review, /investigate, and /browse become available after install.
+Use /browse for all web browsing. Use ~/.claude/skills/gstack/... for gstack file paths.
