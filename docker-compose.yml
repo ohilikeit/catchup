@@ -1,0 +1,43 @@
+# 로컬 개발 인프라 — 단일 PostgreSQL(정보원) + 단일 Redis(캐시/세션/카운터/잡락).
+# 근거: docs/reference/02-db-schema.md(단일 DB + schema 분리), 03-cache.md(Redis 1개 namespace).
+# 사용: docker compose up -d  →  pnpm db:migrate  →  pnpm dev
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: catchup-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-catchup}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-catchup}
+      POSTGRES_DB: ${POSTGRES_DB:-catchup}
+    # 호스트 포트 5433(기본): 다른 프로젝트의 postgres(5432)와 충돌 회피. 컨테이너 내부는 5432.
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - catchup-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # DB가 실제로 쿼리를 받을 준비가 됐는지(부팅 헬스체크). 앱/러너는 healthy 후 붙음.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-catchup} -d ${POSTGRES_DB:-catchup}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: catchup-redis
+    restart: unless-stopped
+    # appendonly: 재시작 후에도 휘발 데이터를 복구(필수는 아님 — Redis는 통째로 날려도 손실 0).
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - catchup-redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  catchup-pgdata:
+  catchup-redisdata:

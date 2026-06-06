@@ -5,6 +5,7 @@
     "allowJs": true,
     "plugins": [{ "name": "next" }],
     "paths": {
+      "@/*": ["./*"],
       "@app/ui": ["../../packages/ui/src/index.ts"],
       "@app/core": ["../../packages/core/src/index.ts"]
     }

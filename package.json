@@ -8,10 +8,18 @@
     "build": "pnpm --filter @app/web build",
     "start": "pnpm --filter @app/web start",
     "lint": "pnpm --filter @app/web lint",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "node db/migrate.mjs",
+    "db:migrate:status": "node db/migrate.mjs status"
   },
   "engines": {
     "node": ">=18.18"
   },
-  "packageManager": "pnpm@9.15.9"
+  "packageManager": "pnpm@9.15.9",
+  "devDependencies": {
+    "dotenv": "^16.4.5",
+    "pg": "^8.13.1"
+  }
 }

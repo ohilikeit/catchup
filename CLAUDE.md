@@ -19,6 +19,11 @@ pnpm dev                # apps/web 실행 (Next dev 서버) → http://localhost
 pnpm build              # apps/web 프로덕션 빌드
 pnpm typecheck          # 모든 패키지(ui, core, web)에 tsc --noEmit
 pnpm lint               # apps/web에 next lint
+
+# 로컬 DB/캐시 (최초 1회: cp .env.example .env.secret)
+pnpm db:up              # postgres + redis 컨테이너 기동 (docker compose up -d)
+pnpm db:migrate         # db/migrations/*.sql 적용 (상태: pnpm db:migrate:status)
+pnpm db:down            # 컨테이너 종료
 ```
 
 **아직 테스트 스위트가 없습니다.** 변경 검증은 `pnpm typecheck`와 `pnpm build`로 합니다 — 빌드가
@@ -88,6 +93,23 @@ call" 방지). 앱은 [apps/web/next.config.mjs](apps/web/next.config.mjs)의 `t
 - 아이콘은 `CARBON_ICONS`의 인라인 SVG(43개 글리프, 32-grid)이며 `currentColor`로 리컬러합니다 —
   색상은 text 유틸리티로 지정하고 `fill`/`stroke` prop을 쓰지 마세요. 이들은 충실한 재구성이며
   byte-for-byte `@carbon/icons`가 아닙니다.
+
+## ⚠️ 데이터 레이어 (DB · 캐시) — 두 가지 철칙
+
+단일 PostgreSQL(정보원) + 단일 Redis(보조, fail-soft). 백엔드는 통합형 Next.js: `route.ts`(얇게) →
+`lib/` (service/repository), SQL은 repository에만. 근거: [02](docs/reference/02-db-schema.md)·[03](docs/reference/03-cache.md)·[01 §5](docs/reference/01-framework-monorepo.md).
+
+- **위치**: 스키마 DDL = [db/migrations/](db/migrations/) · 러너 = [db/migrate.mjs](db/migrate.mjs) ·
+  DB 코드 = [apps/web/lib/db/](apps/web/lib/db/) · 캐시 = [apps/web/lib/cache/](apps/web/lib/cache/) ·
+  응답 봉투 = [apps/web/lib/http.ts](apps/web/lib/http.ts) · 로컬 인프라 = [docker-compose.yml](docker-compose.yml) ·
+  시크릿 = `.env.secret`(gitignore, 템플릿은 `.env.example`).
+- ⭐ **철칙 1 — 스키마 변경은 항상 `db/migrations`에 반영한다.** DB schema·table·인덱스·제약·트리거가
+  바뀌면 **반드시 `db/migrations/`에 새 `00NN_*.sql`을 추가**한다(여기가 스키마의 **유일한 정의처**).
+  적용된 파일은 수정 금지(append-only) — 변경은 새 파일로. 적용/검증 = `pnpm db:migrate`.
+- ⭐ **철칙 2 — 개발 내내 DB 연결성을 먼저 생각한다.** 기능을 만들 때 "이 데이터가 어느 schema·table에
+  있고 어떻게 연결·쿼리되는가"를 먼저 정한다. SQL은 **repository에만**(`$1` 바인딩·행 매퍼), 읽기는
+  `cacheService.getOrSet`·쓰기는 invalidate를 짝으로. DB는 필수 의존성, Redis는 fail-soft.
+  연결 상태는 [/api/health](apps/web/app/api/health/route.ts)로 확인.
 
 ## ⚠️ 플랫폼 작업은 반드시 docs/의 결정을 기초로 삼는다
 
