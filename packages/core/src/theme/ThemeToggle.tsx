@@ -16,8 +16,8 @@ export function ThemeToggle() {
       kind="ghost"
       size="field"
       iconOnly
-      icon={mounted && isDark ? 'view' : 'view-off'}
-      aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+      icon={mounted && isDark ? 'sun' : 'moon'}
+      aria-label={isDark ? '라이트 모드로 전환' : '다크 모드로 전환'}
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
     />
   );

@@ -7,6 +7,8 @@ export interface AppHeaderProps {
   active?: string;
   onNav?: (item: string) => void;
   onMenu?: () => void;
+  /** Click the brand/logo (e.g. go to home). When set, the brand becomes interactive. */
+  onBrand?: () => void;
   /** Brand label; the second word is emphasized (e.g. "CatchUP Console"). */
   brand?: [string, string];
   /** Avatar initials. */
@@ -22,6 +24,7 @@ export function AppHeader({
   active,
   onNav,
   onMenu,
+  onBrand,
   brand = ['CatchUP', 'Console'],
   user = 'CU',
 }: AppHeaderProps) {
@@ -32,9 +35,18 @@ export function AppHeader({
       <button className={hbtn} onClick={onMenu} aria-label="Open menu">
         <Icon name="menu" size={20} />
       </button>
-      <div className="px-05 font-sans text-sm leading-none text-white whitespace-nowrap tracking-[0.1px]">
+      <button
+        type="button"
+        onClick={onBrand}
+        disabled={!onBrand}
+        aria-label={onBrand ? '메인으로' : undefined}
+        className={cn(
+          'px-05 font-sans text-sm leading-none text-white whitespace-nowrap tracking-[0.1px] bg-transparent border-0',
+          onBrand ? 'cursor-pointer hover:text-gray-30' : 'cursor-default',
+        )}
+      >
         {brand[0]} <b className="font-semibold">{brand[1]}</b>
-      </div>
+      </button>
       <nav className="flex h-full">
         {nav.map((n) => (
           <a

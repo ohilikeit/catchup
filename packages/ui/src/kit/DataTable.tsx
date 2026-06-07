@@ -81,7 +81,8 @@ export function DataTable<T>({
           {toolbar ? <div className="flex items-center gap-[2px]">{toolbar}</div> : null}
         </div>
       )}
-      <table className="w-full border-collapse">
+      <div className="overflow-x-auto">
+      <table className="w-full border-collapse min-w-[720px]">
         <thead>
           <tr>
             {columns.map((col) => (
@@ -138,6 +139,7 @@ export function DataTable<T>({
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
