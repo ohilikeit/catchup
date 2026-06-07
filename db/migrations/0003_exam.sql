@@ -1,6 +1,6 @@
 -- 0003_exam — 코어: 문제 + 불변 버전 + 회차 + 응시 + 제출
 -- 근거: docs/1 §3(v4). 뼈대의 진짜 seam = "accepted된 정규화 submission(+불변 problem_version + 출처/trust)".
--- 제공 방식(hosted vs byod)·채점·리포트는 이 seam 바깥 → 이 schema는 그것들을 모른다.
+-- 제공 방식(hosted vs byod)·평가·리포트는 이 seam 바깥 → 이 schema는 그것들을 모른다.
 
 -- 문제(룩업): 의미있는 TEXT PK. role_track으로 직무 구분.
 CREATE TABLE exam.problems (
@@ -40,7 +40,7 @@ CREATE TABLE exam.batches (
 CREATE TRIGGER trg_batches_updated BEFORE UPDATE ON exam.batches
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
--- 응시. ⭐ 채점상태 없음(grading 모듈 소관). delivery_mode 셀렉터는 회차에서 상속.
+-- 응시. ⭐ 평가상태 없음(grading 모듈 소관). delivery_mode 셀렉터는 회차에서 상속.
 CREATE TABLE exam.attempts (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   batch_id      UUID NOT NULL REFERENCES exam.batches(id) ON DELETE RESTRICT,
@@ -58,7 +58,7 @@ CREATE TABLE exam.attempts (
 CREATE TRIGGER trg_attempts_updated BEFORE UPDATE ON exam.attempts
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
--- ⭐ exam.submissions = 뼈대의 최종 산출물 = 채점 모듈의 단일 입구. 'accepted'만 채점 대상.
+-- ⭐ exam.submissions = 뼈대의 최종 산출물 = 평가 모듈의 단일 입구. 'accepted'만 평가 대상.
 -- attempt_id UNIQUE = 1:1(reference/02 §11).
 CREATE TABLE exam.submissions (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
