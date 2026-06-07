@@ -8,9 +8,9 @@ import type { GlobalRole, OrgRole } from './roles';
 //
 // 쿠키 형식: `base64url(JSON).base64url(HMAC-SHA256)` — ⭐ 서버 시크릿으로 서명해 위조를 차단한다
 //   (클라가 examinee_id/role을 조작해 권한 상승하는 경로를 막음 — 대원칙 ⑤, reference/05).
-// ⚠️ 아직 STUB인 부분: 로그인 시 비밀번호를 검증하지 않는다(authService). 실 인증 모듈에서
-//   bcrypt 비교 + (선택) JWT 표준 클레임/만료/갱신으로 확장할 자리. 그래도 getSession()이 반환하는
-//   Session 모양은 유지되므로 페이지/가드는 무변경(경계를 이름으로 — 대원칙 ①).
+// 비밀번호 검증은 authService.login()에서 bcrypt로 수행한다(여기는 세션 직렬화/서명만 담당).
+// 확장 여지: JWT 표준 클레임/리프레시 토큰 — 도입해도 getSession()이 반환하는 Session 모양은
+//   유지되므로 페이지/가드는 무변경(경계를 이름으로 — 대원칙 ①).
 
 const COOKIE = 'catchup_session';
 
