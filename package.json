@@ -12,7 +12,8 @@
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:migrate": "node db/migrate.mjs",
-    "db:migrate:status": "node db/migrate.mjs status"
+    "db:migrate:status": "node db/migrate.mjs status",
+    "db:seed": "node db/seed.mjs"
   },
   "engines": {
     "node": ">=18.18"
