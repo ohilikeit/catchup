@@ -1,0 +1,16 @@
+# 런타임 산출물 — 학생 홈(credentials·대화·작업물)과 회수 결과는 커밋하지 않는다.
+runtime/*
+!runtime/.gitkeep
+# out/ 은 레포 루트 .gitignore(Nuxt 출력용 'out')에 막히므로 디렉터리를 먼저 되살린다.
+!out/
+out/*
+!out/.gitkeep
+
+# compose가 로드하는 로컬 env + 시크릿(.env.secret.example만 커밋)
+.env
+.env.secret
+
+# 문제 레지스트리에 실수로 섞여 들어온 시크릿 방어(예: ainc2026/.env 의 API 키)
+problem-registry/**/.env
+problem-registry/**/.env.*
+!problem-registry/**/.env.example
