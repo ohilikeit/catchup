@@ -31,7 +31,7 @@ CREATE TYPE exam.test_status AS ENUM ('draft','published','closed');
 | 설정/룩업 테이블 | 의미있는 `TEXT` (`'essay'`) | 읽으면 뜻을 앎 |
 | 추가만 되는 로그 | `BIGSERIAL` | 순번이면 충분(SERIAL은 21억 한계 → BIGSERIAL) |
 
-- [x] 시험/답안/채점 = UUID. 문항유형/카테고리 = TEXT. 이벤트로그 = BIGSERIAL.
+- [x] 시험/답안/평가 = UUID. 문항유형/카테고리 = TEXT. 이벤트로그 = BIGSERIAL.
 
 ## 4. Audit 컬럼 + updated_at 자동 트리거
 
@@ -78,7 +78,7 @@ submission_id UUID NOT NULL REFERENCES exam.submissions(id) ON DELETE CASCADE
 -- 도메인 간: 독립 존재 → 약한 참조(REFERENCES 안 검, 주석으로만)
 created_by TEXT NOT NULL,  -- auth.users.id (FK 제약 없음)
 ```
-- [x] 한 덩어리(시험-답안-채점잡) = 강한 FK+CASCADE / 도메인 간(답안↔사용자) = 약한 참조.
+- [x] 한 덩어리(시험-답안-평가잡) = 강한 FK+CASCADE / 도메인 간(답안↔사용자) = 약한 참조.
 - ⚠️ 약한 참조는 DB가 무결성 보장 안 함 → **service 레이어가 책임**.
 
 ## 8. 정규화 — "다른 개념은 다른 테이블"
@@ -112,7 +112,7 @@ CREATE TABLE grading.score_history (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
-- [x] 채점은 분쟁 잦음 → **점수 변경 이력 필수**.
+- [x] 평가은 분쟁 잦음 → **점수 변경 이력 필수**.
 - 비정규화(`current_holder` 같은 캐싱 컬럼)는 읽기 성능용, 갱신 시 트랜잭션으로 함께 변경.
 
 ## 11. 기타 필수 패턴
@@ -122,7 +122,7 @@ CREATE TABLE grading.score_history (
 - **사람용 번호** 시퀀스+트리거로 `APV-2026-0001` 자동 생성(시스템키 UUID와 분리).
 - **DDL은 트랜잭션으로** `BEGIN; ... COMMIT;` (Postgres는 트랜잭셔널 DDL).
 
-## 12. ⭐ 비동기 채점 잡 큐 (DB 하나로 큐 구현)
+## 12. ⭐ 비동기 평가 잡 큐 (DB 하나로 큐 구현)
 
 ```sql
 CREATE TABLE grading.jobs (
@@ -136,7 +136,7 @@ CREATE TABLE grading.jobs (
 );
 CREATE INDEX idx_jobs_queued ON grading.jobs(created_at) WHERE status='queued';
 ```
-워커가 안전하게 1개씩 집기 (중복 채점 방지, MQ 인프라 불필요):
+워커가 안전하게 1개씩 집기 (중복 평가 방지, MQ 인프라 불필요):
 ```sql
 UPDATE grading.jobs SET status='running', locked_by=$1, locked_at=NOW(), attempts=attempts+1
 WHERE id = (SELECT id FROM grading.jobs WHERE status='queued'

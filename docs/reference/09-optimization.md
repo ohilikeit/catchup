@@ -19,8 +19,8 @@ export const pool = new Pool({ ..., max: DATABASE_POOL_MAX });  // 미리 만들
 
 ### 이미 배운 것 = 최적화의 핵심
 - 인덱스(02): FK·status·created_at DESC·복합·부분.
-- 캐시(03): getOrSet, AI 채점 해시 캐싱.
-- 비동기 잡 큐(02): 느린 LLM 채점 분리.
+- 캐시(03): getOrSet, AI 평가 해시 캐싱.
+- 비동기 잡 큐(02): 느린 LLM 평가 분리.
 - 병렬 페칭(06): Promise.allSettled. RETURNING(02): 추가 SELECT 제거.
 
 ### 추가

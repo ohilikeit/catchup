@@ -57,7 +57,7 @@
 
 ## Phase 5 — 성능/캐시 ([03](./03-cache.md) · [09](./09-optimization.md))
 - [ ] 캐시 추상화(cacheService): 처음 메모리 Map → 필요 시 Redis
-- [ ] AI 채점 해시 캐싱(`ai:grade:${rubricVer}:${hash}`)
+- [ ] AI 평가 해시 캐싱(`ai:grade:${rubricVer}:${hash}`)
 - [ ] DB 풀 전역 1개, N+1 회피, 페이지네이션
 - [ ] dynamic import(무거운 컴포넌트), next/image·font
 - [ ] 측정 후 최적화(EXPLAIN ANALYZE/Lighthouse)

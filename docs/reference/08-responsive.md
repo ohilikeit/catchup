@@ -48,7 +48,7 @@
 ## 6. 🎯 AI 평가 플랫폼
 - 셸: shadcn Sheet + `lg:` 고정/드로어((dashboard)/layout.tsx).
 - **응시 화면 = 모바일 퍼스트**(폰 사용 많음). `grid-cols-1 lg:grid-cols-2`(문제+답안).
-- 채점 대시보드: 데스크톱 테이블+모바일 카드.
+- 평가 대시보드: 데스크톱 테이블+모바일 카드.
 - 반응형 그리드(가장 흔함):
 ```jsx
 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">{stats}</div>

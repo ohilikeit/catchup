@@ -109,4 +109,4 @@ createHandler({ schema, requireAuth, handler })
 | 빌드/번들 | Next.js(Turbopack) — Vite 불필요 |
 | 백엔드 | Next API Route(`route.ts`+`lib/`) — Fastify 불필요, 패턴은 이식 |
 | 패키지 | `ui`,`core` 2개 시작, `transpilePackages`, src 직접 export |
-| 느린 AI 채점 | `output:'standalone'` self-host + 비동기 잡 큐 (→ 02 문서) |
+| 느린 AI 평가 | `output:'standalone'` self-host + 비동기 잡 큐 (→ 02 문서) |

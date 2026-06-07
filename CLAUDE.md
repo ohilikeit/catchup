@@ -125,7 +125,7 @@ docs/reference는 JABIS 분석에서 추출한 이 플랫폼의 **확정 설계 
 - **주제별 매핑** (계획·구현 시 해당 문서를 근거로 인용):
   - 모노레포·프레임워크·레이어드 백엔드·`{success,data,error}` 봉투 → [01](docs/reference/01-framework-monorepo.md)
   - DB 스키마(단일 DB + schema 분리, PK/인덱스/FK/트리거) → [02](docs/reference/02-db-schema.md)
-  - 캐시(Redis namespace, TTL, getOrSet, AI 채점 해시캐싱) → [03](docs/reference/03-cache.md)
+  - 캐시(Redis namespace, TTL, getOrSet, AI 평가 해시캐싱) → [03](docs/reference/03-cache.md)
   - 인증/인가(roles M:N, 프론트 UX ≠ 백엔드 보안) → [04](docs/reference/04-user-role.md)
   - 보안(bcrypt/JWT/httpOnly, XSS·SQLi, 프롬프트 인젝션) → [05](docs/reference/05-security.md)
   - 페이지 설계·라우팅(영속 셸 + 중첩 라우트, 메뉴/라우트) → [06](docs/reference/06-page-routing.md)

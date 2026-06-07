@@ -54,7 +54,7 @@ export const ROLE_HOME = { admin:'/admin', examinee:'/exams', ... }   // 역할�
 
 ## 7. 🎯 AI 평가 플랫폼 적용
 ```ts
-// 역할: examinee(응시자) / grader(채점자) / author(출제자) / admin(관리자)
+// 역할: examinee(응시자) / grader(평가자) / author(출제자) / admin(관리자)
 // DB: auth.users + auth.user_roles(user_id, role) 복합키 M:N
 
 // 백엔드 가드 (01 문서의 핸들러 래퍼에 통합)
@@ -64,7 +64,7 @@ export const POST = createHandler({
 })
 ```
 ### ⭐ 역할(전역) vs 자원 소유권(행 단위)
-- 역할만으론 부족: `grader`라도 "**이 시험에 배정된** 채점자"인지 행 단위 확인 필요.
+- 역할만으론 부족: `grader`라도 "**이 시험에 배정된** 평가자"인지 행 단위 확인 필요.
 - service 레이어에서 `test_graders`(02 문서) 조회로 소유권 체크: `WHERE test_id IN (내 배정 시험)`.
 - = RBAC(역할) + ABAC(자원기반) 혼합.
 

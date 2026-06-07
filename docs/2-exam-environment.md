@@ -104,7 +104,7 @@ N초 heartbeat. 앱은 **ready 슬롯에만** 배정.
 problem-registry (오브젝트 스토리지 / git)
 ├── planning-2026-09-A/
 │   ├── scaffold/        ← 학생 환경에 들어감(공개 골격)
-│   └── hidden-tests/    ← ⚠️ 학생 환경에 절대 안 들어감(서버 채점용, 05)
+│   └── hidden-tests/    ← ⚠️ 학생 환경에 절대 안 들어감(서버 평가용, 05)
 ├── planning-2026-09-B/  ← 변형(대학별/부정행위 방지)
 └── ...
 ```
@@ -202,14 +202,14 @@ AI 추론은 **클러스터 밖**(Anthropic). 클러스터는 IDE + 학생 코�
 ---
 
 ## 10. 정규화 포맷 계약 (공통 입구, linchpin)
-두 어댑터가 **같은 모양**을 뱉어야 채점이 제공 방식과 무관.
+두 어댑터가 **같은 모양**을 뱉어야 평가이 제공 방식과 무관.
 ```jsonc
 { "version":1, "tool":"claude-code", "model":"...",
   "messages":[ {"id":"...","index":0,"role":"user|assistant","content":"...","ts":"...","tool_calls":[...],"attachments":[...]} ],
   "meta":{ "attemptId":"...","source":"proxy|export-script","sourceHash":"sha256:..." } }
 ```
 - **v1 JSON Schema 별도 파일 고정**(`contracts/chat-log.v1.json`) + **accepted/rejected fixture + contract test(CI)** = P0.
-  프록시 출력·BYOD 업로드 **둘 다 이 스키마로 검증**해야 accepted. (후속)채점 모듈은 이 한 포맷만 소비.
+  프록시 출력·BYOD 업로드 **둘 다 이 스키마로 검증**해야 accepted. (후속)평가 모듈은 이 한 포맷만 소비.
 
 ---
 

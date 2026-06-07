@@ -94,16 +94,16 @@ if (c > max) { reply.header('retry-after', ttl); return reply.status(429); }
 ## 7. 🎯 AI 평가 플랫폼 적용
 ```ts
 export const TTL = {
-  AI_GRADE: 60*60*24*30,  // 30일 (같은 답안 재채점 불필요)
+  AI_GRADE: 60*60*24*30,  // 30일 (같은 답안 재평가 불필요)
   TEST_CONFIG: 60*60, LEADERBOARD: 60, PERMISSION: 60,
 };
 ```
-### ⭐ 킬러 패턴: AI 채점 결과를 내용 해시로 캐싱 (비용 절감)
+### ⭐ 킬러 패턴: AI 평가 결과를 내용 해시로 캐싱 (비용 절감)
 ```ts
 const key = `ai:grade:${rubricVersion}:${sha256(rubricId + '|' + answerText)}`;
 const result = await cacheService.getOrSet(key, () => llmGrade(rubric, answer), TTL.AI_GRADE);
 ```
-- LLM 호출은 느리고 비쌈 → "같은 루브릭+같은 답안"은 1번만 채점. 중복 제출/객관식/짧은답에서 폭발적 절감.
+- LLM 호출은 느리고 비쌈 → "같은 루브릭+같은 답안"은 1번만 평가. 중복 제출/객관식/짧은답에서 폭발적 절감.
 - 루브릭 변경 무효화 = **키에 `rubricVersion` 포함** → 버전 오르면 자동으로 새 키.
 
 ### Redis 1개 namespace 설계
@@ -119,4 +119,4 @@ session:${id} / ai:grade:${ver}:${hash} / test:config:${id} / leaderboard:${test
 - [x] `도메인:식별자:하위` 키 + 날짜/버전을 키에
 - [x] write 시 invalidate (정확한 키 삭제 우선, KEYS 패턴삭제 지양)
 - [x] 카운터는 INCR + count===1일 때만 expire, rate-limit은 fail-open
-- [x] AI 채점은 (루브릭버전+답안)해시 키로 캐싱
+- [x] AI 평가은 (루브릭버전+답안)해시 키로 캐싱

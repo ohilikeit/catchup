@@ -58,7 +58,7 @@ const items = useStore(s => s.items)   // 선택적 구독(그 조각 변할 때
 ```
 app/(dashboard)/layout.tsx                       # 역할별 메뉴 필터 셸
   exams/page.tsx  exams/[id]/page.tsx            # 응시
-  grading/page.tsx  grading/[submissionId]/page.tsx  # 채점(grader/admin)
+  grading/page.tsx  grading/[submissionId]/page.tsx  # 평가(grader/admin)
   authoring/page.tsx                             # 출제(author/admin)
 app/login/page.tsx
 ```

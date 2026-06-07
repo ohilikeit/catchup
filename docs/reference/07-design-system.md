@@ -105,7 +105,7 @@ presets: [require('@app/ui/tailwind-preset')]   // 모든 앱이 같은 Carbon �
 shadcn CLI(`npx shadcn add`)는 **쓰지 않는다.** 없는 컴포넌트는 기존 패턴을 따라 `@app/ui`에 직접
 추가한다. 색은 하드코딩하지 말고 도메인 의미 토큰으로 확장:
 ```css
-/* 아직 미구현 — 채점/상태 UI 들어올 때 tokens.css에 hex로 추가 예정 */
+/* 아직 미구현 — 평가/상태 UI 들어올 때 tokens.css에 hex로 추가 예정 */
 :root { --score-pass: #24a148; --score-fail: #da1e28; --score-partial: #f1c21b;
         --status-grading: #4589ff; }
 ```

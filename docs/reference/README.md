@@ -14,7 +14,7 @@
 | 00 | [⭐ 마스터 체크리스트](./00-master-checklist.md) | 1~9단계 종합 + Phase별 구축 순서 |
 | 01 | [프레임워크 & 모노레포](./01-framework-monorepo.md) | apps+packages, 빌드없는 내부패키지, 레이어드 백엔드, Next.js 통합 |
 | 02 | [DB 스키마 설계](./02-db-schema.md) | 1 DB + 다중 schema, PK/인덱스/JSONB, 관계·이력·마이그레이션 |
-| 03 | [캐시 관리](./03-cache.md) | Redis 1개 namespace, TTL 정책, getOrSet, write 무효화, AI채점 해시캐싱 |
+| 03 | [캐시 관리](./03-cache.md) | Redis 1개 namespace, TTL 정책, getOrSet, write 무효화, AI평가 해시캐싱 |
 | 04 | [User role 설계](./04-user-role.md) | 인증≠인가 분리, roles 배열 M:N, 프론트UX/백엔드보안, 역할+자원소유권 |
 | 05 | [보안](./05-security.md) | bcrypt/JWT/httpOnly쿠키, XSS·SQLi, 공격탐지 IP차단, AI 프롬프트인젝션 |
 | 06 | [페이지 설계 & 라우팅](./06-page-routing.md) | 영속 셸+중첩라우트, 주입형 레이아웃, 메뉴/라우트, mock fallback, zustand |
