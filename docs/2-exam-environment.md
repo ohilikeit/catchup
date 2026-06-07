@@ -74,22 +74,34 @@
   "접속코드" = 로그인→attempt→슬롯 매핑(DB). 앱이 누가 어느 컨테이너인지 안다.
 - ⚠️ code-server는 **websocket**을 많이 쓴다 → 앞단 프록시(앱/인그레스)가 websocket을 통과시켜야 IDE가 산다.
   인증·websocket·세션을 앱 한 곳에서 통제하는 또 다른 이유.
+- ⭐ **앱 셸 = 상단바 + iframe.** 학생이 보는 화면은 code-server raw가 아니라 **앱의 시험 페이지**다:
+  위쪽 **상단바**(서버 기준 **남은시간 카운트다운** + **제출 버튼**), 아래 **iframe**(code-server).
+  ```
+  ┌ 상단바: ⏳ 남은시간 12:34   [제출하기]  ← 앱 컴포넌트(서버 deadline_at 기준)
+  ├─────────────────────────────────────
+  │ iframe: code-server (학생 IDE)
+  └─────────────────────────────────────
+  ```
+  남은시간은 `attempts.deadline_at` 서버값으로 계산(클라 시계 불신). 마감 시 앱이 **iframe을 차단하고 제출 페이지로 전환**.
+  제출 버튼/마감 → **서버측 패키징**으로 MinIO+DB 저장(§11, 상세 [5-storage-submission-pipeline.md](./5-storage-submission-pipeline.md)).
 
 ---
 
 ## 3. 어댑터 A 구성요소
 
 ```
-학생 브라우저 ─iframe(앱 프록시)→ [code-server] ─내부→ [claude code] ─(ANTHROPIC_BASE_URL)→ [LLM 프록시] → api.anthropic.com
-                                     │ /workspace(PVC)                                          │ 우리 키·로깅(유일 egress)
+학생 브라우저 ─iframe(앱 프록시)→ [code-server] ─내부→ [claude code] ─(BASE_URL+가상키)→ [LiteLLM 게이트웨이] → api.anthropic.com
+                                     │ /workspace(PVC)                                          │ 진짜 키·"*"→Sonnet·로깅(유일 egress)
                                      │ initContainer(seeder)                                    ▼
                                      └ 부팅 시 self-register/heartbeat → 앱            정규화 → submission(proxy, verified)
 ```
 
-**① 컨테이너 이미지(고정, 문제와 분리)** — base: code-server + 런타임 + **claude code 프리설치**. entrypoint=seeder.
-env: `ANTHROPIC_BASE_URL=<프록시>`, `ANTHROPIC_API_KEY=<우리키/attempt 토큰>`, `ATTEMPT_ID`, `PROBLEM_REF`.
-**② LLM 프록시(LiteLLM 등)** — 우리 키 단일 호출, **요청/응답 전량을 `attempt_id`로 로깅**→정규화→`submission_files(chat_log)`.
-attempt별 비용상한·rate limit, 제출/만료 시 토큰 폐기. 해시캐싱은 reference/03.
+**① 컨테이너 이미지(고정, 문제와 분리)** — base: code-server + 런타임 + **claude code(+확장) 프리설치**. entrypoint=seeder.
+env: `ANTHROPIC_BASE_URL=<게이트웨이>`, `ANTHROPIC_AUTH_TOKEN=<attempt 가상키>`, `ANTHROPIC_MODEL=claude-sonnet-*`, `ATTEMPT_ID`, `PROBLEM_REF`.
+**② LLM 게이트웨이(LiteLLM) + 가상키** — 진짜 Anthropic 키는 **게이트웨이에만**(컨테이너 밖). 컨테이너엔 `ANTHROPIC_BASE_URL` +
+attempt별 **가상키**(`ANTHROPIC_AUTH_TOKEN`)만 — 탈취돼도 **예산상한·만료·차단**으로 무력. `model_name:"*"`→**Sonnet 강제**(클라 우회 불가).
+요청/응답 전량 `attempt_id`로 로깅→정규화→`submission_files(chat_log)`. 가상키는 `/key/generate`로 자동 발급, 제출/만료 시 폐기. 해시캐싱 reference/03.
+⚠️ claude code **OAuth는 컨테이너에서 콜백이 깨져 부적합**(공식 문서: WSL2/컨테이너) — `ANTHROPIC_AUTH_TOKEN` 게이트웨이 경유가 정답.
 **③ seeder(크래시 안전)** — §6.
 **④ 슬롯 등록/heartbeat(k8s API 없이 앱이 상태 파악)** — pod 부팅→`POST /internal/slots/register`→`hosted.slots.state='ready'`,
 N초 heartbeat. 앱은 **ready 슬롯에만** 배정.
@@ -129,6 +141,10 @@ problem-registry (오브젝트 스토리지 / git)
 | 앱→ArgoCD API | exam-ops가 ArgoCD API로 param sync 호출 | ○ | 회차 잦아질 때 |
 | 스케줄러/KEDA | 시험 일정 따라 자동 | ○○ | 운영 성숙기 |
 
+> ⭐ **레포 분리 + 자동 트리거(확정):** 배포는 `catchup-helm`(deploy 레포, ArgoCD watch), 앱은 `catchup`(app 레포).
+> "회차 열기" = exam-ops가 `catchup-helm`의 `batches/current.yaml`에 `replicas:50`·`problemId` 커밋(bitbucket API) → ArgoCD가 감지·자동 sync.
+> 즉 위 표의 "자동"을 **처음부터** 적용한다. **빌드(이미지)≠회차(스케일)**는 분리 — 상세 [3-s2-k8s-skeleton.md](./3-s2-k8s-skeleton.md) §5.
+
 **동적 vs 선언 — 메커니즘(왜 ArgoCD를 임시 pod에 안 쓰나):**
 - 오래 사는 고정 서비스(앱·프록시·exam-ops) → **ArgoCD 선언**.
 - 짧게 사는 학생 pod → **풀 스케일링**(S2) 또는 **동적 생성**(S3). ArgoCD로 임시 pod을 선언하면 git churn·sync 지연.
@@ -143,9 +159,11 @@ problem-registry (오브젝트 스토리지 / git)
 
 **한 곳만 git을 만진다 = exam-ops 서비스**(ArgoCD로 1회 배포, git 배포키 보유). 사람은 클러스터 미접속.
 
+> ⚠️ **빌드 ≠ 회차:** 이미지 빌드는 `catchup` push → bitbucket pipeline → harbor(가끔, 빌드). 회차는 exam-ops가 `catchup-helm` values 커밋(자주, 빌드 아닌 스케일). exam-ops는 **`catchup-helm` 배포키만** 보유.
+
 ```
 [T-30m 회차 open]
- exam-ops: 목표상태(replicas=capacity, PROBLEM_ID=problem_version, delivery=hosted) → env-overlays/batch-<id>.yaml 커밋&푸시
+ exam-ops: 목표상태(replicas=capacity, PROBLEM_ID=problem_version, delivery=hosted) → catchup-helm/batches/current.yaml 커밋&푸시
    → ArgoCD sync → StatefulSet 0→50, initContainer(seeder) 실행 → pod self-register/heartbeat
  exam-ops: ready 슬롯 ≥ 로스터 인원까지 폴링(**heartbeat 기준 — k8s API 불필요**) → batch.status='open'
 [진행] 앱이 ready 슬롯 배정·iframe 프록시. 제한시간 = attempts.deadline_at 서버 강제
@@ -214,6 +232,9 @@ AI 추론은 **클러스터 밖**(Anthropic). 클러스터는 IDE + 학생 코�
 ---
 
 ## 11. 생명주기·장애 복구
+
+> 스토리지 계층(PVC/MinIO/Postgres)·제출 파이프라인·재접속 안전망 상세는 [5-storage-submission-pipeline.md](./5-storage-submission-pipeline.md).
+
 - **작업 보존:** `/workspace`=PVC, N분 자동저장. pod crash→k8s 재시작→같은 PVC 재부착.
 - **seeder 크래시 안전:** 부팅 시 `/workspace`에 `.attempt-<id>.lock` 있으면(크래시 재기동) **wipe 금지·재개**, 없으면 `rm -rf && unpack && touch .lock`.
 - **취합 순서 불변:** 제출/마감→submission `accepted` 확정→**그 다음** scale-down. 역순 금지.
@@ -251,10 +272,33 @@ volumes: { workspace: {} }
 
 ---
 
+## 13. 관리자 대시보드 — 시험 준비 + 중앙 관제
+
+운영자가 클러스터·DB를 직접 만지지 않고 시험을 준비·관제하는 단일 화면(앱의 admin 영역). 모든 상태의 정보원은 DB(§11),
+액션은 exam-ops·게이트웨이 API로 수행. 스키마·저장 상세는 [5-storage-submission-pipeline.md](./5-storage-submission-pipeline.md).
+
+**A. 시험 준비(회차 생성)**
+- **문제 등록**: scaffold/hidden을 problem-registry(MinIO)에 올리고 `PROBLEM_ID` 부여(§4). hidden은 서버 전용 버킷.
+- **회차(batch) 구성**: test 선택 · 로스터(응시자) 배정 · 시작/마감(`deadline_at`) 일정 · capacity · delivery(hosted/byod) · 모델·attempt 예산.
+- **"회차 열기"** → exam-ops가 §6 GitOps로 0→50 + attempt별 가상키 발급 준비.
+
+**B. 중앙 관제(실시간)**
+- **슬롯 현황**: ready/active/crash (heartbeat 기준 — §3④·§6 健康 3층).
+- **학생별 진행**: 접속·남은시간·재접속(reconnect) — `attempt_events`(§11).
+- **비용**: 가상키별 spend·rate(LiteLLM Admin UI/`/key/info`), 회차 합계.
+- **운영 액션**: 개별 **시간 연장**(`deadline_at` 갱신) · **강제 제출** · 재접속 도움 · 회차 **BYOD 강등**(§6 폴백).
+
+**C. 사후**
+- 제출 현황(received→accepted) · 채점 큐(`grading.jobs`) · 결과·trust.
+
+> ⭐ 관제의 단일 근거는 **앱 heartbeat**(k8s 직접 접속 회피, §6). 대시보드는 DB를 읽고, 변경은 서버 API로만.
+
+---
+
 ## 체크리스트 (단계 게이트)
 - [ ] **S1**: 위 compose로 1인 루프 + 대화 저장 + `PROBLEM_ID` 교체 주입 확인 (Docker만)
 - [ ] **B**: JSON Schema v1 + validator + accepted/rejected fixture + 업로드 UI → submission accepted (S1과 병렬, 먼저)
-- [ ] **S2**: exam-ops git 커밋→ArgoCD sync→heartbeat 폴링→배정→취합→replicas=0, **50 동시 리허설** 통과
+- [ ] **S2**: exam-ops git 커밋→ArgoCD sync→heartbeat 폴링→배정→취합→replicas=0, **50 동시 리허설** 통과 (매니페스트 초안: [3-s2-k8s-skeleton.md](./3-s2-k8s-skeleton.md) · 시스템팀 공유용 운영 개요: [4-exam-serving-overview.md](./4-exam-serving-overview.md))
 - [ ] 문제: scaffold/hidden 분리, 변형 뱅크(유형당 ≥3), 경우 A(부팅 시드) 우선·경우 B(attach 변형) 준비
 - [ ] 보안: egress allowlist, 프록시 강제, 서버측 artifact 해시, trust 서버산출, 부정행위 3종 방어
 - [ ] 폴백: sync 실패/슬롯 부족 시 `delivery_mode='byod'` 자동 강등 검증
