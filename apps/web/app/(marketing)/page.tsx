@@ -3,7 +3,8 @@ import { Button, Icon } from '@app/ui';
 import { MarketingContainer } from './_components/MarketingContainer';
 
 // 랜딩 — 정체성: "챗봇이 아니라 실무 코딩 에이전트(Claude Code·Codex 등)를 그대로 허용하는, 자유도 높은 AI 활용 역량 평가".
-// 관점 둘: 응시자(진짜 활용법을 배우고 증명) + 운영 기관(역량을 끌어올리고 대시보드로 관리).
+// 톤: 희소성("드물다")이 아니라 성장+증명("기르고 증명한다") — 대상(대학생·취준생)에 맞춘 동기.
+// 관점 둘: 응시자(실무 활용 역량을 기르고 증명) + 운영 기관(역량을 끌어올리고 대시보드로 관리).
 // 가치 중심·비개발자 눈높이. 특정 고객(대학) 종속·내부 용어 미노출.
 
 const ALLOWED_TOOLS = ['Claude Code', 'Codex', 'Cursor', 'Gemini CLI'];
@@ -62,12 +63,12 @@ export default function LandingPage() {
                 실무형 AI 활용 역량 평가
               </p>
               <h1 className="cds-heading-07 text-text-primary">
-                AI는 누구나 씁니다.<br />
-                <b className="font-semibold">에이전트까지 다루는 사람</b>은 드뭅니다.
+                AI를 쓰는 것과<br />
+                <b className="font-semibold">AI로 일하는 것</b>은 다릅니다.
               </h1>
               <p className="cds-body-02 text-text-secondary mt-05 max-w-[480px]">
-                객관식 챗봇 테스트가 아닙니다. <b className="text-text-primary">Claude Code·Codex 같은 실무 코딩 에이전트</b>를
-                시험에서 그대로 쓰게 하고, AI와 일한 과정과 결과를 함께 평가합니다.
+                <b className="text-text-primary">Claude Code·Codex 같은 실무 코딩 에이전트</b>를 직접 다루며
+                실무에서 통하는 활용 역량을 기르고, AI와 일한 과정과 결과로 객관적으로 증명하세요.
               </p>
               {/* 허용 도구 칩 — 자유도의 시각적 증거 */}
               <div className="mt-05 flex flex-wrap items-center gap-02">
