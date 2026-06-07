@@ -10,7 +10,7 @@ export const TTL = {
   TEST_CONFIG: 60 * 60, // 1시간
   CONTENT: 60 * 60 * 6, // 6시간
   CONFIG: 60 * 60 * 24, // 안정적 → 24시간
-  // ⭐ AI 채점 결과: 같은 루브릭+같은 답안은 재채점 불필요(reference/03 §7). grading 모듈에서 사용.
+  // ⭐ AI 평가 결과: 같은 루브릭+같은 답안은 재평가 불필요(reference/03 §7). grading 모듈에서 사용.
   AI_GRADE: 60 * 60 * 24 * 30, // 30일
 } as const;
 

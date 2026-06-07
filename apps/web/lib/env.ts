@@ -26,4 +26,16 @@ export const env = {
   get nodeEnv(): string {
     return process.env.NODE_ENV ?? 'development';
   },
+  /**
+   * 세션 쿠키 HMAC 서명 키. 위조 방지(reference/05).
+   * production에서는 필수. dev에서만 불안정 기본값 허용(경고 목적의 고정 문자열).
+   */
+  get sessionSecret(): string {
+    const v = process.env.SESSION_SECRET;
+    if (v) return v;
+    if ((process.env.NODE_ENV ?? 'development') === 'production') {
+      throw new Error('환경변수 SESSION_SECRET 이(가) 설정되지 않았습니다. (세션 서명 키)');
+    }
+    return 'dev-insecure-session-secret-do-not-use-in-prod';
+  },
 } as const;

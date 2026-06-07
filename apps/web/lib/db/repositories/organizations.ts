@@ -53,6 +53,34 @@ export async function listActive(): Promise<Organization[]> {
   return rows.map(mapRow);
 }
 
+/** admin/orgs: 조직 + 학생수 + 회차수(집계 조인 — N+1 회피, reference/09). */
+export interface OrgWithCounts extends Organization {
+  studentCount: number;
+  staffCount: number;
+  batchCount: number;
+}
+
+export async function listWithCounts(): Promise<OrgWithCounts[]> {
+  const rows = await query<OrganizationRow & { student_count: string; staff_count: string; batch_count: string }>(
+    `SELECT o.*,
+            COUNT(DISTINCT m.user_id) FILTER (WHERE m.org_role = 'examinee')  AS student_count,
+            COUNT(DISTINCT m.user_id) FILTER (WHERE m.org_role = 'org_admin') AS staff_count,
+            COUNT(DISTINCT b.id) AS batch_count
+       FROM auth.organizations o
+       LEFT JOIN auth.org_members m ON m.org_id = o.id
+       LEFT JOIN exam.batches b ON b.org_id = o.id
+      WHERE o.is_active
+      GROUP BY o.id
+      ORDER BY o.created_at DESC`,
+  );
+  return rows.map((r) => ({
+    ...mapRow(r),
+    studentCount: Number(r.student_count),
+    staffCount: Number(r.staff_count),
+    batchCount: Number(r.batch_count),
+  }));
+}
+
 export async function create(input: { name: string; code?: string | null }): Promise<Organization> {
   // RETURNING *: INSERT 후 추가 SELECT 없이 트리거가 채운 값까지 한 번에 수신(reference/02 §14).
   const row = await queryOne<OrganizationRow>(
