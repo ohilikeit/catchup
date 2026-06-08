@@ -9,13 +9,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-ATTEMPT="${ATTEMPT_ID:-spike-1}"
-PROBLEM="${PROBLEM_ID:-ainc2026}"
-
-# .env.secret 로드(있으면)
+# .env.secret 로드(있으면) — 운영(argocd)은 vault agent가 주입, 로컬은 cp .env.secret.example .env.secret.
+# 시크릿·런타임 설정을 한 파일에서 읽으므로 ATTEMPT_ID/PROBLEM_ID 기본값보다 먼저 source 한다.
 if [ -f .env.secret ]; then
   set -a; . ./.env.secret; set +a
 fi
+
+ATTEMPT="${ATTEMPT_ID:-spike-1}"
+PROBLEM="${PROBLEM_ID:-ainc2026}"
 : "${LITELLM_MASTER_KEY:=sk-master-dev}"; export LITELLM_MASTER_KEY
 
 # 진짜 Anthropic 키 필수 — 게이트웨이(proxy)에만 보관된다.

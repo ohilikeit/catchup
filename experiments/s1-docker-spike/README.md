@@ -47,7 +47,7 @@ problem-registry/      환경과 분리된 "문제 = 데이터"(§4)
 runtime/<attempt>/     컨테이너에 bind되는 학생 홈(.claude, project) (gitignore)
 out/<attempt>/         회수된 정규화 submission + 봉인 (gitignore)
 docker-compose.yml     exam + proxy(LiteLLM) + litellm-db
-.env.secret            진짜 Anthropic 키 + master key (gitignore)
+.env.secret            진짜 Anthropic 키 + master key + 런타임 설정 (gitignore; 운영은 vault agent 주입)
 ```
 
 ---
@@ -59,6 +59,7 @@ docker-compose.yml     exam + proxy(LiteLLM) + litellm-db
 cd experiments/s1-docker-spike
 cp .env.secret.example .env.secret
 # .env.secret 의 ANTHROPIC_API_KEY 에 진짜 키 입력(게이트웨이에만 보관됨)
+# 운영(argocd)에선 이 파일을 직접 만들지 않는다 — vault agent가 .env.secret 으로 주입한다.
 ```
 
 ### 1) 전체 기동 (한 줄)

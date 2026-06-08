@@ -6,7 +6,8 @@ runtime/*
 out/*
 !out/.gitkeep
 
-# compose가 로드하는 로컬 env + 시크릿(.env.secret.example만 커밋)
+# 로컬/운영 시크릿 — 운영(argocd)은 vault agent가 .env.secret 주입, 로컬은 직접 복사.
+# 템플릿(.env.secret.example)만 커밋한다.
 .env
 .env.secret
 
