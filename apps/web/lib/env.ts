@@ -38,4 +38,22 @@ export const env = {
     }
     return 'dev-insecure-session-secret-do-not-use-in-prod';
   },
+
+  /* ── MinIO(객체 스토리지) — 제출 산출물·대화로그 실체 저장. docs/5 §1·§2. ──
+   * 로컬 기본값은 docker-compose minio 서비스와 일치(그대로 동작). prod는 전부 override. */
+  get minioEndpoint(): string {
+    return process.env.MINIO_ENDPOINT ?? 'localhost';
+  },
+  get minioPort(): number {
+    return Number(process.env.MINIO_PORT ?? 9000);
+  },
+  get minioUseSSL(): boolean {
+    return process.env.MINIO_USE_SSL === 'true';
+  },
+  get minioAccessKey(): string {
+    return process.env.MINIO_ACCESS_KEY ?? 'catchup';
+  },
+  get minioSecretKey(): string {
+    return process.env.MINIO_SECRET_KEY ?? 'catchup-minio';
+  },
 } as const;

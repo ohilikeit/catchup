@@ -147,3 +147,6 @@ vite.config.ts.timestamp-*
 .gstack/
 .omx/
 .lazyweb/
+
+# 로컬 인프라 데이터(docker bind mount) — MinIO 객체 스토리지. 커밋 금지.
+/data/

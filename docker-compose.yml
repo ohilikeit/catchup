@@ -38,6 +38,25 @@ services:
       timeout: 3s
       retries: 10
 
+  minio:
+    image: minio/minio:latest
+    container_name: catchup-minio
+    restart: unless-stopped
+    # S3 호환 객체 스토리지. 제출 산출물·대화로그의 실체 저장(docs/5 §1·§2).
+    # 버킷 생성은 setup.sh(일회성 mc)가 담당 — 앱도 첫 put에서 자동 생성(ensureBucket).
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-catchup}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-catchup-minio}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"           # S3 API (앱이 접속)
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"   # 웹 콘솔(브라우저)
+    volumes:
+      # bind mount: 객체가 레포 안 ./data/minio 에 직접 쌓여 호스트에서 확인 가능(gitignore).
+      # 버킷 1개 = 하위 디렉터리, 객체 = <object>/xl.meta+part(평문 아님). 깔끔한 열람은 콘솔(:9001)/mc.
+      - ./data/minio:/data
+
 volumes:
   catchup-pgdata:
   catchup-redisdata:
+  # minio는 bind mount(./data/minio)로 전환 — 익명 볼륨 미사용(호스트에서 결과 확인 목적).

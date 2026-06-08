@@ -89,10 +89,25 @@ step "의존성 설치 (pnpm install)"
 pnpm install
 ok "워크스페이스 부트스트랩 완료"
 
-# ── 3. DB/캐시 컨테이너 기동 ──────────────────────────────────────────────
-step "PostgreSQL · Redis 컨테이너 기동"
+# ── 3. DB/캐시/스토리지 컨테이너 기동 ──────────────────────────────────────
+step "PostgreSQL · Redis · MinIO 컨테이너 기동"
 $DC up -d
 ok "컨테이너 기동 요청 완료"
+
+# ── 3b. MinIO 버킷 부트스트랩 (일회성 mc — 잔재 컨테이너 없음) ──────────────
+# docs/5 §2: scaffold/hidden/artifacts/chatlogs, 전부 private(서버 자격으로만 접근).
+# minio 컨테이너 네트워크에 붙어 readiness까지 대기 후 생성(멱등). 앱도 첫 put에서 ensureBucket로 자동 생성하므로 실패해도 치명적 아님.
+step "MinIO 버킷 생성"
+MINIO_USER="${MINIO_ROOT_USER:-catchup}"; MINIO_PASS="${MINIO_ROOT_PASSWORD:-catchup-minio}"
+MINIO_NET="$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' catchup-minio 2>/dev/null || true)"
+if [[ -n "$MINIO_NET" ]] && docker run --rm --network "$MINIO_NET" --entrypoint /bin/sh minio/mc:latest -c "
+  until mc alias set local http://minio:9000 '$MINIO_USER' '$MINIO_PASS' >/dev/null 2>&1; do sleep 1; done
+  for b in exam-scaffold exam-hidden exam-artifacts exam-chatlogs; do mc mb -p \"local/\$b\" >/dev/null 2>&1; mc anonymous set none \"local/\$b\" >/dev/null 2>&1; done
+" >/dev/null 2>&1; then
+  ok "버킷 4종 준비(scaffold/hidden/artifacts/chatlogs, 전부 private)"
+else
+  err "MinIO 버킷 자동 생성 실패 — 앱이 첫 put에서 자동 생성하므로 치명적 아님('docker logs catchup-minio'로 확인)"
+fi
 
 # ── 4. Postgres 준비 대기(healthy) ───────────────────────────────────────
 step "PostgreSQL 준비 대기"
