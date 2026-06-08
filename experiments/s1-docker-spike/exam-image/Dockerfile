@@ -30,6 +30,10 @@ RUN runuser -u coder -- code-server --install-extension anthropic.claude-code \
     && echo "[ok] anthropic.claude-code 확장 프리설치됨" \
     || echo "[warn] 확장 프리설치 실패(Open VSX 미존재/네트워크 가능) — 런타임 GUI로 설치 폴백"
 
+# code-server User 설정 주입: 내장 VS Code "Chat"(AI 기능)을 끄고 Claude Code 사이드바만 노출(학생 혼동 방지).
+# User 디렉터리는 위 확장 프리설치 단계에서 생성된다(--chown으로 없을 때도 coder 소유로 생성).
+COPY --chown=coder:coder code-server-settings.json /home/coder/.local/share/code-server/User/settings.json
+
 # entrypoint는 root로 시작해 bind mount 권한을 정리한 뒤 coder로 강등 재실행한다(스크립트 내부 로직).
 COPY --chmod=0755 seed-and-start.sh /usr/local/bin/seed-and-start.sh
 
