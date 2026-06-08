@@ -8,7 +8,7 @@
 
 ## 핵심 한 줄
 **3개 셸(마케팅 / 시험 런타임 / 대시보드) · 3개 청중(학생 / 학교담당자(고객) / 관리자(사내)), 단일 Next.js 앱.
-뼈대의 진짜 seam = "accepted된 정규화 Submission(+불변 problem version + 출처/신뢰 메타)". 제공 방식(hosted vs byod)과
+뼈대의 진짜 seam = "accepted된 정규화 Submission(+불변 problem version + 출처/신뢰 메타)". 제공 방식(hosted)과
 평가·리포트는 이 seam 바깥의 교체·후속 모듈이라, 바뀌어도 스키마·역할·대시보드·웹 기획은 그대로.**
 
 ---
@@ -24,8 +24,8 @@
 - **이미 2개 대학 계약, 9월 오픈.** 동시 응시 **최대 50명/회차(벌크)**.
 - ⭐ **지금 범위 = 뼈대.** 평가·평가 리포트는 **별도 모듈**(자체 `grading` schema·기능·페이지). 코어는 `accepted된
   submission`이라는 **입구**까지만. 그 위(평가·점수·리포트)는 나중에 붙인다.
-- ⭐ **제공 방식은 코어 바깥:** 코어는 submission만 소비한다. attempt는 `delivery_mode` *셀렉터*만 가질 뿐, submission
-  하류(평가·리포트·대시보드)는 제공 방식을 모른다. 호스팅이 막히면 BYOD로 내려도 하류 무변경. (→ §5)
+- ⭐ **제공 방식은 코어 바깥:** 코어는 submission만 소비한다. submission 하류(평가·리포트·대시보드)는 제공 방식을 모른다.
+  전달방식은 hosted 단일이며, 어댑터 계약(attempt → accepted submission)만 지키면 하류는 무변경. (→ §5)
 - **상태:** 디자인 시스템·docs 토대 완성, 앱은 쇼케이스 단계(그린필드).
 
 ---
@@ -48,7 +48,7 @@ app/
 ├── (exam)/                      # 학생 시험 런타임. 풀스크린. 셸 없음
 │   └── exam/[attemptId]/
 │       ├── intro/page.tsx       # 시작 전 안내·규칙·환경 점검
-│       ├── page.tsx             # ⭐ 시험 진행 — delivery_mode로 분기(§4·§5)
+│       ├── page.tsx             # ⭐ 시험 진행 — hosted 런타임(§4·§5)
 │       └── done/page.tsx        # 제출 완료
 │
 ├── showcase/                    # ⚠️ dev 전용 — 디자인 시스템 컴포넌트 쇼케이스(프로덕션 미노출)
@@ -81,7 +81,7 @@ app/
 - [ ] 셸 = props 주입형 순수 부품, 비즈니스 로직 없음 / 초기데이터 서버fetch, 상호작용 zustand
 - [ ] 골격 먼저(라우트·메뉴+ComingSoon), mock fallback. `@app/ui` 킷으로 조립
 - [ ] ⭐ 뼈대 화면은 **점수/리포트를 모른다**(진행·제출 현황만). 점수·리포트 route는 평가 모듈이 소유
-- [ ] ⭐ delivery_mode 분기는 오직 `exam/[attemptId]` 한 곳
+- [ ] ⭐ 시험 런타임(hosted)은 오직 `exam/[attemptId]` 한 곳
 
 ---
 
@@ -109,7 +109,7 @@ org_admin ── org_members(org_role) ── organization   (자기 org만)
       (한 사람이 여러 org에 속해도 누수 없게) — A대학이 B대학 못 봄
 - [ ] 백엔드 역할 재검사 필수(프론트는 UX). 핸들러 래퍼 `requireRole` + org 소유권 체크
 - [ ] 영업 시연도 `admin` 로그인이되 **demo org/읽기전용 데이터**로(실데이터 PII 보호). 파괴행위는 step-up 확인
-- [ ] 역할 모델은 delivery_mode와 무관
+- [ ] 역할 모델은 제공 방식과 무관
 
 **온보딩 방식(채택):** 관리자 사전 발급형 — 두 경로 모두 신규 계정에 임시비밀번호 1회 노출 → 전달, 첫 로그인 시 `change-password` 강제 변경.
   ① **담당자(org_admin)**: admin이 `admin/orgs` "담당자 발급"으로 기관·이름·이메일 입력 → org_admin 계정 생성(기존 이메일이면 권한만 부여).
@@ -161,7 +161,6 @@ CREATE TABLE exam.batches (
   org_id UUID NOT NULL REFERENCES auth.organizations(id) ON DELETE RESTRICT,
   name TEXT NOT NULL,
   problem_version_id UUID NOT NULL REFERENCES exam.problem_versions(id) ON DELETE RESTRICT,  -- 불변 FK
-  delivery_mode TEXT NOT NULL DEFAULT 'hosted' CHECK (delivery_mode IN ('hosted','byod')),
   capacity INT NOT NULL DEFAULT 50,                  -- 동시 응시 상한(회차). 인원 많으면 회차 분할
   status TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled','open','closed')),
   scheduled_at TIMESTAMPTZ, opened_at TIMESTAMPTZ, closed_at TIMESTAMPTZ,
@@ -171,7 +170,6 @@ CREATE TABLE exam.attempts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   batch_id UUID NOT NULL REFERENCES exam.batches(id) ON DELETE RESTRICT,
   examinee_id TEXT NOT NULL,                          -- auth.users.id (약한참조)
-  delivery_mode TEXT NOT NULL DEFAULT 'hosted' CHECK (delivery_mode IN ('hosted','byod')),  -- 셀렉터(회차 상속)
   status TEXT NOT NULL DEFAULT 'ready'                -- ⭐ 평가상태 없음(grading 모듈 소관)
     CHECK (status IN ('ready','running','submitted','expired','void')),
   starts_at TIMESTAMPTZ, deadline_at TIMESTAMPTZ,     -- ⭐ 서버강제 마감(제출 API가 트랜잭션서 재판정)
@@ -187,9 +185,9 @@ CREATE TABLE exam.submissions (
   status TEXT NOT NULL DEFAULT 'received'
     CHECK (status IN ('received','validating','accepted','rejected')),
   tool TEXT, chat_format_version INT NOT NULL DEFAULT 1,
-  captured_via TEXT NOT NULL CHECK (captured_via IN ('proxy','upload')),
-  trust TEXT NOT NULL DEFAULT 'unverified'            -- ⭐ 서버가 어댑터 신원으로만 산출(클라 설정 불가)
-    CHECK (trust IN ('verified','unverified')),
+  captured_via TEXT NOT NULL CHECK (captured_via IN ('proxy')),   -- hosted 프록시 캡처 단일(0009)
+  trust TEXT NOT NULL DEFAULT 'verified'              -- ⭐ 서버가 어댑터 신원으로만 산출(클라 설정 불가)
+    CHECK (trust IN ('verified')),
   validation_error TEXT, accepted_at TIMESTAMPTZ, submitted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -208,7 +206,7 @@ CREATE TABLE exam.attempt_events (                    -- 감사/관측 (append-o
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- hosted 어댑터 전용 (별도 schema! BYOD면 이 schema 자체가 안 쓰임)
+-- hosted 어댑터 전용 (별도 schema! 코어는 이 schema를 모름)
 CREATE TABLE hosted.slots (
   batch_id UUID NOT NULL REFERENCES exam.batches(id) ON DELETE CASCADE,
   slot_no INT NOT NULL,
@@ -230,7 +228,9 @@ CREATE INDEX idx_subfile_sub   ON exam.submission_files(submission_id);
 CREATE INDEX idx_evt_att       ON exam.attempt_events(attempt_id, created_at);
 ```
 
-- ⭐ **slot_no가 attempts에서 빠지고 `hosted` schema로 격리** → BYOD면 hosted 자체가 무관, attempt 멀쩡.
+> ⚠️ 위 DDL은 **0009(BYOD 폐기) 반영본**이다: `batches`/`attempts`의 `delivery_mode` 제거, `submissions.captured_via`=`proxy`만, `trust`=`verified`만(기본 verified). 원본 `0003`에는 byod 값이 있었으나 [`0009_drop_byod.sql`](../db/migrations/0009_drop_byod.sql)에서 제거됐다.
+
+- ⭐ **slot_no가 attempts에서 빠지고 `hosted` schema로 격리** → 호스팅 인프라가 코어와 독립, attempt는 무관하게 유지.
 - ⭐ **CASCADE 축소:** org/batch/problem은 `ON DELETE RESTRICT` + `is_active` soft-delete(시험·분쟁·재현 데이터 보호).
   CASCADE는 "같이 죽는" attempt→submissions/events에만.
 - 계정 발급: `admin/batches` **로스터 CSV import**(아래 운영 표) → users + org_members(examinee) + attempts 멱등 생성.
@@ -242,21 +242,19 @@ CREATE INDEX idx_evt_att       ON exam.attempt_events(attempt_id, created_at);
 
 ## 4. 핵심 사용자 플로우
 
-**학생 응시 — 제출까지 delivery 무관, 진행 화면만 분기**
+**학생 응시 — hosted 단일 런타임**
 ```
 로그인 → my/exams → [시작](starts_at·deadline_at 서버설정) → exam/[id]/intro(규칙·환경점검)
- → exam/[id]  ── delivery_mode 분기:
-      hosted: 웹 IDE iframe(code-server+claude code) · 카운트다운 · [제출]
-      byod  : scaffold 다운로드 + (외부 스크립트로 추출한) 대화/산출물 업로드 · [제출]
+ → exam/[id]  ── hosted: 웹 IDE iframe(code-server+claude code) · 카운트다운 · [제출]
  → 서버가 deadline 재판정 → submission(received→validating→accepted/rejected) → done → (평가 모듈 후) reports
 ```
 **학교담당자(고객)**: org/dashboard(자기 대학 응시·제출 현황) → org/students → org/students/[id]
-**관리자(사내)**: admin/orgs → admin/batches(개설·로스터 import·계정·delivery_mode) → 운영 → admin/submissions(검증 현황). 영업 시연=demo org
+**관리자(사내)**: admin/orgs → admin/batches(개설·로스터 import·계정) → 운영 → admin/submissions(검증 현황). 영업 시연=demo org
 **영업 시연(비로그인)**: (marketing) 랜딩 → how-it-works → sample-report
 
 체크리스트
-- [ ] 분기는 `exam/[id]` 한 화면뿐. intro/done/대시보드는 delivery·점수를 모름
-- [ ] 제한시간 = **서버 강제**: `deadline_at` 기준, 제출 API가 트랜잭션서 재판정(만료=hosted 접속차단/byod 업로드거부). 관리자 연장은 이벤트로 기록
+- [ ] 시험 런타임은 `exam/[id]` 한 화면뿐. intro/done/대시보드는 점수를 모름
+- [ ] 제한시간 = **서버 강제**: `deadline_at` 기준, 제출 API가 트랜잭션서 재판정(만료=hosted 접속차단). 관리자 연장은 이벤트로 기록
 - [ ] 상태 화면 전부: 로딩/빈(0명·미시작)/에러(컨테이너 실패·업로드 실패·검증 실패)/부분/성공
 - [ ] 온보딩: **관리자 사전 발급형**(로스터 CSV import → 임시비번 발급 → 학생 전달 → 첫 로그인 시 `change-password` 강제). 자체 회원가입·매직링크는 미채택. — §아래 운영 표
 - [ ] 시험 화면 모바일 비대상 → 모바일 접속 차단 안내. 그 외 반응형(08)
@@ -273,16 +271,16 @@ CREATE TABLE ops.roster_import_rows (id BIGSERIAL PK, import_id UUID, raw JSONB,
 
 ## 5. ⭐ 제공 방식과 코어의 분리 (Delivery Adapter)
 
-**원칙(정확히):** 코어 attempt는 `delivery_mode` **셀렉터**를 가진다. 하지만 submission **하류**(평가·리포트·대시보드·웹)는
-제공 방식을 모른다. 어댑터의 계약 = "attempt에 대해 **accepted된 정규화 Submission**(대화로그+산출물+출처+신뢰)을 만든다."
+**원칙(정확히):** submission **하류**(평가·리포트·대시보드·웹)는 제공 방식을 모른다. 어댑터의 계약 =
+"attempt에 대해 **accepted된 정규화 Submission**(대화로그+산출물+출처+신뢰)을 만든다." 전달방식은 hosted 단일이다(BYOD 폐기).
 
 ```
         ┌──────────── 코어 ────────────┐        ┌─ 후속 모듈 ─┐
-정체성/역할/org · 회차/응시(+delivery 셀렉터) · submissions ─→ │ 평가·리포트  │ → 대시보드/웹
+정체성/역할/org · 회차/응시 · submissions ─→ │ 평가·리포트  │ → 대시보드/웹
         └──────▲───────────────────────┘        └────────────┘
-               │ 계약: attempt → accepted Submission   (하류는 delivery 모름)
+               │ 계약: attempt → accepted Submission   (하류는 제공 방식 모름)
    ┌───────────┴───────────┐
-[A: hosted] proxy,verified   [B: byod] upload,unverified
+            [hosted] proxy, verified
 ```
 
 ### 5.0 정규화 대화 로그 포맷 (linchpin — v1 스키마 파일로 고정 + contract test = P0)
@@ -290,29 +288,25 @@ CREATE TABLE ops.roster_import_rows (id BIGSERIAL PK, import_id UUID, raw JSONB,
 { "version":1, "tool":"claude-code", "model":"...",
   "messages":[ {"id":"...","index":0,"role":"user|assistant","content":"...","ts":"...",
                 "tool_calls":[...],"attachments":[...]} ],
-  "meta":{ "attemptId":"...","source":"proxy|export-script","sourceHash":"sha256:..." } }
+  "meta":{ "attemptId":"...","source":"proxy","sourceHash":"sha256:..." } }
 ```
-- 프록시·BYOD 스크립트 **둘 다 이 스키마**로 출력. 플랫폼은 **JSON Schema 검증 + accepted/rejected fixture + validator**를
-  P0로 보유(스크립트 구현은 외부지만 **출력 계약 검증은 플랫폼 책임**). 평가 모듈은 이 한 포맷만 소비.
+- 호스팅 프록시가 **이 스키마**로 출력. 플랫폼은 **JSON Schema 검증 + accepted/rejected fixture + validator**를
+  P0로 보유(**출력 계약 검증은 플랫폼 책임**). 평가 모듈은 이 한 포맷만 소비.
 
-### 5.1 어댑터 A — hosted (premium, 9월 목표)
+### 5.1 어댑터 — hosted (premium, 9월 목표)
 ```
 학생 브라우저 → exam 페이지(iframe 래퍼) → 격리 컨테이너[code-server + claude code(BASE_URL→프록시) + scaffold]
  → LLM 프록시(우리 키·attempt_id 태깅·전 요청응답 로깅·비용상한·egress allowlist) → 정규화 → submission(proxy, 서버가 trust 판정)
 ```
-- 이미지(환경)↔문제(데이터) 분리, `PROBLEM_ID`로 시드. **풀 단위 스케일 0↔50**(동시-창). 健康 3층(ArgoCD 배포 / k8s probe 자동치유 / 앱 heartbeat 배정). seeder 부팅 wipe+재시드로 초기화. 자원·매니페스트·GitOps 운영 경로(누가 manifest 커밋·sync polling·실패 시 BYOD 전환)는 **`2-exam-environment.md`로** 위임.
+- 이미지(환경)↔문제(데이터) 분리, `PROBLEM_ID`로 시드. **풀 단위 스케일 0↔50**(동시-창). 健康 3층(ArgoCD 배포 / k8s probe 자동치유 / 앱 heartbeat 배정). seeder 부팅 wipe+재시드로 초기화. 자원·매니페스트·GitOps 운영 경로(누가 manifest 커밋·sync polling·장애 복구)는 **`2-exam-environment.md`로** 위임.
 - ⚠️ proxy라고 무조건 신뢰 아님: **egress allowlist + per-attempt 로그 무결성 + 서버측 artifact 패키징/해시**가 verified의 전제(§11).
 
-### 5.2 어댑터 B — byod (안전망, 1급)
-- 학생: scaffold 다운로드 → 본인 PC 풀이 → **내보내기 스크립트(`.sh`, 외부 제공)**로 정규화 추출 → 업로드 → 제출.
-- 서버: 검증(스키마·크기·MIME·sha256) 후 submission(upload, trust='unverified'). 플랫폼 범위 = **수신·검증·적재**(스크립트 자체는 밖, 단 **계약 검증/fixture는 P0**).
+### 5.2 신뢰 모델
+- **trust는 서버가 어댑터 신원에서만 산출**(클라가 못 정함). 호스팅 proxy 캡처는 서버가 대화를 직접 산출하므로 `verified`(단 §5.1 전제).
+- (후속) 평가·리포트는 `submissions.trust`로 신뢰배지를 붙인다. 신뢰는 어댑터 신원에서만 나오므로 코어 스키마에 `trust`로 박는다.
 
-### 5.3 신뢰 모델
-- **trust는 서버가 어댑터 신원에서만 산출**(클라가 못 정함). proxy=verified(단 §5.1 전제), upload=unverified(위조 가능).
-- (후속) 평가·리포트는 `submissions.trust`로 신뢰배지. BYOD는 "결과(산출물)" 객관 평가은 유효, "과정(대화)"은 신뢰 표기+휴리스틱 보강. 이 분리 없으면 BYOD 전환 시 리포트 신뢰도가 조용히 무너짐 → `trust`로 코어에 박음.
-
-> **성숙 단계:** ① 로컬 Docker 스파이크(어댑터 A 핵심 루프, Docker만) → ② 사내망 k3s+ArgoCD 스케일 풀(git만) →
-> ③ 동시 batch 50 초과 시 동적 오케스트레이터. **어댑터 B는 ①과 병렬 상시 준비**(A가 막혀도 출시). 상세 = `2-exam-environment.md`(예정).
+> **성숙 단계:** ① 로컬 Docker 스파이크(hosted 핵심 루프, Docker만) → ② 사내망 k3s+ArgoCD 스케일 풀(git만) →
+> ③ 동시 batch 50 초과 시 동적 오케스트레이터. 상세 = `2-exam-environment.md`.
 
 ---
 
@@ -320,11 +314,11 @@ CREATE TABLE ops.roster_import_rows (id BIGSERIAL PK, import_id UUID, raw JSONB,
 
 | 우선 | 화면 | 비고 |
 |---|---|---|
-| P0 | `exam/[attemptId]`(분기)+intro/done | hosted=화면 자리표시(인프라 미구현) / byod=동작. submission(accepted) 흐름 |
+| P0 | `exam/[attemptId]`(hosted)+intro/done | hosted=화면 자리표시(인프라 미구현). submission(accepted) 흐름 |
 | P0 | `login` + 역할 라우팅 | ROLE_HOME. bcrypt+HMAC 서명 세션 구현 완료 |
 | P0 | `change-password` | 첫 로그인 임시비번 변경. 구현 완료 |
-| P0 | `admin/batches` 개설 + 로스터 import·계정 + delivery_mode | 운영 진입점. `admin/batches/[id]` 상세(운영 액션·attempt_events 타임라인) 포함 |
-| P0 | 정규화 포맷 **validator + fixture**(비-UI) | seam 무결성. BYOD/hosted 공통 입구 |
+| P0 | `admin/batches` 개설 + 로스터 import·계정 | 운영 진입점. `admin/batches/[id]` 상세(운영 액션·attempt_events 타임라인) 포함 |
+| P0 | 정규화 포맷 **validator + fixture**(비-UI) | seam 무결성. hosted 프록시 출력 검증 |
 | P1 | `org/dashboard`,`org/students(/[id])` | 자기 대학 응시·제출 현황. `org/students/[id]` 실데이터 구현 완료(점수는 평가 모듈 후 placeholder) |
 | P1 | `org/batches/[id]` | 회차 상세 — 응시자 목록·제출 현황 |
 | P1 | `(marketing)` 랜딩 + `sample-report` | 영업 자료 |
@@ -340,8 +334,8 @@ CREATE TABLE ops.roster_import_rows (id BIGSERIAL PK, import_id UUID, raw JSONB,
 
 - **Phase 0~3**(뼈대·DB·인증·UI): 00 그대로. + 역할 `org_admin`(org_members.org_role), 테이블 org/problem(+version)/batch/
   attempt/**submissions(+files)**/attempt_events/ops.roster_*, hosted.slots(어댑터 전용).
-- **Phase 4**(페이지): §1 사이트맵 골격 → P0부터. `exam/[id]`는 delivery 분기. 화면은 진행·제출 중심.
-- **제공 어댑터(병렬)**: B(byod) = 검증·수신·적재 **먼저(안전망)** / A(hosted, 크리티컬) = Docker 스파이크 → 프록시·seeder → 런타임 → k3s 풀 → 50 동시 리허설.
+- **Phase 4**(페이지): §1 사이트맵 골격 → P0부터. `exam/[id]`는 hosted 런타임. 화면은 진행·제출 중심.
+- **제공 어댑터(hosted, 크리티컬)**: Docker 스파이크 → 프록시·seeder → 런타임 → k3s 풀 → 50 동시 리허설.
 - **평가·리포트 모듈(별도 트랙, 본 문서 밖)**: `grading` schema·평가·리포트 페이지. 입력 = `accepted` submission + problem_version.
 - **운영/법**: PII 동의·보관(대화로그·submission), "취업 활용" 문구 톤다운, 운영 런북(on-call·장애·슬롯/업로드 실패·import 오류).
 
@@ -349,14 +343,13 @@ CREATE TABLE ops.roster_import_rows (id BIGSERIAL PK, import_id UUID, raw JSONB,
 
 ## 8. 스코프 경계
 
-**In(뼈대):** 3청중 웹, 코어(org/problem+version/batch/attempt/**accepted submission+files**), 2개 어댑터의 플랫폼 측
-(hosted 연동 + byod 수신·검증·적재), 정규화 포맷 검증(validator/fixture/contract), 로스터 import·온보딩.
+**In(뼈대):** 3청중 웹, 코어(org/problem+version/batch/attempt/**accepted submission+files**), hosted 어댑터의 플랫폼 측
+(hosted 연동·프록시 캡처), 정규화 포맷 검증(validator/fixture/contract), 로스터 import·온보딩.
 **Out(별도/보류):**
 - ⛔ **평가·평가 리포트 모듈은 이 사이트(웹 플랫폼)에 포함하지 않는다.** 별도 외부 시스템(**AI-TEST 평가 시스템**)이
   `accepted submission`을 입력으로 받아 평가하고 **리포트(HTML→PDF)를 생성**한다. 이 사이트는 그 결과를 **보여주거나
   링크**할 뿐이며, `grading` schema·평가 로직·점수 계산은 이 레포에 두지 않는다. 뼈대는 `accepted submission`까지.
   - 사이트 내 `my/reports/[id]`는 외부 리포트 자리표시(실 DB 메타만), `sample-report`는 **외부 리포트의 예시(정적 재현)**.
-- BYOD **내보내기 스크립트(`.sh`)** — 외부 제공(계약 검증만 플랫폼).
 - hosted **인프라 상세**(자원·매니페스트·GitOps 운영 경로) → `2-exam-environment.md`.
 - 출제 작성 도구, 기획 외 직무, 1기 백분위(절대점수+목표 60), 구독 선물(API키), per-student 동적 오케스트레이터.
 
@@ -366,11 +359,11 @@ CREATE TABLE ops.roster_import_rows (id BIGSERIAL PK, import_id UUID, raw JSONB,
 ① 경계를 이름으로 — route group·역할·DB schema(+`hosted` 분리)·코어/어댑터/평가 3분리 ② 불변식은 DB가 —
 `uq_attempt`, `submissions.attempt_id UNIQUE`, `slots.attempt_id UNIQUE`, problem_version 불변 FK, RESTRICT+soft-delete,
 FK·CHECK ③ 단순함은 선택 — 사내 1역할(admin), 풀 스케일링, 평가·인프라 분리 ④ 패턴 > 도구 — 06/04/02 이식
-⑤ 클라 입력은 적대적 — deadline·소유권·**trust는 서버가 판정**, hidden은 코어에 없음, 업로드는 unverified.
+⑤ 클라 입력은 적대적 — deadline·소유권·**trust는 서버가 판정**, hidden은 코어에 없음, trust는 어댑터 신원에서만 산출.
 
-> ⭐ **분리 세 줄:** (1) 하류(평가·리포트·대시보드·웹)는 delivery를 모른다 — attempt의 셀렉터만 바뀜. (2) 뼈대의 끝 =
+> ⭐ **분리 세 줄:** (1) 하류(평가·리포트·대시보드·웹)는 제공 방식을 모른다 — 어댑터 계약만 지키면 됨. (2) 뼈대의 끝 =
 > `accepted submission(+불변 problem version + 출처/trust)`; 평가·리포트는 그걸 입력으로 하는 별도 모듈. (3) hosted 인프라는
-> `hosted` schema + §11로 격리 — BYOD로 가면 통째로 비활성, 코어 무변경.
+> `hosted` schema + §11로 격리 — 코어는 그 schema를 모르고, 인프라가 바뀌어도 코어 무변경.
 
 ---
 
@@ -393,8 +386,7 @@ FK·CHECK ③ 단순함은 선택 — 사내 1역할(admin), 풀 스케일링, �
 | `org/batches(/[id])` | 현황 화면 구현 | 상세 포함 |
 | `admin/batches(/[id])` | 완료 | 개설·로스터 import·계정 발급. 상세에 운영 액션(연장/무효) + attempt_events 타임라인 |
 | `admin/submissions(/[id])` | 검증 현황 구현 | 평가 결과는 평가 모듈 소관 |
-| `exam/[id]` (hosted) | 화면 자리표시 | 인프라(컨테이너·프록시) 미구현 |
-| `exam/[id]` (byod) | 동작 | scaffold 다운로드 + 업로드 → submission 흐름 |
+| `exam/[id]` (hosted) | 화면 자리표시 | 인프라(컨테이너·프록시) 미구현. 전달방식 hosted 단일(BYOD 폐기) |
 | 평가·리포트 모듈 | **이 사이트 밖** | 외부 AI-TEST 시스템이 평가·리포트(HTML→PDF) 생성. 사이트는 결과만 표시/링크 |
 | `sample-report` | 완료(외부 리포트 예시 재현) | report_예시 기반 정적 문서(마룬/오렌지), 인쇄→PDF 가능 |
 | `showcase` / `console` | dev 전용 | 디자인 쇼케이스·프로토타입. 프로덕션 미노출 |

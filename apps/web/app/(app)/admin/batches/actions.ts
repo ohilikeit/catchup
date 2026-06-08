@@ -4,22 +4,21 @@ import { requireGlobalRole } from '@/lib/auth/guard';
 import { batchesRepo } from '@/lib/db';
 import * as batchService from '@/lib/services/batchService';
 import { parseRosterXlsx } from '@/lib/services/xlsxRoster';
-import type { DeliveryMode, BatchStatus } from '@/lib/db/repositories/batches';
+import type { BatchStatus } from '@/lib/db/repositories/batches';
 
 export async function createBatchAction(formData: FormData) {
   const session = await requireGlobalRole('admin');
   const orgId = formData.get('orgId') as string;
   const name = (formData.get('name') as string).trim();
   const problemVersionId = formData.get('problemVersionId') as string;
-  const deliveryMode = formData.get('deliveryMode') as DeliveryMode;
   const capacityRaw = formData.get('capacity') as string;
   const capacity = capacityRaw ? Number(capacityRaw) : undefined;
 
-  if (!orgId || !name || !problemVersionId || !deliveryMode) {
+  if (!orgId || !name || !problemVersionId) {
     throw new Error('필수 항목을 모두 입력하세요.');
   }
 
-  await batchService.createBatch({ orgId, name, problemVersionId, deliveryMode, capacity });
+  await batchService.createBatch({ orgId, name, problemVersionId, capacity });
   revalidatePath('/admin/batches');
 }
 
@@ -54,7 +53,6 @@ export async function importRosterAction(batchId: string, csvText: string) {
   const summary = await batchService.importRoster({
     batchId,
     orgId: batch.orgId,
-    deliveryMode: batch.deliveryMode,
     rows,
     createdBy: session.userId,
   });
@@ -81,7 +79,6 @@ export async function importRosterXlsxAction(batchId: string, formData: FormData
   const summary = await batchService.importRoster({
     batchId,
     orgId: batch.orgId,
-    deliveryMode: batch.deliveryMode,
     rows,
     createdBy: session.userId,
   });

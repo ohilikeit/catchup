@@ -8,7 +8,7 @@ import { cacheService, TTL } from '../cache';
 import { hashPassword, genTempPassword } from '../auth/password';
 import type { Session } from '../auth/session';
 import { myOrgAdminIds } from '../auth/guard';
-import type { BatchListItem, DeliveryMode } from '../db/repositories/batches';
+import type { BatchListItem } from '../db/repositories/batches';
 
 // batchService — 회차 목록(스코프)·개설·로스터 import. route는 얇게, 스코프/트랜잭션은 여기서.
 // 캐시: 회차 현황은 실시간성 중요 → 짧은 TTL(BATCH_STATUS=30s), 쓰기 후 invalidate(reference/03 §4).
@@ -51,7 +51,6 @@ export async function createBatch(input: {
   orgId: string;
   name: string;
   problemVersionId: string;
-  deliveryMode: DeliveryMode;
   capacity?: number;
   scheduledAt?: Date | null;
 }) {
@@ -100,7 +99,6 @@ export interface ImportSummary {
 export async function importRoster(input: {
   batchId: string;
   orgId: string;
-  deliveryMode: DeliveryMode;
   rows: RosterRow[];
   createdBy: string | null;
 }): Promise<ImportSummary> {
@@ -137,7 +135,6 @@ export async function importRoster(input: {
         const attemptCreated = await attemptsRepo.ensureAttemptTx(client, {
           batchId: input.batchId,
           examineeId: userId,
-          deliveryMode: input.deliveryMode,
         });
         // 신규 계정이면 전달용 자격증명 노출(평문 1회).
         if (userCreated) {

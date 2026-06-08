@@ -1,10 +1,9 @@
 import 'server-only';
 import { query, queryOne } from '../pool';
 
-// batches repository — 회차(=동시 50명 한 창). delivery_mode는 셀렉터(하류는 모름, docs/1 §5).
+// batches repository — 회차(=동시 50명 한 창). 전달방식은 hosted 단일(docs/1 §5).
 // 목록 쿼리는 org/problem 조인 + attempt/submission 집계로 N+1을 피한다(reference/09).
 
-export type DeliveryMode = 'hosted' | 'byod';
 export type BatchStatus = 'scheduled' | 'open' | 'closed';
 
 export interface Batch {
@@ -12,7 +11,6 @@ export interface Batch {
   orgId: string;
   name: string;
   problemVersionId: string;
-  deliveryMode: DeliveryMode;
   capacity: number;
   status: BatchStatus;
   scheduledAt: Date | null;
@@ -27,7 +25,6 @@ interface BatchRow {
   org_id: string;
   name: string;
   problem_version_id: string;
-  delivery_mode: DeliveryMode;
   capacity: number;
   status: BatchStatus;
   scheduled_at: Date | null;
@@ -43,7 +40,6 @@ function mapRow(r: BatchRow): Batch {
     orgId: r.org_id,
     name: r.name,
     problemVersionId: r.problem_version_id,
-    deliveryMode: r.delivery_mode,
     capacity: r.capacity,
     status: r.status,
     scheduledAt: r.scheduled_at,
@@ -62,7 +58,6 @@ export interface BatchListItem {
   orgName: string;
   problemTitle: string;
   problemVersion: number;
-  deliveryMode: DeliveryMode;
   capacity: number;
   status: BatchStatus;
   scheduledAt: Date | null;
@@ -104,7 +99,6 @@ function mapListRow(r: BatchListRow): BatchListItem {
     orgName: r.org_name,
     problemTitle: r.problem_title,
     problemVersion: r.problem_version,
-    deliveryMode: r.delivery_mode,
     capacity: r.capacity,
     status: r.status,
     scheduledAt: r.scheduled_at,
@@ -161,18 +155,16 @@ export async function create(input: {
   orgId: string;
   name: string;
   problemVersionId: string;
-  deliveryMode: DeliveryMode;
   capacity?: number;
   scheduledAt?: Date | null;
 }): Promise<Batch> {
   const row = await queryOne<BatchRow>(
-    `INSERT INTO exam.batches (org_id, name, problem_version_id, delivery_mode, capacity, scheduled_at)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    `INSERT INTO exam.batches (org_id, name, problem_version_id, capacity, scheduled_at)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
     [
       input.orgId,
       input.name,
       input.problemVersionId,
-      input.deliveryMode,
       input.capacity ?? 50,
       input.scheduledAt ?? null,
     ],

@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { Breadcrumb, MetricGrid, MetricTile } from '@app/ui';
 import { requireAudience } from '@/lib/auth/guard';
 import { getBatchDetailForViewer } from '@/lib/services/batchService';
-import { PageHead, BatchStatusTag, DeliveryTag } from '../../../_components/ui';
+import { PageHead, BatchStatusTag } from '../../../_components/ui';
 import { OrgBatchRosterClient } from './OrgBatchRosterClient';
 
 export default async function OrgBatchDetailPage({
@@ -31,7 +31,6 @@ export default async function OrgBatchDetailPage({
         sub={subLine}
         action={
           <div className="flex items-center gap-03">
-            <DeliveryTag mode={detail.deliveryMode} />
             <BatchStatusTag status={detail.status} />
           </div>
         }

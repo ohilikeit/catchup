@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { Breadcrumb, MetricGrid, MetricTile, Button } from '@app/ui';
 import { requireGlobalRole } from '@/lib/auth/guard';
 import { getBatchDetailForViewer } from '@/lib/services/batchService';
-import { PageHead, BatchStatusTag, DeliveryTag } from '../../../_components/ui';
+import { PageHead, BatchStatusTag } from '../../../_components/ui';
 import { AdminBatchRosterClient } from './AdminBatchRosterClient';
 import { setBatchStatusAction } from './actions';
 
@@ -53,7 +53,6 @@ export default async function AdminBatchDetailPage({
         sub={subLine}
         action={
           <div className="flex items-center gap-03">
-            <DeliveryTag mode={detail.deliveryMode} />
             <BatchStatusTag status={detail.status} />
             {canOperate && detail.status === 'scheduled' && (
               <BatchStatusForm batchId={detail.id} status="open" label="시작" kind="primary" />

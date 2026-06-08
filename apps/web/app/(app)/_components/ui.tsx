@@ -93,19 +93,12 @@ export function SubmissionStatusTag({ status }: { status: string | null }) {
   return <Tag color={s.color} icon={s.icon}>{s.label}</Tag>;
 }
 
-export function DeliveryTag({ mode }: { mode: string }) {
-  return mode === 'hosted' ? (
-    <Tag color="purple">호스팅</Tag>
-  ) : (
-    <Tag color="teal">BYOD</Tag>
-  );
-}
-
 export function TrustTag({ trust }: { trust: string }) {
+  // 전달 경로는 hosted(proxy) 단일 → 제출은 항상 검증됨(verified). 방어적으로 라벨만 분기.
   return trust === 'verified' ? (
     <Tag color="green" icon="checkmark-filled">검증됨</Tag>
   ) : (
-    <Tag color="gray">미검증</Tag>
+    <Tag color="gray">{trust}</Tag>
   );
 }
 

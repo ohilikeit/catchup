@@ -9,7 +9,6 @@ import {
   ComingSoon,
   AttemptStatusTag,
   SubmissionStatusTag,
-  DeliveryTag,
 } from '../../../_components/ui';
 
 // org/students/[id] — 학생 상세(실데이터). org_admin이 자기 org 소속 학생만 조회 가능.
@@ -79,7 +78,6 @@ export default async function OrgStudentDetailPage({
                 <tr className="border-b border-border-subtle-01 bg-layer-03">
                   <th className="text-left text-text-secondary px-04 py-03 font-normal whitespace-nowrap">과제</th>
                   <th className="text-left text-text-secondary px-04 py-03 font-normal whitespace-nowrap">회차</th>
-                  <th className="text-left text-text-secondary px-04 py-03 font-normal whitespace-nowrap">제공</th>
                   <th className="text-left text-text-secondary px-04 py-03 font-normal whitespace-nowrap">상태</th>
                   <th className="text-left text-text-secondary px-04 py-03 font-normal whitespace-nowrap">제출</th>
                   <th className="text-left text-text-secondary px-04 py-03 font-normal whitespace-nowrap">마감</th>
@@ -90,9 +88,6 @@ export default async function OrgStudentDetailPage({
                   <tr key={a.attemptId} className="border-b border-border-subtle-01 last:border-b-0">
                     <td className="px-04 py-03 text-text-primary">{a.problemTitle}</td>
                     <td className="px-04 py-03 text-text-secondary">{a.batchName}</td>
-                    <td className="px-04 py-03">
-                      <DeliveryTag mode={a.deliveryMode} />
-                    </td>
                     <td className="px-04 py-03">
                       <AttemptStatusTag status={a.status} />
                     </td>

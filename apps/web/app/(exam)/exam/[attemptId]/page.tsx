@@ -4,7 +4,7 @@ import { getRuntime } from '@/lib/services/examService';
 import { ExamTopBar, MobileBlock } from '../../_components/ExamChrome';
 import { ExamRuntime, type ExamRuntimeData } from './ExamRuntime';
 
-// (exam) 진행 화면 — ⭐ delivery_mode 분기는 ExamRuntime 한 곳(docs/1 §1·§4).
+// (exam) 진행 화면 — 전달방식은 hosted 단일(docs/1 §1·§4).
 // 서버: 세션 게이트 + 소유권 + 상태 분기. ready=미시작→intro, submitted→done, running만 진행.
 
 export default async function ExamRuntimePage({ params }: { params: { attemptId: string } }) {
@@ -20,7 +20,6 @@ export default async function ExamRuntimePage({ params }: { params: { attemptId:
   // Date → ISO 문자열로 직렬화해 클라 컴포넌트에 plain 데이터로 전달.
   const data: ExamRuntimeData = {
     attemptId: runtime.attemptId,
-    deliveryMode: runtime.deliveryMode,
     deadlineAt: runtime.deadlineAt ? runtime.deadlineAt.toISOString() : null,
     problemTitle: runtime.problemTitle,
     batchName: runtime.batchName,

@@ -7,7 +7,6 @@ import {
   Card,
   ComingSoon,
   AttemptStatusTag,
-  DeliveryTag,
   SubmissionStatusTag,
 } from '../../../_components/ui';
 
@@ -44,9 +43,6 @@ export default async function MyReportPage({ params }: { params: { id: string } 
         <dl className="grid grid-cols-[max-content_1fr] gap-x-07 gap-y-03">
           <dt className="cds-label-01 text-text-secondary">상태</dt>
           <dd><AttemptStatusTag status={detail.status} /></dd>
-
-          <dt className="cds-label-01 text-text-secondary">제공</dt>
-          <dd><DeliveryTag mode={detail.deliveryMode} /></dd>
 
           <dt className="cds-label-01 text-text-secondary">제출 상태</dt>
           <dd><SubmissionStatusTag status={detail.submissionStatus} /></dd>

@@ -6,27 +6,26 @@
 > 근거: reference/[02](./reference/02-db-schema.md)·[03](./reference/03-cache.md)·[05](./reference/05-security.md)·[09](./reference/09-optimization.md).
 
 ## 핵심 한 줄
-**어댑터 A(hosted)=사내망 k3s 위 학생별 격리 컨테이너(code-server) + LLM 프록시 캡처, GitOps로 0↔50 스케일(직접 kubectl 없음).
-어댑터 B(byod)=본인 PC + 외부 스크립트 + 업로드 검증. 둘 다 같은 정규화 포맷으로 submission을 채우고, B는 항상 안전망.**
+**hosted 어댑터=사내망 k3s 위 학생별 격리 컨테이너(code-server) + LLM 프록시 캡처, GitOps로 0↔50 스케일(직접 kubectl 없음).
+프록시가 대화 전량을 정규화 포맷으로 캡처해 accepted submission을 채운다.**
 
 ---
 
 ## 0. 세 문제 → 한 결정, 그리고 단계별 가능성 확인
 
 운영상 세 문제(① 유료 AI 툴 제공 ② 시험 환경 ③ 채팅 수집)는 **"환경을 우리가 호스팅하는가"** 한 축으로 묶인다.
-호스팅하면: ① 우리 API 키, ② 격리 컨테이너, ③ 프록시가 대화 자동 저장 — **세 개가 동시에 죽는다.** 못 가면 B(byod).
+호스팅하면: ① 우리 API 키, ② 격리 컨테이너, ③ 프록시가 대화 자동 저장 — **세 개가 한 번에 해결된다.**
 
-각 단계는 다음으로 넘어가기 전 **go/no-go 기준**이 있다. 막히면 어댑터 B로 출시(코어 무변경).
+각 단계는 다음으로 넘어가기 전 **go/no-go 기준**이 있다.
 
 | 단계 | 목표 | 통과 기준(go) | 필요한 것 |
 |---|---|---|---|
-| **S1 로컬 Docker 스파이크** | 어댑터 A 핵심 루프 증명 | 학생 1명: 브라우저 code-server→claude code 풀이 → **대화 전량 프록시 저장** → 산출물 회수 → 정규화 submission 1건. `PROBLEM_ID` 교체로 다른 문제 주입 확인 | **Docker만**(VM 1대). k3s/ArgoCD 불필요 |
+| **S1 로컬 Docker 스파이크** | hosted 어댑터 핵심 루프 증명 | 학생 1명: 브라우저 code-server→claude code 풀이 → **대화 전량 프록시 저장** → 산출물 회수 → 정규화 submission 1건. `PROBLEM_ID` 교체로 다른 문제 주입 확인 | **Docker만**(VM 1대). k3s/ArgoCD 불필요 |
 | **S2 사내망 k3s 스케일 풀** | 동시 50 운영 | **50개 동시 리허설**: 프로비전→배정→캡처→취합→scale-down→재시드 초기화 | k3s+ArgoCD(git만), 오브젝트 스토리지 |
 | **S3 동적 오케스트레이터** | 동시 batch가 50 초과 | (필요해질 때) per-attempt 생성/회수 | ServiceAccount RBAC(ArgoCD로 1회 부여) |
-| **B 상시** | 안전망 | validator/fixture 통과, 업로드→accepted | (스크립트는 외부 제공) |
 
 > ⭐ S1은 **네 PC에 k3s/ArgoCD를 깔 필요가 없다** — 클러스터 정치와 무관하게 가장 빨리 배운다. S1에서 만든
-> 이미지·프록시·seeder가 S2/S3에 그대로 재사용된다. **B(byod)는 S1과 병렬 상시 준비.**
+> 이미지·프록시·seeder가 S2/S3에 그대로 재사용된다.
 
 ---
 
@@ -131,9 +130,12 @@ problem-registry (오브젝트 스토리지 / git)
 
 ## 5. 0↔50 스케일 — 누가 올리고 내리나 (상시 50 띄우지 않음)
 
-동시-창 모델(50명 한 창)이라 **수요 모양 = 창 동안 50, 그 외 0.** 그래서 **per-student 동적이 아니라 풀 단위 0↔50**이 정답.
+**운영 모델 2종** — 어느 쪽이든 *풀 스케일(이 절)*과 *슬롯 할당(§6)*은 **별개 경로**다:
+- **A. 동시 버스트** (50명 한 창): 수요 = 창 동안 50, 그 외 0. 전원 같은 벽시계 마감. 풀 단위 0↔50.
+- **B. 비동기 창** (기간 내 자유 입장): N일 창에 학생이 흩어져 입장, **개별 타임박스**(`attempts.deadline_at`=입장+제한시간, docs/5 §3 상속/override). 풀 = **피크 동시 인원**(≪ 전체 명부), 끝난 슬롯은 **즉시 회수→재시드→재배정**(§6). → **pod 수가 명부가 아니라 피크에 묶여 더 가볍다**(시스템팀 "pod 개수" 우려에 대한 설계적 답).
+- A는 B의 특수 케이스(전원 동시 입장·공유 마감) → **`batches` 운영모드 플래그** 하나면 한 코드로 커버. B는 슬롯 재활용 상태머신(§6)이 추가.
 
-평시 `replicas:0`(자원 0), 창 30분 전 0→50, 종료 후 50→0. **누가 올리고 내리나**(성숙도 순):
+평시 `replicas:0`(자원 0). **풀 용량**(A=50 / B=피크+워밍 버퍼)을 창 시작에 올리고 종료에 0. **누가 올리고 내리나**(성숙도 순):
 
 | 방식 | 어떻게 | 자동화 | 적합 |
 |---|---|---|---|
@@ -144,6 +146,10 @@ problem-registry (오브젝트 스토리지 / git)
 > ⭐ **레포 분리 + 자동 트리거(확정):** 배포는 `catchup-helm`(deploy 레포, ArgoCD watch), 앱은 `catchup`(app 레포).
 > "회차 열기" = exam-ops가 `catchup-helm`의 `batches/current.yaml`에 `replicas:50`·`problemId` 커밋(bitbucket API) → ArgoCD가 감지·자동 sync.
 > 즉 위 표의 "자동"을 **처음부터** 적용한다. **빌드(이미지)≠회차(스케일)**는 분리 — 상세 [3-s2-k8s-skeleton.md](./3-s2-k8s-skeleton.md) §5.
+
+⭐ **할당과 스케일은 다른 경로다 (hot/cold path) — 절대 섞지 마라:**
+- **Cold path = 풀 용량**(이 절): pod가 *몇 개* 떠 있나. 느리게·선언적·GitOps(exam-ops→`catchup-helm` 커밋→ArgoCD sync). 회차 열기/닫기·풀 보충 같은 coarse 사건만. 최종 일관성 OK.
+- **Hot path = 슬롯 할당**(§6): 이미 뜬 pod 하나를 *이 학생에게* 배정. 즉시·원자적·**DB 트랜잭션**. ⚠️ **시작 버튼은 git/ArgoCD/Helm을 건드리지 않는다** — 미리 뜬 풀에서 DB로 꺼내 쓴다(docs/3 §5.4 "git엔 규모만, DB엔 런타임 매핑"과 동일 원칙).
 
 **동적 vs 선언 — 메커니즘(왜 ArgoCD를 임시 pod에 안 쓰나):**
 - 오래 사는 고정 서비스(앱·프록시·exam-ops) → **ArgoCD 선언**.
@@ -163,16 +169,49 @@ problem-registry (오브젝트 스토리지 / git)
 
 ```
 [T-30m 회차 open]
- exam-ops: 목표상태(replicas=capacity, PROBLEM_ID=problem_version, delivery=hosted) → catchup-helm/batches/current.yaml 커밋&푸시
+ exam-ops: 목표상태(replicas=capacity, PROBLEM_ID=problem_version) → catchup-helm/batches/current.yaml 커밋&푸시
    → ArgoCD sync → StatefulSet 0→50, initContainer(seeder) 실행 → pod self-register/heartbeat
  exam-ops: ready 슬롯 ≥ 로스터 인원까지 폴링(**heartbeat 기준 — k8s API 불필요**) → batch.status='open'
 [진행] 앱이 ready 슬롯 배정·iframe 프록시. 제한시간 = attempts.deadline_at 서버 강제
 [close] 모든 submission accepted 확인(**취합 먼저!**) → replicas=0 커밋 → scale-down. PVC 잔존, 다음 부팅 seeder가 초기화
-[폴백] sync 실패 / 마감까지 ready 부족 → exam-ops가 batch.delivery_mode='byod' 전환·공지 → 어댑터 B로 진행
+[복구] sync 실패 / 마감까지 ready 부족 → exam-ops 재sync·재배포 + 운영자 일정조정·재공지로 회복
 ```
 - **健康 3층:** ArgoCD(Synced/Healthy=배포 realized) + k8s probe(개별 pod 자동치유) + **앱 heartbeat(배정 가능?)**.
   런타임 정상 판정은 **ArgoCD 아님** — heartbeat가 단일 근거(k8s 접속 회피).
-- **폴백 트리거가 핵심:** 호스팅 실패는 전부 "BYOD 강등"으로 수렴 → 출시 리스크 0.
+- **복구 경로:** 호스팅 실패는 재배포·일정조정으로 회복한다(작업물은 PVC에 보존, 마감은 서버가 강제).
+
+### 슬롯 할당 = hot path (버튼 클릭 → DB 트랜잭션, git 아님)
+"[진행] 앱이 ready 슬롯 배정"의 실체 — **ArgoCD API도 Helm 변경도 아니다.** 미리 뜬 풀에서 ready 슬롯을 **원자적으로 점유**한다:
+```sql
+-- 빈 슬롯 1개를 동시성-안전하게 점유 (5명이 동시에 눌러도 서로 다른 슬롯)
+UPDATE hosted.slots SET state='assigned', attempt_id=$1
+WHERE (batch_id, slot_no) = (
+  SELECT batch_id, slot_no FROM hosted.slots
+  WHERE batch_id=$2 AND state='ready'
+  LIMIT 1 FOR UPDATE SKIP LOCKED      -- ★ 이중배정 불가의 핵심
+) RETURNING slot_no, endpoint;
+```
+1. 잡힘 → `attempts`(status='running'·`deadline_at`=now()+제한시간) + `attempt_events` 'started'. ⚠️ attempt↔슬롯 매핑은 attempts에 컬럼을 안 두고 `hosted.slots.attempt_id`(UNIQUE)로만(0004 — slot을 코어 밖으로 격리)
+2. 가상키 주입(§3④ attach): exam-ops가 `/key/generate`(예산·만료) → 그 pod에 attach
+3. web이 슬롯 `endpoint`(0004 ClusterIP) 또는 pod DNS(`exam-<slot_no>.exam.svc`)로 iframe 역프록시 → code-server는 이미 떠 있어 **즉시 접속**
+4. ready 없음 → 대기열("환경 준비 중") + **비동기 풀 보충**(cold path). hot path에서 git-sync·부팅을 기다리지 않음
+
+> **5명 동시 클릭:** `FOR UPDATE SKIP LOCKED`가 5개 서로 다른 슬롯을 보장 — 이중배정은 슬롯 PK `(batch_id, slot_no)`+트랜잭션이 물리적으로 차단(대원칙 ②). 부족하면 N명 배정·나머지 대기. **git 커밋 경로였다면 5개 동시 커밋 충돌·sync 직렬화로 깨진다 → 그래서 할당은 DB.**
+
+### 슬롯 재활용 (비동기 창 모델 B) — attempt 단위 회수
+회수가 *회차 종료*가 아니라 **학생 1명 종료마다**: `assigned → submitting`(제출/개별 마감) → 패키징 Job(docs/5 §4: PVC readOnly→tar+sha256→MinIO) **accepted 확정** → `recycling`(PVC wipe+재시드) → `ready`(풀 반납).
+- ⭐ **재배정 전 반드시 wipe+재시드** — 이전 학생 작업물 누수 = 부정행위·프라이버시 사고.
+- `recycling` 중 배정 금지(상태머신이 강제). 워밍 버퍼가 있으면 다음 학생은 재시드를 안 기다림.
+- 상태머신: `down→warming→ready→assigned→submitting→recycling→ready` (0004 실제 = down|warming|ready|assigned; **submitting·recycling은 `0008`이 CHECK에 추가**). pod crash는 슬롯 상태가 아니라 k8s 재시작+PVC 재부착+heartbeat로 처리.
+- **모델 A(동시 버스트)는 이 경로를 안 탄다** — 전원 동시 1회 실행이라 회수는 회차 종료의 일괄 scale-down+재시드(§6 [close]). 즉 **B 엔진을 만들면 A는 "재활용 생략 + 풀=명부 + 공유 마감" 설정**으로 떨어진다.
+
+### 비동기 창(B) 운영 잔여 — 구현 전 확정 (Phase 3)
+B 엔진은 골격만 잡혔고, 아래 정책은 코드 전에 확정해야 한다:
+- **입장 큐**: ready 슬롯 0일 때 대기 순서·취소·타임아웃 + **창 밖 입장 차단**(`window_start_at`/`window_end_at`)·로스터 admission.
+- **idle reclaim**: `last_heartbeat_at` 임계값 초과 → 슬롯 회수(작업물은 PVC/스냅샷 보존). grace·재진입 정책 포함.
+- **워밍 버퍼 보충 주체**: 누가 ready 수를 감시해 풀(`capacity`/cold path)을 보충하나 — exam-ops 임계값 트리거.
+- **다일 창 문제 유출**: B는 §8 변형 뱅크(유형당 ≥3)를 **필수**로 — 초반 응시자→후반 유출 차단(A는 동시라 완화됨).
+- **0007 제약 강화**: `mode='window'`면 `window_start_at`·`time_limit_seconds`를 필수화하는 조건부 CHECK를 **B 코드 도입 시** 추가(지금 넣으면 현 batch 생성이 깨짐 — 그래서 0007은 약한 제약으로 둠).
 
 ---
 
@@ -187,6 +226,7 @@ AI 추론은 **클러스터 밖**(Anthropic). 클러스터는 IDE + 학생 코�
 
 - 권장 풀: 사용가능 **~30 vCPU / ~90 GB**(예 16/64 노드×3). 학생 pod 전용 노드 taint/toleration 분리.
 - 스토리지 PVC **2~5GB×50**=100~250GB. **사전 워밍 5~10개**로 동시 시작 체증 흡수. 평시 replicas=0.
+- **모델 B(비동기 창) 산정:** 합산 기준 = 50이 아니라 **피크 동시 인원**. 명부가 커도 풀=피크+워밍 버퍼면 된다. ⚠️ 단 **이득은 입장이 흩어질 때만** 실현 — 전원이 개창 즉시 몰리면 B도 피크=명부라 A와 동일(차이는 큐로 흡수). 동기 고배점 시험은 *공정성*(동일 제한시간·문제유출 차단) 때문에 일부러 A로 둘 수도 있다(운영 정책).
 
 ---
 
@@ -201,33 +241,27 @@ AI 추론은 **클러스터 밖**(Anthropic). 클러스터는 IDE + 학생 코�
 
 **부정행위 방지:**
 - **문제 유출(2대학 순차):** 유형 고정·데이터/시나리오만 바꾼 **변형 뱅크**(유형당 ≥3). §4 경우 B로 학생별 변형.
-- **채팅 위조(BYOD 특히):** 방어 = ① 결과물도 통과해야(객관층) ② **타이밍/상호작용 분석** — 진짜 협업은 왕복, 붙여넣기는 t=0 대형 프롬프트.
-  리포트가 "세션당 메시지 수·비판적 후속질문"을 보니 위조가 결과까지 통과하며 자연스럽기 어렵다. ③ `trust='unverified'` 표기.
+- **채팅 위조:** 방어 = ① 결과물도 통과해야(객관층) ② **타이밍/상호작용 분석** — 진짜 협업은 왕복, 붙여넣기는 t=0 대형 프롬프트.
+  리포트가 "세션당 메시지 수·비판적 후속질문"을 보니 위조가 결과까지 통과하며 자연스럽기 어렵다. (호스팅 프록시 캡처는 서버가 대화를 직접 산출하므로 `trust='verified'`.)
 - **학생 간 표절:** 채팅·산출물 유사도 비교.
 
 ---
 
-## 9. 어댑터 B — byod (안전망)
+## 9. (폐기됨) 어댑터 B — byod
 
-```
-학생: exam/[id] → scaffold 다운로드(signed URL, public만) → 본인 PC 풀이
-   → (외부 제공 .sh)로 대화 정규화 추출 → 대화+산출물 업로드 → 제출
-서버: 검증 → submission(upload, unverified) status: received→validating→accepted/rejected
-```
-- 검증(플랫폼 P0): **JSON Schema v1** + 크기/MIME + sha256 + 아카이브 안전(폭탄·경로탈출 차단).
-- 스크립트 구현은 외부(코드와 함께 전달)지만 **출력 계약 검증은 플랫폼 책임**. 추가 인프라 0. S1과 병렬 우선.
+> ⚠️ **BYOD는 폐기됐다.** 전달방식은 hosted 단일이다. 과거 이 섹션이 다루던 "본인 PC 풀이 + 외부 스크립트 추출 + 업로드 검증" 경로는 더 이상 제공하지 않는다(코드·스키마에서 전면 제거). 제출은 호스팅 프록시 캡처가 정규화 포맷으로 직접 채운다(§10).
 
 ---
 
-## 10. 정규화 포맷 계약 (공통 입구, linchpin)
-두 어댑터가 **같은 모양**을 뱉어야 평가이 제공 방식과 무관.
+## 10. 정규화 포맷 계약 (제출의 공통 입구, linchpin)
+호스팅 프록시가 **이 모양**으로 캡처해야 평가이 캡처 경로와 무관하게 한 포맷만 소비한다.
 ```jsonc
 { "version":1, "tool":"claude-code", "model":"...",
   "messages":[ {"id":"...","index":0,"role":"user|assistant","content":"...","ts":"...","tool_calls":[...],"attachments":[...]} ],
-  "meta":{ "attemptId":"...","source":"proxy|export-script","sourceHash":"sha256:..." } }
+  "meta":{ "attemptId":"...","source":"proxy","sourceHash":"sha256:..." } }
 ```
 - **v1 JSON Schema 별도 파일 고정**(`contracts/chat-log.v1.json`) + **accepted/rejected fixture + contract test(CI)** = P0.
-  프록시 출력·BYOD 업로드 **둘 다 이 스키마로 검증**해야 accepted. (후속)평가 모듈은 이 한 포맷만 소비.
+  프록시 출력이 이 스키마로 검증돼야 accepted. (후속)평가 모듈은 이 한 포맷만 소비.
 
 ---
 
@@ -279,14 +313,14 @@ volumes: { workspace: {} }
 
 **A. 시험 준비(회차 생성)**
 - **문제 등록**: scaffold/hidden을 problem-registry(MinIO)에 올리고 `PROBLEM_ID` 부여(§4). hidden은 서버 전용 버킷.
-- **회차(batch) 구성**: test 선택 · 로스터(응시자) 배정 · 시작/마감(`deadline_at`) 일정 · capacity · delivery(hosted/byod) · 모델·attempt 예산.
+- **회차(batch) 구성**: test 선택 · 로스터(응시자) 배정 · 시작/마감(`deadline_at`) 일정 · capacity · 모델·attempt 예산.
 - **"회차 열기"** → exam-ops가 §6 GitOps로 0→50 + attempt별 가상키 발급 준비.
 
 **B. 중앙 관제(실시간)**
 - **슬롯 현황**: ready/active/crash (heartbeat 기준 — §3④·§6 健康 3층).
 - **학생별 진행**: 접속·남은시간·재접속(reconnect) — `attempt_events`(§11).
 - **비용**: 가상키별 spend·rate(LiteLLM Admin UI/`/key/info`), 회차 합계.
-- **운영 액션**: 개별 **시간 연장**(`deadline_at` 갱신) · **강제 제출** · 재접속 도움 · 회차 **BYOD 강등**(§6 폴백).
+- **운영 액션**: 개별 **시간 연장**(`deadline_at` 갱신) · **강제 제출** · 재접속 도움.
 
 **C. 사후**
 - 제출 현황(received→accepted) · 채점 큐(`grading.jobs`) · 결과·trust.
@@ -297,9 +331,9 @@ volumes: { workspace: {} }
 
 ## 체크리스트 (단계 게이트)
 - [ ] **S1**: 위 compose로 1인 루프 + 대화 저장 + `PROBLEM_ID` 교체 주입 확인 (Docker만)
-- [ ] **B**: JSON Schema v1 + validator + accepted/rejected fixture + 업로드 UI → submission accepted (S1과 병렬, 먼저)
+- [ ] **정규화 포맷**: JSON Schema v1 + validator + accepted/rejected fixture + contract test(CI) — 프록시 캡처가 이 계약을 만족(§10)
 - [ ] **S2**: exam-ops git 커밋→ArgoCD sync→heartbeat 폴링→배정→취합→replicas=0, **50 동시 리허설** 통과 (매니페스트 초안: [3-s2-k8s-skeleton.md](./3-s2-k8s-skeleton.md) · 시스템팀 공유용 운영 개요: [4-exam-serving-overview.md](./4-exam-serving-overview.md))
 - [ ] 문제: scaffold/hidden 분리, 변형 뱅크(유형당 ≥3), 경우 A(부팅 시드) 우선·경우 B(attach 변형) 준비
 - [ ] 보안: egress allowlist, 프록시 강제, 서버측 artifact 해시, trust 서버산출, 부정행위 3종 방어
-- [ ] 폴백: sync 실패/슬롯 부족 시 `delivery_mode='byod'` 자동 강등 검증
+- [ ] 복구: sync 실패/슬롯 부족 시 재배포·일정조정으로 회복되는지 검증
 - [ ] (S3 동적 오케스트레이터 + SA RBAC은 동시 batch가 50 초과로 실제 필요해질 때만)

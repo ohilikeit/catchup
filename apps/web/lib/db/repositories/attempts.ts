@@ -1,10 +1,9 @@
 import 'server-only';
 import type { PoolClient } from 'pg';
 import { query, queryOne } from '../pool';
-import type { DeliveryMode } from './batches';
 
 // attempts repository — 응시. ⭐ 평가상태 없음(grading 모듈 소관, docs/1 §3).
-// delivery_mode는 회차에서 상속한 셀렉터. deadline_at은 서버강제 마감의 근거.
+// 전달방식은 hosted 단일. deadline_at은 서버강제 마감의 근거.
 
 export type AttemptStatus = 'ready' | 'running' | 'submitted' | 'expired' | 'void';
 
@@ -12,7 +11,6 @@ export interface Attempt {
   id: string;
   batchId: string;
   examineeId: string;
-  deliveryMode: DeliveryMode;
   status: AttemptStatus;
   startsAt: Date | null;
   deadlineAt: Date | null;
@@ -25,7 +23,6 @@ interface AttemptRow {
   id: string;
   batch_id: string;
   examinee_id: string;
-  delivery_mode: DeliveryMode;
   status: AttemptStatus;
   starts_at: Date | null;
   deadline_at: Date | null;
@@ -39,7 +36,6 @@ function mapRow(r: AttemptRow): Attempt {
     id: r.id,
     batchId: r.batch_id,
     examineeId: r.examinee_id,
-    deliveryMode: r.delivery_mode,
     status: r.status,
     startsAt: r.starts_at,
     deadlineAt: r.deadline_at,
@@ -60,7 +56,6 @@ export interface MyExamItem {
   batchName: string;
   orgName: string;
   problemTitle: string;
-  deliveryMode: DeliveryMode;
   status: AttemptStatus;
   startsAt: Date | null;
   deadlineAt: Date | null;
@@ -73,14 +68,13 @@ export async function listByExaminee(examineeId: string): Promise<MyExamItem[]> 
     batch_name: string;
     org_name: string;
     problem_title: string;
-    delivery_mode: DeliveryMode;
     status: AttemptStatus;
     starts_at: Date | null;
     deadline_at: Date | null;
     submission_status: string | null;
   }>(
     `SELECT a.id AS attempt_id, b.name AS batch_name, o.name AS org_name,
-            p.title AS problem_title, a.delivery_mode, a.status,
+            p.title AS problem_title, a.status,
             a.starts_at, a.deadline_at, s.status AS submission_status
        FROM exam.attempts a
        JOIN exam.batches b ON b.id = a.batch_id
@@ -97,7 +91,6 @@ export async function listByExaminee(examineeId: string): Promise<MyExamItem[]> 
     batchName: r.batch_name,
     orgName: r.org_name,
     problemTitle: r.problem_title,
-    deliveryMode: r.delivery_mode,
     status: r.status,
     startsAt: r.starts_at,
     deadlineAt: r.deadline_at,
@@ -109,7 +102,6 @@ export async function listByExaminee(examineeId: string): Promise<MyExamItem[]> 
 export interface AttemptRuntime {
   attemptId: string;
   examineeId: string;
-  deliveryMode: DeliveryMode;
   status: AttemptStatus;
   startsAt: Date | null;
   deadlineAt: Date | null;
@@ -127,7 +119,6 @@ export async function findRuntimeForExaminee(
   const r = await queryOne<{
     attempt_id: string;
     examinee_id: string;
-    delivery_mode: DeliveryMode;
     status: AttemptStatus;
     starts_at: Date | null;
     deadline_at: Date | null;
@@ -137,7 +128,7 @@ export async function findRuntimeForExaminee(
     public_scaffold_ref: string;
     scaffold_sha256: string;
   }>(
-    `SELECT a.id AS attempt_id, a.examinee_id, a.delivery_mode, a.status,
+    `SELECT a.id AS attempt_id, a.examinee_id, a.status,
             a.starts_at, a.deadline_at,
             b.name AS batch_name, b.status AS batch_status,
             p.title AS problem_title,
@@ -153,7 +144,6 @@ export async function findRuntimeForExaminee(
   return {
     attemptId: r.attempt_id,
     examineeId: r.examinee_id,
-    deliveryMode: r.delivery_mode,
     status: r.status,
     startsAt: r.starts_at,
     deadlineAt: r.deadline_at,
@@ -214,7 +204,6 @@ export interface AttemptDetail {
   orgId: string;
   orgName: string;
   problemTitle: string;
-  deliveryMode: DeliveryMode;
   status: AttemptStatus;
   startsAt: Date | null;
   deadlineAt: Date | null;
@@ -235,7 +224,6 @@ export async function findDetailById(attemptId: string): Promise<AttemptDetail |
     org_id: string;
     org_name: string;
     problem_title: string;
-    delivery_mode: DeliveryMode;
     status: AttemptStatus;
     starts_at: Date | null;
     deadline_at: Date | null;
@@ -246,7 +234,7 @@ export async function findDetailById(attemptId: string): Promise<AttemptDetail |
   }>(
     `SELECT a.id AS attempt_id, a.examinee_id, u.full_name AS examinee_name, u.email AS examinee_email,
             b.id AS batch_id, b.name AS batch_name, o.id AS org_id, o.name AS org_name,
-            p.title AS problem_title, a.delivery_mode, a.status,
+            p.title AS problem_title, a.status,
             a.starts_at, a.deadline_at, a.submitted_at,
             s.id AS submission_id, s.status AS submission_status, s.trust AS submission_trust
        FROM exam.attempts a
@@ -270,7 +258,6 @@ export async function findDetailById(attemptId: string): Promise<AttemptDetail |
     orgId: r.org_id,
     orgName: r.org_name,
     problemTitle: r.problem_title,
-    deliveryMode: r.delivery_mode,
     status: r.status,
     startsAt: r.starts_at,
     deadlineAt: r.deadline_at,
@@ -340,13 +327,13 @@ export async function markExpiredTx(client: PoolClient, attemptId: string): Prom
 /** 로스터 import: 회차에 응시 멱등 생성(uq_attempt로 중복 차단). 반환: 생성여부. */
 export async function ensureAttemptTx(
   client: PoolClient,
-  input: { batchId: string; examineeId: string; deliveryMode: DeliveryMode },
+  input: { batchId: string; examineeId: string },
 ): Promise<boolean> {
   const res = await client.query(
-    `INSERT INTO exam.attempts (batch_id, examinee_id, delivery_mode)
-     VALUES ($1, $2, $3)
+    `INSERT INTO exam.attempts (batch_id, examinee_id)
+     VALUES ($1, $2)
      ON CONFLICT (batch_id, examinee_id) DO NOTHING`,
-    [input.batchId, input.examineeId, input.deliveryMode],
+    [input.batchId, input.examineeId],
   );
   return (res.rowCount ?? 0) > 0;
 }

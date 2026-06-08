@@ -1,16 +1,13 @@
 import 'server-only';
-import type { PoolClient } from 'pg';
 import { query, queryOne } from '../pool';
 
 // submissions repository — ⭐ 뼈대의 최종 산출물 = 평가 모듈의 단일 입구(docs/1 §3·§5).
 // 'accepted'만 평가 대상. trust는 서버가 어댑터 신원으로만 산출(클라 설정 불가).
-//
-// 제출 적재는 deadline 재판정과 한 트랜잭션이어야 하므로 *Tx 함수는 PoolClient를 받는다
-// (SQL은 repository에만 둔다는 규칙을 지키면서 service가 트랜잭션을 조립).
+// 제출은 hosted 전달 경로(proxy 캡처)가 적재한다 — 이 repository는 읽기/목록 전용.
 
 export type SubmissionStatus = 'received' | 'validating' | 'accepted' | 'rejected';
-export type CapturedVia = 'proxy' | 'upload';
-export type Trust = 'verified' | 'unverified';
+export type CapturedVia = 'proxy';
+export type Trust = 'verified';
 
 export interface Submission {
   id: string;
@@ -242,66 +239,4 @@ export async function listByOrgIds(orgIds: string[], opts: { limit?: number; off
     [orgIds, limit, offset],
   );
   return rows.map(mapListRow);
-}
-
-/* ── 트랜잭션 적재(byod 업로드 제출 — deadline 재판정과 원자적) ────────────── */
-
-export interface SubmissionFileInput {
-  kind: 'chat_log' | 'artifact';
-  ref: string;
-  sha256: string;
-  sizeBytes: number;
-  mime: string | null;
-}
-
-/** submission 1건 생성(트랜잭션 client). attempt_id UNIQUE라 재제출 시 충돌 → 호출부가 선처리. */
-export async function insertSubmissionTx(
-  client: PoolClient,
-  input: {
-    attemptId: string;
-    capturedVia: CapturedVia;
-    trust: Trust;
-    tool: string | null;
-    chatFormatVersion: number;
-    status: SubmissionStatus;
-  },
-): Promise<Submission> {
-  const res = await client.query<SubmissionRow>(
-    `INSERT INTO exam.submissions
-       (attempt_id, captured_via, trust, tool, chat_format_version, status, submitted_at)
-     VALUES ($1, $2, $3, $4, $5, $6, NOW())
-     RETURNING *`,
-    [input.attemptId, input.capturedVia, input.trust, input.tool, input.chatFormatVersion, input.status],
-  );
-  return mapRow(res.rows[0]!);
-}
-
-export async function insertFilesTx(
-  client: PoolClient,
-  submissionId: string,
-  files: SubmissionFileInput[],
-): Promise<void> {
-  for (const f of files) {
-    await client.query(
-      `INSERT INTO exam.submission_files (submission_id, kind, ref, sha256, size_bytes, mime)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [submissionId, f.kind, f.ref, f.sha256, f.sizeBytes, f.mime],
-    );
-  }
-}
-
-/** 검증 결과 반영: received/validating → accepted | rejected. */
-export async function setStatusTx(
-  client: PoolClient,
-  submissionId: string,
-  status: SubmissionStatus,
-  validationError: string | null,
-): Promise<void> {
-  await client.query(
-    `UPDATE exam.submissions
-        SET status = $2, validation_error = $3,
-            accepted_at = CASE WHEN $2 = 'accepted' THEN NOW() ELSE accepted_at END
-      WHERE id = $1`,
-    [submissionId, status, validationError],
-  );
 }

@@ -117,22 +117,22 @@ async function main() {
     )).rows[0].id;
 
     // ── 회차(자연키 없음 → org+name 조회 후 생성) ────────────────
-    async function ensureBatch(orgId, name, delivery, status) {
+    async function ensureBatch(orgId, name, status) {
       const found = await client.query('SELECT id FROM exam.batches WHERE org_id = $1 AND name = $2', [orgId, name]);
       if (found.rows[0]) return found.rows[0].id;
       const opened = status === 'open' ? 'NOW()' : 'NULL';
       return (await client.query(
-        `INSERT INTO exam.batches (org_id, name, problem_version_id, delivery_mode, status, scheduled_at, opened_at)
-         VALUES ($1, $2, $3, $4, $5, NOW(), ${opened}) RETURNING id`,
-        [orgId, name, pv, delivery, status],
+        `INSERT INTO exam.batches (org_id, name, problem_version_id, status, scheduled_at, opened_at)
+         VALUES ($1, $2, $3, $4, NOW(), ${opened}) RETURNING id`,
+        [orgId, name, pv, status],
       )).rows[0].id;
     }
-    const batchA1 = await ensureBatch(orgA, '2026 가을 1회차', 'hosted', 'open');
-    const batchA2 = await ensureBatch(orgA, '2026 가을 2회차', 'byod', 'scheduled');
-    const batchB1 = await ensureBatch(orgB, 'B대학 1회차', 'hosted', 'open');
+    const batchA1 = await ensureBatch(orgA, '2026 가을 1회차', 'open');
+    const batchA2 = await ensureBatch(orgA, '2026 가을 2회차', 'scheduled');
+    const batchB1 = await ensureBatch(orgB, 'B대학 1회차', 'open');
 
     // ── 응시(멱등) ───────────────────────────────────────────────
-    async function ensureAttempt(batchId, examineeId, delivery, status, withDeadline) {
+    async function ensureAttempt(batchId, examineeId, status, withDeadline) {
       const found = await client.query(
         'SELECT id FROM exam.attempts WHERE batch_id = $1 AND examinee_id = $2',
         [batchId, examineeId],
@@ -142,18 +142,18 @@ async function main() {
       const starts = status === 'ready' ? 'NULL' : 'NOW()';
       const submitted = status === 'submitted' ? 'NOW()' : 'NULL';
       return (await client.query(
-        `INSERT INTO exam.attempts (batch_id, examinee_id, delivery_mode, status, starts_at, deadline_at, submitted_at)
-         VALUES ($1, $2, $3, $4, ${starts}, ${deadline}, ${submitted}) RETURNING id`,
-        [batchId, examineeId, delivery, status],
+        `INSERT INTO exam.attempts (batch_id, examinee_id, status, starts_at, deadline_at, submitted_at)
+         VALUES ($1, $2, $3, ${starts}, ${deadline}, ${submitted}) RETURNING id`,
+        [batchId, examineeId, status],
       )).rows[0].id;
     }
 
     // student1 진행중, student2/3 제출완료, 나머지 대기
-    const aRunning = await ensureAttempt(batchA1, studentsA[0], 'hosted', 'running', true);
-    const aSub1 = await ensureAttempt(batchA1, studentsA[1], 'hosted', 'submitted', true);
-    const aSub2 = await ensureAttempt(batchA1, studentsA[2], 'hosted', 'submitted', true);
-    for (let i = 3; i < studentsA.length; i++) await ensureAttempt(batchA1, studentsA[i], 'hosted', 'ready', false);
-    for (const s of studentsB) await ensureAttempt(batchB1, s, 'hosted', 'ready', false);
+    const aRunning = await ensureAttempt(batchA1, studentsA[0], 'running', true);
+    const aSub1 = await ensureAttempt(batchA1, studentsA[1], 'submitted', true);
+    const aSub2 = await ensureAttempt(batchA1, studentsA[2], 'submitted', true);
+    for (let i = 3; i < studentsA.length; i++) await ensureAttempt(batchA1, studentsA[i], 'ready', false);
+    for (const s of studentsB) await ensureAttempt(batchB1, s, 'ready', false);
     void aRunning;
 
     // ── 제출(accepted) + 파일 ────────────────────────────────────
@@ -186,7 +186,7 @@ async function main() {
       return id;
     }
     await ensureSubmission(aSub1, 'proxy', 'verified');
-    await ensureSubmission(aSub2, 'upload', 'unverified');
+    await ensureSubmission(aSub2, 'proxy', 'verified');
     void SHA;
 
     await client.query('COMMIT');

@@ -30,7 +30,6 @@ const KIND_LABEL: Record<string, string> = {
 
 const CAPTURED_VIA_LABEL: Record<string, string> = {
   proxy: '프록시',
-  upload: '업로드',
 };
 
 export default async function SubmissionDetailPage({ params }: { params: { id: string } }) {

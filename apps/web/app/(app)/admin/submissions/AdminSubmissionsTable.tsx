@@ -10,7 +10,6 @@ function fmt(d: Date | null): string {
 
 const CAPTURED_VIA_LABEL: Record<string, string> = {
   proxy: '프록시',
-  upload: '업로드',
 };
 
 export function AdminSubmissionsTable({ rows }: { rows: SubmissionListItem[] }) {
@@ -29,9 +28,9 @@ export function AdminSubmissionsTable({ rows }: { rows: SubmissionListItem[] }) 
     { key: 'batchName', header: '회차', sortable: true },
     {
       key: 'capturedVia',
-      header: '제공',
+      header: '수집 경로',
       render: (r) => (
-        <Tag color={r.capturedVia === 'proxy' ? 'purple' : 'teal'}>
+        <Tag color="purple">
           {CAPTURED_VIA_LABEL[r.capturedVia] ?? r.capturedVia}
         </Tag>
       ),

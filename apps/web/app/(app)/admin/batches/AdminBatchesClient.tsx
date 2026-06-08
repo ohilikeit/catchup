@@ -6,7 +6,7 @@ import { useToast } from '@app/core';
 import type { BatchListItem } from '@/lib/db/repositories/batches';
 import type { Organization } from '@/lib/db/repositories/organizations';
 import type { VersionOption } from '@/lib/db/repositories/problems';
-import { BatchStatusTag, DeliveryTag } from '../../_components/ui';
+import { BatchStatusTag } from '../../_components/ui';
 import type { ImportSummary } from '@/lib/services/batchService';
 import { createBatchAction, setBatchStatusAction, importRosterAction, importRosterXlsxAction } from './actions';
 
@@ -96,11 +96,6 @@ export function AdminBatchesClient({
       key: 'problemTitle',
       header: '문제',
       render: (r) => `${r.problemTitle} v${r.problemVersion}`,
-    },
-    {
-      key: 'deliveryMode',
-      header: '제공',
-      render: (r) => <DeliveryTag mode={r.deliveryMode} />,
     },
     {
       key: 'status',
@@ -248,12 +243,6 @@ function CreateBatchModal({
         </Field>
         <Field label="회차명">
           <Input name="name" placeholder="예: 2026 상반기 기획직무 1회차" />
-        </Field>
-        <Field label="제공방식">
-          <Select name="deliveryMode" defaultValue="hosted">
-            <option value="hosted">hosted</option>
-            <option value="byod">byod</option>
-          </Select>
         </Field>
         <Field label="정원">
           <Input name="capacity" type="number" placeholder="50" min="1" max="500" />

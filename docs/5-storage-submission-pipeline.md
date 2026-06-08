@@ -60,7 +60,6 @@ CREATE TABLE exam.batches (
   problem_id         TEXT NOT NULL,                       -- problem-registry 키(§4, MinIO)
   capacity           INT  NOT NULL DEFAULT 50,
   deadline_at        TIMESTAMPTZ NOT NULL,                -- 회차 기본 마감(attempt가 상속/override)
-  delivery_mode      TEXT NOT NULL DEFAULT 'hosted',      -- hosted|byod (폴백 시 전환, §6)
   status             TEXT NOT NULL DEFAULT 'preparing',   -- preparing→open→closed
   model              TEXT NOT NULL DEFAULT 'claude-sonnet-4-5',  -- 게이트웨이 강제 모델
   budget_per_attempt NUMERIC NOT NULL DEFAULT 5,          -- 가상키 예산상한(USD)
@@ -74,8 +73,8 @@ CREATE TABLE exam.attempts (
   batch_id     UUID NOT NULL REFERENCES exam.batches(id),
   test_id      UUID NOT NULL REFERENCES exam.tests(id),
   examinee_id  TEXT NOT NULL,                 -- auth 정체성(약한 참조, service가 책임)
-  slot         TEXT,                          -- 배정된 pod 이름 예: exam-7 (재접속 매핑의 핵심)
-  status       exam.attempt_status NOT NULL DEFAULT 'assigned', -- assigned→active→submitting→submitted→accepted
+  -- ⚠️ 구현(0003)엔 slot 컬럼 없음 — 슬롯 매핑은 hosted.slots.attempt_id로 격리(코어 밖)
+  status       exam.attempt_status NOT NULL DEFAULT 'ready', -- ⚠️ 구현(0003) CHECK = ready|running|submitted|expired|void
   deadline_at  TIMESTAMPTZ NOT NULL,          -- ⭐ 제한시간의 정보원(서버 기준, 클라 시계 불신)
   trust        TEXT NOT NULL DEFAULT 'verified',
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -101,18 +100,21 @@ CREATE TABLE exam.attempt_events (
 );
 
 -- hosted.slots = pod 슬롯 상태 (heartbeat 기반 관제, k8s 직접 접속 회피 §3④·§6)  [S2 신규]
-CREATE TABLE hosted.slots (
-  slot              TEXT PRIMARY KEY,             -- pod 이름 예: exam-7 (재접속 매핑의 물리키)
-  batch_id          UUID REFERENCES exam.batches(id),
-  attempt_id        UUID REFERENCES exam.attempts(id),  -- 현재 이 슬롯에 배정된 응시
-  state             TEXT NOT NULL DEFAULT 'down', -- down|ready|active|crash (대시보드 슬롯 현황)
-  last_heartbeat_at TIMESTAMPTZ                   -- N초마다 갱신 → "배정 가능?" 판단의 단일 근거
+CREATE TABLE hosted.slots (              -- ⚠️ 정본 = 0004_hosted.sql (아래는 그에 맞춤)
+  batch_id          UUID NOT NULL REFERENCES exam.batches(id) ON DELETE CASCADE,
+  slot_no           INT  NOT NULL,                -- pod ordinal 예: exam-7 (재접속 매핑의 물리키)
+  attempt_id        UUID UNIQUE REFERENCES exam.attempts(id),  -- 1 attempt = 1 slot
+  state             TEXT NOT NULL DEFAULT 'down', -- 0004: down|warming|ready|assigned (+0008 비동기 창 B: submitting|recycling)
+  endpoint          TEXT,                          -- ClusterIP 내부 주소(학생 비노출)
+  last_heartbeat_at TIMESTAMPTZ,                  -- "배정 가능?" 판단의 단일 근거(N초 갱신)
+  PRIMARY KEY (batch_id, slot_no)
 );
 ```
 > `BIGGENERATED`는 `BIGINT GENERATED`의 오타 방지용 — 실제 DDL은 `id BIGINT GENERATED ALWAYS AS IDENTITY`.
+> ⚠️ **구현 정합:** 이 §3 블록은 초기 스케치다. **정본은 [`0003_exam.sql`](../db/migrations/0003_exam.sql)·[`0004_hosted.sql`](../db/migrations/0004_hosted.sql)** — 실제와 차이: ① `attempts`에 slot 컬럼 없음(`hosted.slots.slot_no`로 격리) ② `attempts.status`=ready\|running\|submitted\|expired\|void ③ `hosted.slots` PK=(batch_id,slot_no)·state=down\|warming\|ready\|assigned(+[`0008`](../db/migrations/0008_slot_window_states.sql) submitting\|recycling).
 >
 > **가상키 spend**는 LiteLLM이 자기 DB(`litellm` schema/DB)에 자동 집계 → 대시보드는 `/key/info`로 읽는다(별도 exam 테이블 불필요).
-> **대시보드 액션 매핑**: 시간 연장 = `attempts.deadline_at` 갱신 / 강제 제출 = §4 패키징 Job 수동 트리거 / BYOD 강등 = `batches.delivery_mode='byod'`.
+> **대시보드 액션 매핑**: 시간 연장 = `attempts.deadline_at` 갱신 / 강제 제출 = §4 패키징 Job 수동 트리거.
 
 ---
 
@@ -137,7 +139,7 @@ CREATE TABLE hosted.slots (
 `★ 핵심 원리 ─────────────────────────────────────`
 **브라우저는 버려도 되는 일회용 클라이언트다.** 진짜 상태는 전부 서버에 있다:
 - **pod + PVC**: code-server는 *서버에서* 돌고, 작업물은 PVC에 있다 → 브라우저를 닫아도 열린 파일·터미널·실행 프로세스·작업물이 그대로 살아 있다.
-- **DB(attempts.slot)**: "학생 A → exam-7" 매핑이 DB에 있다 → 재로그인하면 앱이 같은 슬롯으로 다시 연결한다.
+- **DB(hosted.slots.attempt_id)**: "학생 A의 attempt → slot_no" 매핑이 DB에 있다 → 재로그인하면 앱이 같은 슬롯으로 다시 연결한다.
 - **DB(attempts.deadline_at)**: 제한시간은 서버 기준 → 재접속해도 시간이 정확히 이어진다(클라 시계와 무관).
 → 그래서 클라(화면)는 언제 죽어도 되고, **재로그인 = 같은 pod 재연결**이면 100% 복귀한다.
 `─────────────────────────────────────────────────`
@@ -147,8 +149,8 @@ CREATE TABLE hosted.slots (
 학생이 탭/브라우저 닫음 (실수)
   → exam-7 pod 계속 살아있음. /workspace(PVC) 작업물 유지. code-server 세션 유지.
   → 학생 재로그인
-  → 앱: examinee_id로 "진행 중 attempt #42" 조회(status=active, deadline 안 지남)
-  → attempts.slot=exam-7 확인 → exam-7로 iframe 재프록시(websocket 재연결)
+  → 앱: examinee_id로 "진행 중 attempt #42" 조회(status=running, deadline 안 지남)
+  → hosted.slots에서 attempt_id=#42 → slot_no=7 확인 → exam-7로 iframe 재프록시(websocket 재연결)
   → 화면 복구: 열려있던 파일·터미널·작업물 그대로, 상단 타이머 = deadline_at − now
   → attempt_events에 'reconnect' append (관측)
 ```
@@ -231,8 +233,8 @@ spec:
 
 ## 8. 남은 결정 / TODO
 - [ ] **batches/attempts/attempt_events/hosted.slots 마이그레이션** 작성(철칙 1: `db/migrations/00NN_*.sql`), `attempt_status` ENUM, `hosted` schema 생성
-- [ ] **관리자 대시보드 API**: 회차 생성·로스터·연장(`deadline_at`)·강제제출·BYOD 강등 (docs/2 §13)
-- [ ] **동시 세션 정책** 확정: 한 attempt 동시 1세션(이전 무효화) vs 멀티 — 부정행위 관점 포함
+- [ ] **관리자 대시보드 API**: 회차 생성·로스터·연장(`deadline_at`)·강제제출 (docs/2 §13)
+- [x] **동시 세션 정책 확정**: 한 attempt **동시 1세션**(새 세션 활성화 시 이전 무효화, §5 케이스표) — 부정행위·혼란 방지. 잔여 = 구현 시 grace·충돌 UX(이전 세션에 "다른 기기에서 접속됨" 통지)
 - [ ] **PVC StorageClass·노드풀**: RWO 재스케줄 제약 대비(학생 노드 전용 + 적절 SC)
 - [ ] **자동저장 주기**: VS Code auto-save 초 + (선택) PVC→MinIO 스냅샷 주기
 - [ ] **마감 자동 회수 잡 오케스트레이션**: exam-ops가 deadline 스윕 → 미제출 패키징

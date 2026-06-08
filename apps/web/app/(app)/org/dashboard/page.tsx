@@ -1,7 +1,7 @@
 import { requireAudience } from '@/lib/auth/guard';
 import { getDashboard } from '@/lib/services/dashboardService';
 import { MetricGrid, MetricTile, Notification } from '@app/ui';
-import { PageHead, EmptyState, AttemptStatusTag, SubmissionStatusTag, DeliveryTag, TrustTag } from '../../_components/ui';
+import { PageHead, EmptyState, AttemptStatusTag, SubmissionStatusTag, TrustTag } from '../../_components/ui';
 
 // org/dashboard — 학교담당자 홈. ⭐ 자기 대학 응시·제출 현황만(org 스코프, dashboardService가 강제).
 // 점수 집계는 평가 모듈 이후(docs/1 §1). 여기선 진행·제출 현황까지.
@@ -36,7 +36,7 @@ export default async function OrgDashboardPage() {
                     <div className="cds-body-01 text-text-primary truncate">{b.name}</div>
                     <div className="cds-helper-01 text-text-secondary mt-[2px]">{b.problemTitle} · 응시 {b.attemptCount}/{b.capacity}</div>
                   </div>
-                  <div className="flex items-center gap-02 flex-[0_0_auto]"><DeliveryTag mode={b.deliveryMode} /><AttemptStatusTag status={b.status === 'open' ? 'running' : 'ready'} /></div>
+                  <div className="flex items-center gap-02 flex-[0_0_auto]"><AttemptStatusTag status={b.status === 'open' ? 'running' : 'ready'} /></div>
                 </li>
               ))}
             </ul>

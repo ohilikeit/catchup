@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { DataTable, Button, type Column } from '@app/ui';
 import type { MyExamItem } from '@/lib/db/repositories/attempts';
-import { AttemptStatusTag, SubmissionStatusTag, DeliveryTag } from '../../_components/ui';
+import { AttemptStatusTag, SubmissionStatusTag } from '../../_components/ui';
 
 // 내 시험 표(클라이언트). 컬럼 render는 함수라 클라 경계 안에서 정의.
 // 응시 액션: ready/running → 시험 진입(intro), 그 외는 상태만.
@@ -16,7 +16,6 @@ export function MyExamsTable({ rows }: { rows: MyExamItem[] }) {
     { key: 'problemTitle', header: '과제', sortable: true },
     { key: 'orgName', header: '대학', sortable: true },
     { key: 'batchName', header: '회차' },
-    { key: 'deliveryMode', header: '제공', render: (r) => <DeliveryTag mode={r.deliveryMode} /> },
     { key: 'status', header: '상태', sortable: true, render: (r) => <AttemptStatusTag status={r.status} /> },
     { key: 'submissionStatus', header: '제출', render: (r) => <SubmissionStatusTag status={r.submissionStatus} /> },
     { key: 'deadlineAt', header: '마감', sortValue: (r) => (r.deadlineAt ? new Date(r.deadlineAt).getTime() : 0), render: (r) => fmt(r.deadlineAt) },

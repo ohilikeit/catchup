@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { DataTable, type Column } from '@app/ui';
 import type { BatchListItem } from '@/lib/db/repositories/batches';
-import { BatchStatusTag, DeliveryTag } from '../../_components/ui';
+import { BatchStatusTag } from '../../_components/ui';
 
 function fmt(d: Date | null): string {
   return d ? new Date(d).toLocaleDateString('ko-KR', { dateStyle: 'medium' }) : '—';
@@ -17,11 +17,6 @@ export function OrgBatchesTable({ rows }: { rows: BatchListItem[] }) {
       header: '문제',
       sortable: true,
       render: (r) => `${r.problemTitle} v${r.problemVersion}`,
-    },
-    {
-      key: 'deliveryMode',
-      header: '제공방식',
-      render: (r) => <DeliveryTag mode={r.deliveryMode} />,
     },
     {
       key: 'status',

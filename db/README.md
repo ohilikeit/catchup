@@ -9,12 +9,12 @@ CatchUP 플랫폼의 데이터 계층. **단일 DB 안을 도메인별 Postgres 
 |---|---|---|
 | `auth` | 정체성 | `users`, `user_roles`(전역), `organizations`, `org_members`(org 역할), `invitations` |
 | `exam` | **코어** | `problems`, `problem_versions`(불변), `batches`, `attempts`, `submissions`(seam), `submission_files`, `attempt_events` |
-| `hosted` | hosted 어댑터 전용 | `slots` — BYOD면 미사용. 코어는 이 schema를 모름 |
+| `hosted` | hosted 어댑터 전용 | `slots` — 호스팅 슬롯 상태. 코어는 이 schema를 모름 |
 | `ops` | 운영 | `roster_imports`, `roster_import_rows` |
 | `grading` | (별도 모듈) | 뼈대에서 **생성하지 않음**. `accepted` submission만 입력으로 후속 제작 |
 
 > ⭐ 뼈대의 끝 = `exam.submissions`(accepted) + 불변 `problem_version` + `trust`. 평가·리포트(`grading.*`)는
-> 이 입구를 소비하는 별도 트랙이라, 제공 방식(hosted↔byod)이 바뀌어도 이 스키마는 무변경.
+> 이 입구를 소비하는 별도 트랙이라, hosted 어댑터 내부가 바뀌어도 이 스키마는 무변경.
 
 ## 로컬 실행
 

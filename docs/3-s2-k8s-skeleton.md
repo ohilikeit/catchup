@@ -386,7 +386,7 @@ spec:
         대화·spend는 litellm + DB에 집계(+ transcript 회수 collector 병행 가능)
 [close] 취합(submission accepted) 먼저 → replicas=0 커밋 → exam 50→0. 가상키 폐기(만료/delete).
         litellm·pg·redis·web은 계속 상주. PVC 잔존 → 다음 부팅 seeder가 wipe+재시드(§11)
-[폴백]  sync 실패/슬롯 부족 → delivery_mode='byod' 자동 강등(§6·§9)
+[복구]  sync 실패/슬롯 부족 → exam-ops 재sync·재배포 + 운영자 일정조정·재공지로 회복
 ```
 
 ---
