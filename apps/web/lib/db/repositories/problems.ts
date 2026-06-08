@@ -1,4 +1,5 @@
 import 'server-only';
+import type { PoolClient } from 'pg';
 import { query, queryOne } from '../pool';
 
 // problems / problem_versions repository. 불변 버전 스냅샷(재현·공정성, docs/1 §3).
@@ -81,6 +82,48 @@ function mapVersion(r: ProblemVersionRow): ProblemVersion {
 export async function findVersionById(id: string): Promise<ProblemVersion | null> {
   const row = await queryOne<ProblemVersionRow>('SELECT * FROM exam.problem_versions WHERE id = $1', [id]);
   return row ? mapVersion(row) : null;
+}
+
+/* ── 트랜잭션(문제 업로드: upsert 문제 → 다음 버전 → 버전 INSERT) ──────── */
+
+/** 문제 upsert(코드 PK). 같은 코드면 제목/직무만 갱신. RETURNING code. */
+export async function upsertProblemTx(
+  client: PoolClient,
+  code: string,
+  roleTrack: RoleTrack,
+  title: string,
+): Promise<string> {
+  const res = await client.query<{ code: string }>(
+    `INSERT INTO exam.problems (code, role_track, title)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (code) DO UPDATE SET title = EXCLUDED.title, role_track = EXCLUDED.role_track
+     RETURNING code`,
+    [code, roleTrack, title],
+  );
+  return res.rows[0]!.code;
+}
+
+/** 다음 버전 번호(현재 최대 + 1, 없으면 1). 같은 트랜잭션 내에서 호출. */
+export async function nextVersionTx(client: PoolClient, code: string): Promise<number> {
+  const res = await client.query<{ v: number }>(
+    `SELECT COALESCE(MAX(version), 0) + 1 AS v FROM exam.problem_versions WHERE problem_code = $1`,
+    [code],
+  );
+  return Number(res.rows[0]!.v);
+}
+
+/** 버전 스냅샷 INSERT(불변). scaffold ref/해시 기록 — hidden은 DB에 두지 않는다(서버 전용). */
+export async function insertProblemVersionTx(
+  client: PoolClient,
+  input: { problemCode: string; version: number; publicScaffoldRef: string; scaffoldSha256: string },
+): Promise<{ id: string; version: number }> {
+  const res = await client.query<{ id: string; version: number }>(
+    `INSERT INTO exam.problem_versions (problem_code, version, public_scaffold_ref, scaffold_sha256)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id, version`,
+    [input.problemCode, input.version, input.publicScaffoldRef, input.scaffoldSha256],
+  );
+  return { id: res.rows[0]!.id, version: res.rows[0]!.version };
 }
 
 /** 회차 개설 폼의 problem_version 선택지(문제 제목 + 버전). */

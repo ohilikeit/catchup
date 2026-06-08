@@ -10,9 +10,9 @@
 ③ exam-ops 자동화 → ④ 50 동시 리허설 순으로 쌓는다. 전달방식은 hosted 단일(BYOD는 폐기).**
 
 > 📌 **현황 (2026-06-08 코드 대조)** — 코어의 *로컬 완결 가능 부분*은 계획보다 앞서 있다.
-> **DB 스키마**(exam·hosted·ops)·**대시보드**(회차 개설·로스터 import·스코프)는 사실상 구현 완료.
-> 남은 코어는 **MinIO 실물 저장**, **hosted iframe 프록시**(현재 "준비 중" 플레이스홀더),
-> **litellm DB 흡수**. 그 위로 **k8s/Helm/ArgoCD·exam-ops 자동화는 전무**다.
+> **DB 스키마**(exam·hosted·ops)·**대시보드**(회차 개설·로스터 import·스코프)·**MinIO 실물 저장**(lib/storage·버킷·서버 sha256)·**문제 업로드**(scaffold/hidden→MinIO)는 구현 완료 — **로컬 완결 가능한 코어는 사실상 끝났다.**
+> 남은 코어는 **hosted iframe 프록시**(현재 "준비 중" 플레이스홀더, k8s 의존)와 **litellm DB 흡수**. 그 위로 **k8s/Helm/ArgoCD·exam-ops 자동화는 전무**다.
+> ⚠️ **BYOD 폐기로 hosted가 유일한 제출 경로** → Phase 2(hosted 런타임)·Phase 3(패키징 Job 제출)이 critical-path.
 > ✅ **로컬 전략 (환경 3계층, §0.5)**: 로컬 **k3d**(Docker 위 k3s) + ArgoCD로 alpha와 *거의 동일한* 환경을 꾸려 **소수(2~5명) 기능 검증**까지 끝낸다 —
 > Helm chart·StatefulSet·iframe 프록시·MinIO·게이트웨이 전 루프가 로컬에서 돈다. harbor는 **로컬에서 우회**(`k3d image import`).
 > **alpha부터** 실제 bitbucket→harbor→ArgoCD 파이프라인으로 배포·StatefulSet 스케일을 검증하고, **50 동시 규모·실부하는 prod 전용**(단일 머신 물리 한계). 갈래별 상태는 각 Phase 표기 참조.
@@ -30,8 +30,9 @@
 | **관리자 대시보드** | 시험 준비·중앙 관제·운영 액션 | 🟡 회차개설·로스터·운영액션 구현 / spend 관제 대기 | 2 §13, 4 |
 | **DB 스키마** | batches/attempts/slots/submissions | ✅ `0003_exam`·`0004_hosted`·`0005_ops` | 5 §3 |
 | **litellm DB 흡수** | 가상키·spend 저장 (S1 별도 `litellm-db` → 메인 postgres) | ⬜ 통합 | 3 §0·§7 |
-| **MinIO 버킷** | scaffold/hidden/artifacts/chatlogs | ⬜ 생성·정책 (스토리지 코드 전무) | 5 §2 |
-| **제출 파이프라인** | 서버측 패키징 Job + 마감 자동 회수 | ⬜ 실물저장(MinIO)·패키징 Job 미구현 | 5 §4·§7 |
+| **MinIO 버킷** | scaffold/hidden/artifacts/chatlogs | ✅ lib/storage·compose·setup.sh 부트스트랩 (전부 private) | 5 §2 |
+| **문제 업로드** | scaffold/hidden → MinIO + problem_versions | ✅ admin 폼·problemService(서버 sha256) | 5 §2 |
+| **제출 파이프라인** | 서버측 패키징 Job(hosted) + 마감 자동 회수 | ⬜ 패키징 Job 미구현 (MinIO·lib/storage는 준비됨) | 5 §4·§7 |
 | **exam-ops** | 가상키 발급·0↔50 스케일·마감 스윕 | ⬜ 구현 | 2 §6, 3 §5 |
 | k8s 매니페스트 | web/litellm/exam/networkpolicy/argocd | ⬜ 작성 | 3 |
 | **catchup-helm 레포** | Helm chart + values + batch overlay (ArgoCD watch) | ⬜ 생성 | 3 §5.1 |
@@ -100,10 +101,10 @@ catchup-helm/
 - [x] 적용·검증: `pnpm db:migrate` (철칙 1·2)
 - [ ] **litellm DB 흡수** (S1 별도 `litellm-db` 폐기): 메인 postgres에 **litellm 전용 DB/schema** 생성 → `litellm-secrets.DATABASE_URL`을 메인 postgres로. LiteLLM 스키마는 **prisma가 자체 관리**(우리 `db/migrations`와 분리), 백업·마이그레이션 정책만 분리 (docs/3 §0·§7)
 
-### 1b. MinIO 버킷·정책 — 레퍼런스 [5 §2] — ⬜ **미착수 (코어의 가장 큰 빈칸)**
-- [ ] 버킷 생성: `exam-scaffold` / `exam-hidden`(서버 전용) / `exam-artifacts` / `exam-chatlogs`
-- [ ] 정책: hidden은 학생 자격 접근 0, artifacts/chatlogs는 서버(Job/앱)만 쓰기
-- [ ] repository/service에 MinIO 클라이언트 래퍼(서명 URL·put·get) → ⚠️ 현재 `apps/web/lib/`에 스토리지 코드 전무. 제출 파일은 메타만 DB에 적재하고 `submission_files.ref`가 `upload://파일명` **목업** 상태(실물 저장 안 됨). **로컬에서 끝까지 가능한 작업** — 루트 docker-compose에 MinIO 추가 + `lib/storage` 래퍼 + 업로드 경로를 실제 put으로 교체
+### 1b. MinIO 버킷·정책 — 레퍼런스 [5 §2] — ✅ **완료**
+- [x] 버킷 생성: `exam-scaffold` / `exam-hidden`(서버 전용) / `exam-artifacts` / `exam-chatlogs` (setup.sh 일회성 mc 부트스트랩 + 앱 `ensureBucket` 런타임 안전망)
+- [x] 정책: 전부 private(익명 접근 none) — 서버(앱/Job) 자격으로만 접근
+- [x] [`lib/storage`](../apps/web/lib/storage/) 래퍼(put·get·서명 URL·서버 sha256·sanitize) + 루트 docker-compose MinIO(bind mount `./data/minio`로 호스트 확인). scaffold/hidden은 문제 업로드(§1d)가, artifacts/chatlogs는 hosted 패키징 Job(Phase 3)이 채운다 (BYOD 폐기로 업로드 제출 경로는 제거)
 
 ### 1c. 앱 셸 (학생 화면) — 레퍼런스 [2 §2, 4] — 🟡 **셸 골격 완성 / hosted iframe 미구현**
 - [x] 시험 페이지 골격: 상단바 + 서버 `deadline_at` 기준 카운트다운([`Countdown.tsx`](../apps/web/app/(exam)/_components/Countdown.tsx)) + hosted 런타임([`ExamRuntime.tsx`](../apps/web/app/(exam)/exam/[attemptId]/ExamRuntime.tsx)) + 마감 처리. 서버 라우트가 status로 intro/done 분기
@@ -112,12 +113,12 @@ catchup-helm/
 
 ### 1d. 관리자 대시보드 — 레퍼런스 [2 §13, 4] — 🟡 **운영 골격 구현 / 일부 관제 대기**
 - [x] 준비: 회차(batch) 생성·로스터 import(xlsx)·스코프 강제(admin 전체 / org_admin 자기 대학) → [`batchService.ts`](../apps/web/lib/services/batchService.ts), `admin/{batches,problems,students,submissions,orgs}`·`org/*` 라우트
-- [ ] 준비(잔여): **문제 업로드(MinIO)** — 업로드 API/UI 없음(MinIO 의존), 일정·예산
+- [x] 준비: **문제 업로드(MinIO)** — admin 폼 → server action → [`problemService`](../apps/web/lib/services/problemService.ts)(서버 sha256·scaffold→exam-scaffold·hidden→exam-hidden) → `problem_versions`. [ ] 일정·예산 필드는 잔여
 - [ ] 관제: 슬롯 현황(`hosted.slots`)·학생 진행(`attempt_events`)·**spend(/key/info)** — spend는 LiteLLM 게이트웨이 연동 대기
 - [x] 액션 골격: 회차 상태전이·시간 연장(`deadline_at`)·무효(`canOperate`=admin) → [ ] 강제 제출은 잔여
 
 **Phase 1 게이트**: 로컬에서 web 앱이 S1 exam 컨테이너를 iframe 프록시하고, 상단바 타이머·제출이 DB/MinIO에 저장되며, 대시보드로 회차를 만들 수 있다.
-> 현황: **대시보드 회차 생성 ✅**. 게이트의 잔여 = **MinIO 실물 저장**(로컬 완결 가능) + **iframe 프록시**(로컬 불가, k8s 의존).
+> 현황: **대시보드 회차 생성·문제 업로드·MinIO 실물 저장 ✅** (로컬 완결분 완료). 게이트의 잔여 = **iframe 프록시**(로컬 불가, k8s 의존 → Phase 2) + **litellm DB 흡수**. BYOD 폐기로 *유일한 제출 경로가 hosted*라 Phase 2/3가 critical-path.
 
 ---
 
@@ -192,8 +193,8 @@ catchup-helm/
 
 ```
 Phase 0 (S1 ✅ 완료)
-   └→ Phase 1 (DB✅ · 대시보드🟡 · 앱셸🟡 · MinIO⬜)   ← 현재 여기 (로컬 완결 잔여 = MinIO)
-        └→ Phase 2 (2a 로컬 k3d 검증 ⬜ → 2b alpha 실 파이프라인 ⬜)  ┐ local: 소수 검증
+   └→ Phase 1 (DB✅ · 대시보드✅ · MinIO✅ · 문제업로드✅ / 앱셸🟡 hosted미구현)   로컬 완결분 ✅
+        └→ Phase 2 (2a 로컬 k3d 검증 ⬜ → 2b alpha 실 파이프라인 ⬜)  ← 현재 여기  ┐ local: 소수 검증
              └→ Phase 3 (exam-ops 자동화 ⬜)                          │ alpha: 실 GitOps
                   └→ Phase 4 (50 동시 리허설 = S2 완료 ⬜)            ┘ prod: 50 규모·실부하
 [환경] local(k3d, 2~5명 확인) → alpha(실 파이프라인·StatefulSet 0↔N) → prod(50 동시) — §0.5
