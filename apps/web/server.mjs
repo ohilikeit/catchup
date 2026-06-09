@@ -77,7 +77,8 @@ const IDE_RE = /^\/exam\/([^/]+)\/ide(?:\/|$)/;
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const proxy = httpProxy.createProxyServer({ ws: true, changeOrigin: true });
-proxy.on('error', (_err, _req, socket) => {
+proxy.on('error', (err, _req, socket) => {
+  console.error('[ws] proxy error:', err?.message);
   if (socket && typeof socket.destroy === 'function' && !socket.destroyed) socket.destroy();
 });
 

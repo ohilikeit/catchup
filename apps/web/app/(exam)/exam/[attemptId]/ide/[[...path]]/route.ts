@@ -69,6 +69,10 @@ function filterResponseHeaders(upstream: Headers): Headers {
   for (const [key, value] of upstream.entries()) {
     const lower = key.toLowerCase();
     if (HOP_BY_HOP.has(lower)) continue;
+    // ⚠️ fetch()/undici 는 본문을 자동 압축해제한다 — 원본 content-encoding/content-length 를
+    // 그대로 전달하면 클라이언트가 이미 해제된 본문을 다시 gunzip 시도해 깨진다(빈 화면).
+    // 변환 프록시이므로 둘 다 드롭(브라우저가 평문으로 받게).
+    if (lower === 'content-encoding' || lower === 'content-length') continue;
     // code-server가 X-Frame-Options: DENY/SAMEORIGIN을 내릴 수 있음.
     // 같은 오리진(앱 도메인)의 iframe에 임베드하므로 이 헤더를 제거한다.
     if (lower === 'x-frame-options') continue;
