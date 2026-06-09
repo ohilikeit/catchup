@@ -14,7 +14,9 @@ metadata:
     app: exam
 spec:
   serviceName: exam
-  replicas: 1
+  # 평소 0 (prod 와 동일). 필요할 때만: kubectl -n catchup-local scale statefulset/exam --replicas=N
+  # 운영에선 exam-ops 가 회차 열림에 맞춰 0↔N 으로 조절(Phase 3). 워밍 버퍼·배정은 그 위에서.
+  replicas: 0
   selector:
     matchLabels:
       app: exam
