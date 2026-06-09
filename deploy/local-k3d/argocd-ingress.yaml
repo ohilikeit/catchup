@@ -1,0 +1,28 @@
+# ArgoCD UI 를 http://argocd.localhost 로 고정 노출(로컬 전용).
+# ⚠️ argocd-server 는 기본 https 리다이렉트라, 먼저 insecure(평문 http) 모드여야 한다:
+#     kubectl -n argocd patch configmap argocd-cmd-params-cm --type=merge -p '{"data":{"server.insecure":"true"}}'
+#     kubectl -n argocd rollout restart deploy/argocd-server
+# (up.sh 가 이 둘을 자동 수행한 뒤 이 파일을 apply 한다.)
+#
+# 이 파일은 argocd 네임스페이스 리소스라 catchup-local Application 의 sync 대상이 아니다
+# (Application 이 argocd-*.yaml 을 exclude). up.sh 가 직접 apply 한다.
+#
+# 접속: http://argocd.localhost  (admin / argocd-initial-admin-secret)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server
+  namespace: argocd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: argocd.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 80

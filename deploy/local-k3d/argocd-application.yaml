@@ -20,8 +20,9 @@ spec:
     path: deploy/local-k3d
     directory:
       recurse: false
-      # ArgoCD Application 자기 자신(이 파일)은 sync 대상에서 제외 — 무한 self-management 방지.
-      exclude: argocd-application.yaml
+      # argocd 네임스페이스 리소스(이 Application 자신·argocd UI ingress)는 sync 대상에서 제외.
+      # up.sh 가 직접 apply 한다(무한 self-management·교차 네임스페이스 혼선 방지).
+      exclude: argocd-*.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: catchup-local

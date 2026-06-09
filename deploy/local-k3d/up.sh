@@ -83,6 +83,14 @@ if (( ARGOCD )); then
   kubectl -n argocd rollout status deploy/argocd-repo-server --timeout=300s
   ok "ArgoCD 기동 완료"
 
+  b "ArgoCD UI 고정 노출 (http://argocd.localhost) — insecure 모드 + ingress"
+  # argocd-server 는 기본 https 리다이렉트 → 평문 ingress 와 충돌. insecure 로 http(:80) 직접 서비스.
+  kubectl -n argocd patch configmap argocd-cmd-params-cm --type=merge -p '{"data":{"server.insecure":"true"}}'
+  kubectl -n argocd rollout restart deploy/argocd-server
+  kubectl -n argocd rollout status deploy/argocd-server --timeout=120s
+  kubectl apply -f deploy/local-k3d/argocd-ingress.yaml
+  ok "argocd.localhost 준비"
+
   b "ArgoCD Application(catchup-local) 적용 — GitHub origin/exp 의 deploy/local-k3d sync"
   kubectl apply -f deploy/local-k3d/argocd-application.yaml
   ok "Application 적용 (자동 sync·selfHeal)"

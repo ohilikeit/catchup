@@ -126,12 +126,17 @@ exam IDE iframe: `http://localhost:3000/exam/<attempt-id>/ide`
 http://catchup.localhost    web 앱(메인). 시험 페이지는 이 하위 라우트(/exam/<attemptId>)
 http://litellm.localhost    litellm 대시보드 (로그인: LITELLM_MASTER_KEY)
 http://minio.localhost      minio 콘솔 (버킷 폴더·객체 열람)
+http://argocd.localhost     ArgoCD UI (admin / argocd-initial-admin-secret)
 ```
 
 `*.localhost` 는 loopback(127.0.0.1)으로 해석된다(RFC 6761). **Windows 브라우저에서 "연결할 수 없음"이 뜨면**
-`C:\Windows\System32\drivers\etc\hosts` 에 `127.0.0.1 catchup.localhost litellm.localhost minio.localhost` 추가.
-(리눅스/맥은 `/etc/hosts`.) argocd UI는 https 리다이렉트 때문에 ingress 대신
-`kubectl -n argocd port-forward svc/argocd-server 8081:443` 권장.
+`C:\Windows\System32\drivers\etc\hosts` 에 `127.0.0.1 catchup.localhost litellm.localhost minio.localhost argocd.localhost` 추가.
+(리눅스/맥은 `/etc/hosts`.)
+
+> **ArgoCD UI 는 `argocd-ingress.yaml` 로 고정 노출**한다(port-forward 불필요). argocd-server 가 기본 https
+> 리다이렉트라, up.sh 가 먼저 `server.insecure=true`(평문 http)로 전환한 뒤 ingress 를 건다. argocd 네임스페이스
+> 리소스라 catchup-local Application 의 sync 대상이 아니다(`argocd-*.yaml` exclude) — up.sh 가 직접 apply.
+> admin 암호: `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d`
 
 > **시험 페이지(exam)는 별도 ingress 가 없다 — 의도된 설계.** 학생은 code-server(exam pod)에 직접 닿지 않고
 > web 이 iframe + WebSocket 으로 역프록시하며 인증·마감을 중재한다(docs/2·docs/4). 그래서 시험 화면은
