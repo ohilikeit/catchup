@@ -38,8 +38,17 @@ export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
           <span className="cds-helper-01 text-text-secondary">웹 IDE</span>
         </div>
 
-        {runtime.slotEndpoint !== null ? (
-          /* 슬롯 배정됨: 프록시 경로로 iframe 렌더. WebSocket·실프록시는 다음 단위(Phase 3) TODO. */
+        {expired ? (
+          /* 마감 후: iframe 차단(서버도 /ide route 게이트4에서 403). docs/4 "마감→iframe 차단". */
+          <div className="px-06">
+            <ComingSoon
+              icon="warning-filled"
+              title="제한시간이 종료되어 IDE가 차단되었습니다"
+              message="더 이상 작업할 수 없습니다. 최종 제출물은 서버 기준으로 처리됩니다."
+            />
+          </div>
+        ) : runtime.slotEndpoint !== null ? (
+          /* 슬롯 배정됨: 프록시 경로로 iframe 렌더. WebSocket 실프록시는 Phase 2(custom server) TODO. */
           <iframe
             src={`/exam/${runtime.attemptId}/ide/`}
             className="w-full border-0"
