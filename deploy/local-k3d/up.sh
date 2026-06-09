@@ -19,11 +19,14 @@ CLUSTER=catchup
 NS=catchup-local
 BIN="$HOME/.local/bin"
 export PATH="$BIN:$PATH"
-BUILD=1; ARGOCD=1
+BUILD=1; ARGOCD=1; NOAPP=0
 for a in "$@"; do
   case "$a" in
     --no-build) BUILD=0 ;;
     --no-argocd) ARGOCD=0 ;;
+    # --no-app: Application 적용·스택 대기를 건너뛴다. setup.sh 가 secret 을 먼저 만든 뒤 직접 app 을 적용할 때 사용
+    #           (secret 이 없는 상태로 워크로드가 뜨면 CreateContainerConfigError 가 나므로 순서를 분리).
+    --no-app) NOAPP=1 ;;
   esac
 done
 
@@ -93,9 +96,13 @@ if (( ARGOCD )); then
   kubectl apply -f deploy/local-k3d/argocd-ingress.yaml
   ok "argocd.localhost 준비"
 
-  b "ArgoCD Application(catchup-local) 적용 — GitHub origin/exp 의 deploy/local-k3d sync"
-  kubectl apply -f deploy/local-k3d/argocd-application.yaml
-  ok "Application 적용 (자동 sync·selfHeal)"
+  if (( NOAPP )); then
+    ok "(--no-app) Application 적용은 setup.sh 가 secret 생성 후 직접 수행"
+  else
+    b "ArgoCD Application(catchup-local) 적용 — GitHub origin/exp 의 deploy/local-k3d sync"
+    kubectl apply -f deploy/local-k3d/argocd-application.yaml
+    ok "Application 적용 (자동 sync·selfHeal)"
+  fi
   printf '  admin 암호: '
   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d; echo
 else
@@ -106,6 +113,11 @@ else
 fi
 
 # ── 4. 기동 대기 + 안내 ───────────────────────────────────────────────────
+# --no-app 이면 워크로드를 아직 안 올렸으므로(setup.sh 가 secret 후 올림) 대기/안내를 건너뛴다.
+if (( NOAPP )); then
+  b "완료 — 인프라(클러스터·ArgoCD·UI) 준비. 워크로드는 setup.sh 가 secret 생성 후 배포"
+  exit 0
+fi
 b "스택 기동 대기 (postgres·redis·minio·litellm·web)"
 kubectl -n "$NS" rollout status deploy/postgres --timeout=180s 2>/dev/null || true
 kubectl -n "$NS" rollout status deploy/minio    --timeout=180s 2>/dev/null || true

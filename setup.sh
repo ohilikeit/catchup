@@ -56,36 +56,99 @@ if ! docker info >/dev/null 2>&1; then
 fi
 ok "Docker"
 
-# ── 1. 환경 파일(.env.secret) ─────────────────────────────────────────────
-# 클러스터 시크릿은 deploy/local-k3d/01-secrets.yaml 이지만, .env.secret 은 여전히 필요하다:
-#  - litellm 실호출용 ANTHROPIC_API_KEY 를 여기서 읽어 클러스터에 주입(§5)
-#  - 호스트에서 돌리는 pnpm db:migrate / db:seed 가 dotenv 로 로드(단 DATABASE_URL 은 클러스터용으로 인라인 override)
-step ".env.secret 준비"
-if [[ -f .env.secret ]]; then
-  ok ".env.secret 이미 존재 — 유지"
-else
+# ── 1. 환경 파일(.env.secret) — 단일 시크릿 소스 ──────────────────────────
+# 이 파일 하나가 클러스터 Secret(app-secrets·litellm-secrets)·postgres/minio pod 자격증명·
+# 호스트 dev(pnpm dev)·마이그레이션의 유일한 출처다. 누락 키는 멱등 보강(SESSION/INTERNAL 은 무작위).
+step ".env.secret 준비 (단일 시크릿 소스)"
+if [[ ! -f .env.secret ]]; then
   cp .env.secret.example .env.secret
-  SECRET="$(node -e 'console.log(require("crypto").randomBytes(48).toString("base64url"))')"
-  node -e '
-    const fs = require("fs");
-    const f = ".env.secret";
-    let s = fs.readFileSync(f, "utf8");
-    s = s.replace(/^SESSION_SECRET=.*$/m, "SESSION_SECRET=" + process.argv[1]);
-    fs.writeFileSync(f, s);
-  ' "$SECRET"
-  ok ".env.secret 생성 + SESSION_SECRET 랜덤 발급"
+  ok ".env.secret 생성(.env.secret.example 복제)"
+else
+  ok ".env.secret 존재 — 누락 키만 보강"
 fi
+# 키가 없거나 비어 있으면 채운다($2 가 비면 무작위 생성). 멱등.
+ensure_key() {
+  local k="$1" def="$2" cur
+  cur="$(grep -E "^${k}=" .env.secret | tail -1 | cut -d= -f2- || true)"
+  [[ -n "${cur//[[:space:]]/}" ]] && return 0
+  [[ -z "$def" ]] && def="$(node -e 'console.log(require("crypto").randomBytes(36).toString("base64url"))')"
+  if grep -qE "^${k}=" .env.secret; then
+    node -e 'const fs=require("fs"),f=".env.secret";let s=fs.readFileSync(f,"utf8");s=s.replace(new RegExp("^"+process.argv[1]+"=.*$","m"),process.argv[1]+"="+process.argv[2]);fs.writeFileSync(f,s)' "$k" "$def"
+  else
+    printf '%s=%s\n' "$k" "$def" >> .env.secret
+  fi
+}
+ensure_key SESSION_SECRET ""          # 무작위
+ensure_key INTERNAL_API_SECRET ""     # 무작위
+ensure_key LITELLM_MASTER_KEY sk-master-dev
+ensure_key POSTGRES_USER catchup
+ensure_key POSTGRES_PASSWORD catchup
+ensure_key POSTGRES_DB catchup
+ensure_key MINIO_ROOT_USER catchup
+ensure_key MINIO_ROOT_PASSWORD catchup-minio
+# ANTHROPIC_API_KEY 는 비어 있어도 됨(있으면 litellm 실호출 가능) — 보강하지 않는다.
+set -a; . ./.env.secret; set +a       # 이후 단계에서 $POSTGRES_USER 등으로 사용
+ok ".env.secret 로드 (누락 키 보강 완료)"
 
 # ── 2. 의존성 설치 (pnpm install) — 이미지 빌드·마이그레이션 양쪽에 필요 ────
 step "의존성 설치 (pnpm install)"
 pnpm install
 ok "워크스페이스 부트스트랩 완료"
 
-# ── 3. k8s 부트스트랩 (k3d 클러스터·이미지·ArgoCD·UI ingress·스택) ─────────
+# ── 3. k8s 인프라 부트스트랩 (--no-app: secret 을 먼저 만든 뒤 워크로드 배포) ─
 # up.sh 가: kubectl/helm/k3d 설치 → 클러스터 create-or-start → 이미지 build+import(레지스트리 우회)
-#          → ArgoCD 설치 + UI ingress(argocd.localhost) → Application(GitOps) → 스택 rollout 대기.
-step "k8s 스택 부트스트랩 (deploy/local-k3d/up.sh)"
-bash deploy/local-k3d/up.sh $BUILD_FLAG
+#          → ArgoCD 설치 + UI ingress. Application(워크로드) 은 secret 생성 후 아래에서 적용.
+step "k8s 인프라 부트스트랩 (deploy/local-k3d/up.sh --no-app)"
+bash deploy/local-k3d/up.sh $BUILD_FLAG --no-app
+
+# ── 3b. 클러스터 시크릿 렌더 (.env.secret → app-secrets·litellm-secrets) ───
+# git 에는 secret 값이 없다(01-secrets.yaml 제거). 여기서 .env.secret 으로 생성 →
+# ArgoCD 가 관리하지 않으므로 selfHeal 이 덮어쓰지 않는다(로컬판 SealedSecrets, docs/6 §0.5).
+# 워크로드(postgres/minio/web/litellm)보다 먼저 만들어야 CreateContainerConfigError 를 피한다.
+step "클러스터 시크릿 생성 (.env.secret 단일 소스)"
+kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+# app-secrets: 클러스터 내부 host(postgres/redis/minio 서비스명)로 URL 구성.
+kubectl -n "$NS" create secret generic app-secrets \
+  --from-literal=DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}" \
+  --from-literal=REDIS_URL="redis://redis:6379" \
+  --from-literal=MINIO_ENDPOINT="minio" \
+  --from-literal=MINIO_PORT="9000" \
+  --from-literal=MINIO_USE_SSL="false" \
+  --from-literal=MINIO_ACCESS_KEY="${MINIO_ROOT_USER}" \
+  --from-literal=MINIO_SECRET_KEY="${MINIO_ROOT_PASSWORD}" \
+  --from-literal=SESSION_SECRET="${SESSION_SECRET}" \
+  --from-literal=LITELLM_MASTER_KEY="${LITELLM_MASTER_KEY}" \
+  --from-literal=LITELLM_BASE_URL="http://litellm:4000" \
+  --from-literal=INTERNAL_API_SECRET="${INTERNAL_API_SECRET}" \
+  --from-literal=POSTGRES_USER="${POSTGRES_USER}" \
+  --from-literal=POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
+  --from-literal=POSTGRES_DB="${POSTGRES_DB}" \
+  --from-literal=MINIO_ROOT_USER="${MINIO_ROOT_USER}" \
+  --from-literal=MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD}" \
+  --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+# litellm-secrets: 게이트웨이용. litellm 전용 DB(litellm/litellm 고정, postgres-init 가 생성).
+kubectl -n "$NS" create secret generic litellm-secrets \
+  --from-literal=DATABASE_URL="postgresql://litellm:litellm@postgres:5432/litellm" \
+  --from-literal=LITELLM_MASTER_KEY="${LITELLM_MASTER_KEY}" \
+  --from-literal=ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \
+  --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+# ArgoCD 추적 라벨 제거 — 과거 01-secrets.yaml 로 ArgoCD 가 만들었던 흔적을 떼서 prune 대상에서 제외.
+# (신규 설치엔 라벨이 없어 무해. setup.sh 가 secret 의 단독 소유자가 된다.)
+kubectl -n "$NS" label secret app-secrets litellm-secrets app.kubernetes.io/instance- >/dev/null 2>&1 || true
+ok "app-secrets·litellm-secrets 생성 완료"
+
+# ── 3c. ArgoCD Application 적용 + 스택 기동 대기 ───────────────────────────
+step "ArgoCD Application 적용 + 스택 기동 대기"
+kubectl apply -f deploy/local-k3d/argocd-application.yaml >/dev/null
+kubectl -n "$NS" rollout status deploy/postgres --timeout=180s 2>/dev/null || true
+kubectl -n "$NS" rollout status deploy/minio    --timeout=180s 2>/dev/null || true
+kubectl -n "$NS" rollout status deploy/litellm  --timeout=180s 2>/dev/null || true
+kubectl -n "$NS" rollout status deploy/web      --timeout=240s 2>/dev/null || true
+# 재실행으로 .env.secret 의 키가 바뀐 경우, 이미 떠 있는 litellm 이 새 ANTHROPIC 키를 집도록 재시작.
+if [[ -n "${ANTHROPIC_API_KEY//[[:space:]]/}" ]]; then
+  kubectl -n "$NS" rollout restart deploy/litellm >/dev/null 2>&1 || true
+fi
+ok "워크로드 배포 완료"
 
 # ── 4. MinIO 버킷 보장 (클러스터 minio pod 안에서 mc) ──────────────────────
 # docs/5 §2: scaffold/hidden/artifacts/chatlogs, 전부 private. 앱도 첫 put 에서 ensureBucket 하지만 미리 보장.
@@ -103,22 +166,9 @@ else
   err "MinIO 버킷 생성 실패 — 앱이 첫 put 에서 자동 생성하므로 치명적 아님(kubectl -n $NS logs deploy/minio)"
 fi
 
-# ── 5. LiteLLM 키 주입 (.env.secret → litellm-secrets) ────────────────────
-# ANTHROPIC_API_KEY 는 git 에 없다(01-secrets.yaml 에서 제외). 여기서 .env.secret 값을 주입.
-# git manifest 에 없으므로 ArgoCD selfHeal 이 이 값을 지우지 않는다(3-way merge).
-step "LiteLLM ANTHROPIC 키 주입"
-AKEY="$(grep -E '^ANTHROPIC_API_KEY=' .env.secret 2>/dev/null | tail -1 | cut -d= -f2- || true)"
-if [[ -n "${AKEY//[[:space:]]/}" ]]; then
-  kubectl -n "$NS" patch secret litellm-secrets --type=merge -p "{\"stringData\":{\"ANTHROPIC_API_KEY\":\"${AKEY}\"}}" >/dev/null
-  kubectl -n "$NS" rollout restart deploy/litellm >/dev/null
-  ok "ANTHROPIC_API_KEY 주입 + litellm 재시작"
-else
-  ok "(.env.secret 에 ANTHROPIC_API_KEY 없음 — litellm 은 키 없이 기동. 실호출 전 .env.secret 채우고 재실행)"
-fi
-
-# ── 6. DB 마이그레이션 (클러스터 postgres, port-forward 경유) ──────────────
+# ── 5. DB 마이그레이션 (클러스터 postgres, port-forward 경유) ──────────────
 # 러너는 호스트에서 돌고 DATABASE_URL 인라인 override 로 클러스터 postgres(localhost:5433)를 가리킨다.
-# litellm 전용 DB 는 postgres-init ConfigMap(10-postgres.yaml)이 기동 시 생성(흡수; docs/3 §7).
+# 자격증명은 .env.secret 단일 소스(POSTGRES_*). litellm 전용 DB 는 postgres-init(10-postgres.yaml)이 생성.
 step "DB 마이그레이션 (cluster postgres)"
 kubectl -n "$NS" rollout status deploy/postgres --timeout=180s >/dev/null 2>&1 || true
 kubectl -n "$NS" port-forward svc/postgres 5433:5432 >/tmp/catchup-pf-pg.log 2>&1 &
@@ -132,7 +182,7 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 if (( PF_OK )); then
-  CLUSTER_DB_URL="postgresql://catchup:catchup@127.0.0.1:5433/catchup"
+  CLUSTER_DB_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:5433/${POSTGRES_DB}"
   DATABASE_URL="$CLUSTER_DB_URL" pnpm db:migrate
   ok "마이그레이션 완료"
   # ── 7. 데모 시드(선택) ──
@@ -156,8 +206,8 @@ cat <<EOF
 
   접속 (ingress, 포트 없이):
     http://catchup.localhost    web 앱(메인). 시험 페이지는 /exam/<attemptId>
-    http://litellm.localhost    litellm 대시보드 (로그인: LITELLM_MASTER_KEY=sk-master-dev)
-    http://minio.localhost      minio 콘솔 (id/pw: catchup / catchup-minio)
+    http://litellm.localhost    litellm 대시보드 (로그인: LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY})
+    http://minio.localhost      minio 콘솔 (id/pw: ${MINIO_ROOT_USER} / ${MINIO_ROOT_PASSWORD})
     http://argocd.localhost     ArgoCD UI (admin / ${ARGO_PW:-<kubectl 로 확인>})
 
   * Windows 브라우저에서 "연결할 수 없음"이면 hosts 에 추가:

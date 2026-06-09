@@ -39,13 +39,14 @@ spec:
       containers:
         - name: postgres
           image: postgres:16-alpine
+          # 자격증명은 app-secrets(setup.sh 가 .env.secret 에서 렌더)에서 읽는다 — 단일 소스.
           env:
             - name: POSTGRES_USER
-              value: catchup
+              valueFrom: { secretKeyRef: { name: app-secrets, key: POSTGRES_USER } }
             - name: POSTGRES_PASSWORD
-              value: catchup
+              valueFrom: { secretKeyRef: { name: app-secrets, key: POSTGRES_PASSWORD } }
             - name: POSTGRES_DB
-              value: catchup
+              valueFrom: { secretKeyRef: { name: app-secrets, key: POSTGRES_DB } }
           ports:
             - containerPort: 5432
           volumeMounts:

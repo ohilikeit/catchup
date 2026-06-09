@@ -8,8 +8,8 @@ alpha/prod는 catchup-helm 사용. 이 디렉터리는 **로컬 전용**.
 | 파일 | 내용 |
 |------|------|
 | `00-namespace.yaml` | Namespace `catchup-local` |
-| `01-secrets.yaml` | `app-secrets`(web), `litellm-secrets`(litellm) |
-| `10-postgres.yaml` | postgres:16-alpine + litellm DB init ConfigMap + PVC + Service |
+| (secret) | `app-secrets`·`litellm-secrets` 는 git 에 없음 — `setup.sh` 가 `.env.secret` 에서 생성(단일 소스). git 평문 금지. |
+| `10-postgres.yaml` | postgres:16-alpine + litellm DB init ConfigMap + PVC + Service (자격증명은 app-secrets) |
 | `11-redis.yaml` | redis:7-alpine + Service |
 | `12-minio.yaml` | minio/minio + PVC + Service(9000/9001) |
 | `20-litellm.yaml` | litellm-config ConfigMap + Deployment + Service(4000) |
@@ -154,8 +154,8 @@ k3d cluster delete catchup
 ## 주의사항
 
 - `imagePullPolicy: Never` — 반드시 `k3d image import` 후 적용
-- ANTHROPIC_API_KEY는 빈 값으로 설정됨 — 실제 LLM 호출이 필요하면 `01-secrets.yaml`의
-  `litellm-secrets.ANTHROPIC_API_KEY`를 실제 키로 교체 후 재적용
+- 시크릿은 git 에 없다 — 루트 `.env.secret`(단일 소스)을 채우고 `./setup.sh` 가 클러스터에 생성한다.
+  실제 LLM 호출이 필요하면 `.env.secret` 의 `ANTHROPIC_API_KEY` 를 채운 뒤 `./setup.sh --no-build` 재실행
 - exam pod은 `/registry/<PROBLEM_ID>/scaffold` 가 있어야 시드 성공.
   scaffold가 없으면 `[seed] ERROR`로 종료 → 이미지에 registry를 포함하거나
   ConfigMap/hostPath로 `/registry`를 마운트해야 함

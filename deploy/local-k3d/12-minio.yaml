@@ -32,11 +32,12 @@ spec:
           # ⚠️ k8s 의 command 는 이미지 ENTRYPOINT 를 덮어쓴다(compose 의 command=CMD 와 다름).
           # 따라서 minio 바이너리를 명시해야 한다 — ["server",...] 만 쓰면 'server' 실행파일을 찾다 실패.
           command: ["minio", "server", "/data", "--console-address", ":9001"]
+          # 루트 자격증명은 app-secrets(setup.sh 가 .env.secret 에서 렌더)에서 읽는다 — 단일 소스.
           env:
             - name: MINIO_ROOT_USER
-              value: catchup
+              valueFrom: { secretKeyRef: { name: app-secrets, key: MINIO_ROOT_USER } }
             - name: MINIO_ROOT_PASSWORD
-              value: catchup-minio
+              valueFrom: { secretKeyRef: { name: app-secrets, key: MINIO_ROOT_PASSWORD } }
           ports:
             - containerPort: 9000
             - containerPort: 9001
