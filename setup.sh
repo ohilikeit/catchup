@@ -178,4 +178,8 @@ cat <<'EOF'
     pnpm db:seed          데모 데이터 재적재(멱등)
     docker compose down   DB/캐시 컨테이너 종료
 
+  k8s(k3s in docker) 검증 환경 — 사내 alpha 와 거의 동일(k3d + ArgoCD + MinIO, docs/6 §0.5):
+    ./deploy/local-k3d/up.sh           → 클러스터·ArgoCD·이미지·스택 한 번에
+    (이 setup.sh 는 docker-compose 개발 경로, up.sh 는 그 위의 k8s GitOps 경로)
+
 EOF

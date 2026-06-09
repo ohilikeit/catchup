@@ -29,7 +29,9 @@ spec:
       containers:
         - name: minio
           image: minio/minio:latest
-          command: ["server", "/data", "--console-address", ":9001"]
+          # ⚠️ k8s 의 command 는 이미지 ENTRYPOINT 를 덮어쓴다(compose 의 command=CMD 와 다름).
+          # 따라서 minio 바이너리를 명시해야 한다 — ["server",...] 만 쓰면 'server' 실행파일을 찾다 실패.
+          command: ["minio", "server", "/data", "--console-address", ":9001"]
           env:
             - name: MINIO_ROOT_USER
               value: catchup
