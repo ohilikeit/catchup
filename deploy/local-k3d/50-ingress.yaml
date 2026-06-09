@@ -1,11 +1,14 @@
 # 로컬 ingress (traefik). k3d LB 가 호스트 8088 → traefik :80 으로 매핑돼 있으므로
 # http://<host>.localhost:8088 로 접속한다(*.localhost 는 127.0.0.1 로 해석됨).
 #
-#   web 앱     → http://catchup.localhost:8088
-#   minio 콘솔 → http://minio.localhost:8088
+#   web 앱       → http://catchup.localhost
+#   minio 콘솔   → http://minio.localhost
+#   litellm UI   → http://litellm.localhost   (로그인: master key)
 #
+# (LB 가 호스트 80·8088 둘 다 traefik:80 으로 매핑 → :80 깔끔한 주소·:8088 둘 다 가능)
 # alpha/prod 는 common-helm 의 ingress(=catchup-helm/{stage}-ingress-values.yaml)가 담당 — 이 파일은 로컬 전용.
 # argocd UI 는 https 리다이렉트 때문에 ingress 가 까다로워 port-forward 를 권장(README 참고).
+# exam(시험) pod 는 의도적으로 ingress 미노출 — web 이 iframe+WS 로 역프록시(인증·마감 중재). docs/2·docs/4.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -24,6 +27,25 @@ spec:
                 name: web
                 port:
                   number: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: litellm
+  namespace: catchup-local
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: litellm.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: litellm
+                port:
+                  number: 4000
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress

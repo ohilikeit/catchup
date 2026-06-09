@@ -53,7 +53,8 @@ b "k3d 클러스터 '$CLUSTER'"
 if k3d cluster list 2>/dev/null | grep -q "^$CLUSTER"; then
   ok "이미 존재 — 유지"
 else
-  k3d cluster create "$CLUSTER" --agents 1 -p "8088:80@loadbalancer" --wait
+  # 호스트 80·8088 둘 다 traefik:80 으로 → http://*.localhost (포트 없는 깔끔한 주소) 사용 가능.
+  k3d cluster create "$CLUSTER" --agents 1 -p "80:80@loadbalancer" -p "8088:80@loadbalancer" --wait
   ok "생성 완료"
 fi
 kubectl config use-context "k3d-$CLUSTER" >/dev/null
@@ -108,14 +109,14 @@ cat <<EOF
     kubectl -n $NS port-forward svc/postgres 5433:5432 &
     DATABASE_URL=postgresql://catchup:catchup@localhost:5433/catchup pnpm db:migrate
 
-  접속 — ingress(traefik, k3d LB 8088→80) 경유:
-    http://catchup.localhost:8088   web 앱
-    http://minio.localhost:8088     minio 콘솔
-    (*.localhost 는 loopback 으로 해석됨. 안 되면 /etc/hosts 에 '127.0.0.1 catchup.localhost minio.localhost')
+  접속 — ingress(traefik, k3d LB :80) 경유:
+    http://catchup.localhost    web 앱(메인) — 시험 페이지도 여기 하위(/exam/<id>)
+    http://litellm.localhost    litellm 대시보드(로그인: master key)
+    http://minio.localhost      minio 콘솔(폴더/객체 열람)
+    (*.localhost 는 loopback 으로 해석됨. Windows 브라우저에서 안 되면
+     C:\\Windows\\System32\\drivers\\etc\\hosts 에 '127.0.0.1 catchup.localhost litellm.localhost minio.localhost')
 
-  또는 port-forward:
-    kubectl -n $NS    port-forward svc/web 3000:3000           # http://localhost:3000
+  argocd UI 는 https 라 port-forward:
     kubectl -n argocd port-forward svc/argocd-server 8081:443  # https://localhost:8081 (admin)
-    kubectl -n $NS    port-forward svc/minio 9001:9001         # http://localhost:9001 (콘솔)
 EOF
 b "완료 — local-k3d 환경 기동"

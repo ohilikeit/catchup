@@ -120,16 +120,23 @@ exam IDE iframe: `http://localhost:3000/exam/<attempt-id>/ide`
 
 ### ingress 경유(port-forward 대신)
 
-`50-ingress.yaml` + traefik(k3d LB 8088→80)로 호스트명 접속:
+`50-ingress.yaml` + traefik(k3d LB 가 호스트 :80·:8088 → traefik:80)로 호스트명 접속:
 
 ```
-http://catchup.localhost:8088    web 앱
-http://minio.localhost:8088      minio 콘솔
+http://catchup.localhost    web 앱(메인). 시험 페이지는 이 하위 라우트(/exam/<attemptId>)
+http://litellm.localhost    litellm 대시보드 (로그인: LITELLM_MASTER_KEY)
+http://minio.localhost      minio 콘솔 (버킷 폴더·객체 열람)
 ```
 
-`*.localhost` 는 loopback 으로 해석된다(RFC 6761). 브라우저/OS가 해석 못 하면
-`/etc/hosts` 에 `127.0.0.1 catchup.localhost minio.localhost` 추가. argocd UI는 https
-리다이렉트 때문에 ingress 대신 `kubectl -n argocd port-forward svc/argocd-server 8081:443` 권장.
+`*.localhost` 는 loopback(127.0.0.1)으로 해석된다(RFC 6761). **Windows 브라우저에서 "연결할 수 없음"이 뜨면**
+`C:\Windows\System32\drivers\etc\hosts` 에 `127.0.0.1 catchup.localhost litellm.localhost minio.localhost` 추가.
+(리눅스/맥은 `/etc/hosts`.) argocd UI는 https 리다이렉트 때문에 ingress 대신
+`kubectl -n argocd port-forward svc/argocd-server 8081:443` 권장.
+
+> **시험 페이지(exam)는 별도 ingress 가 없다 — 의도된 설계.** 학생은 code-server(exam pod)에 직접 닿지 않고
+> web 이 iframe + WebSocket 으로 역프록시하며 인증·마감을 중재한다(docs/2·docs/4). 그래서 시험 화면은
+> `http://catchup.localhost/exam/<attemptId>` 로 web 하위에서 열린다. **클릭 시 pod 가 비로소 뜨는 동적 프로비전**은
+> exam-ops(Phase 3) 소관 — 현재 로컬엔 정적 `exam-0` 1개만 떠 있고, 자동 0↔N 스케일은 미구현이다.
 
 ## 삭제
 
