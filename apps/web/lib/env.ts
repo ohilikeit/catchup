@@ -66,4 +66,13 @@ export const env = {
   get litellmMasterKey(): string {
     return required('LITELLM_MASTER_KEY');
   },
+
+  /**
+   * Internal API 공유 시크릿. pod → 앱 내부 엔드포인트 인증(register/heartbeat).
+   * production 필수. dev에서 미설정 시 빈 문자열 → 모든 요청 거부(보안 기본값).
+   * docs/2 §3④·§6.
+   */
+  get internalApiSecret(): string {
+    return process.env.INTERNAL_API_SECRET ?? '';
+  },
 } as const;
