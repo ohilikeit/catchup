@@ -1,0 +1,15 @@
+# alpha 인그레스 — web 만 외부 노출.
+common-helm:
+  namespace: ait-catch-exam
+  stage: "alpha"
+  ingress:
+    enabled: true
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    hosts:
+      - host: "exam-alpha.internal"      # ⚠️ 사내 도메인으로 교체
+        paths:
+          - path: "/"
+            pathType: Prefix
+            serviceName: "catchup-web"
+            servicePort: 3000

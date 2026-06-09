@@ -1,0 +1,16 @@
+# local 인그레스 (k3d) — traefik 기본 인그레스.
+common-helm:
+  namespace: ait-catch-exam
+  stage: "local"
+  ingress:
+    enabled: true
+    annotations:
+      # traefik websocket 통과 (k3d 기본). nginx 사용 시 proxy-read-timeout 으로 교체
+      traefik.ingress.kubernetes.io/router.entrypoints: "web"
+    hosts:
+      - host: "exam.localhost"
+        paths:
+          - path: "/"
+            pathType: Prefix
+            serviceName: "catchup-web"
+            servicePort: 3000

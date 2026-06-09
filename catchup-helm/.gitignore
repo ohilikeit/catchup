@@ -1,0 +1,10 @@
+# 진짜 키가 들어간 시크릿 values 는 git 금지 (docs/3 §1, 횡단 원칙).
+*.secret.yaml
+
+# helm dependency 산출물 (harbor 에서 helm dep build 로 받음)
+charts/
+*.tgz
+
+# 도구 부산물
+.claude
+.omc

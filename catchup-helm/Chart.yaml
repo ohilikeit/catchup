@@ -1,0 +1,20 @@
+apiVersion: v2
+name: catchup-helm
+# Versions are expected to follow Semantic Versioning (https://semver.org/)
+version: 0.0.1-ALPHA
+appVersion: dev
+type: application
+description: A Helm chart for CatchUP 최종 시험 환경 (exam-platform)
+keywords:
+  - catchup
+  - exam-platform
+maintainers:
+  - name: CatchUP Platform
+# 공통 차트를 참조하기 위한 dependencies 설정 (사내 표준 umbrella).
+# 상주 web 은 common-helm 의 Deployment/Service/Ingress/Vault 로 배포하고,
+# litellm·exam StatefulSet·NetworkPolicy 등 common-helm 이 표현 못 하는 특수 워크로드는
+# 이 레포의 templates/ 에 커스텀으로 둔다(neo4j-helm 의 custom-service.yaml 선례).
+dependencies:
+  - name: common-helm
+    version: 1.2.24
+    repository: "oci://harbor-jinhak.jinhaksa.com/common"

@@ -1,0 +1,89 @@
+# alpha (사내, 점진) — 워크로드 values. 실 GitOps 파이프라인 시작점. 중간 규모(10~20). (docs/6 §0.5)
+# ⚠️ IP·도메인·harbor 프로젝트·StorageClass 는 실값으로 교체.
+
+common-helm:
+  namespace: ait-catch-exam            # fullnamespace = ait-catch-exam-alpha
+  stage: "alpha"
+  vaultDefaults:
+    sharedConfigMap:
+      enabled: true
+    environments:
+      alpha:
+        address: "https://vault-jinhak.jinhaksa.com"
+        kvPath: "jinhak-kv/catchup"
+        hostAlias:
+          ip: "192.168.155.250"
+          hostname: "vault-jinhak.jinhaksa.com"
+  applications:
+    "catchup-web":
+      enabled: true
+      replicaCount: 2
+      image:
+        repository: harbor-jinhak.jinhaksa.com/ait-catch-alpha/catchup-web
+        tag: v-alpha.1
+        pullPolicy: IfNotPresent
+        containerPort: 3000
+      vaultconfig:
+        enabled: true
+        approle: "vault-agent-role"
+        mountPath: "/etc/secrets"
+        secretsFile:
+          enabled: true
+          filename: "secrets.env"
+          format: "env"
+          autoSource: false
+      hostAliases:                      # ⚠️ 실 IP 로 교체
+        - ip: "192.168.140.30"
+          hostnames: ["alpha-postgresql"]
+        - ip: "192.168.140.31"
+          hostnames: ["alpha-redis"]
+        - ip: "192.168.140.32"
+          hostnames: ["alpha-minio"]
+      extraEnvVars:
+        - { name: ANTHROPIC_BASE_URL, value: "http://litellm:4000" }
+      service:
+        type: ClusterIP
+        port: 3000
+      resources:
+        requests: { cpu: "250m", memory: "512Mi" }
+        limits:   { cpu: "1",    memory: "1Gi" }
+
+examPlatform:
+  secrets:
+    create: false                       # alpha: Vault/External Secrets
+    litellm:
+      anthropicApiKey: ""
+      masterKey: ""
+      databaseUrl: ""
+  litellm:
+    image: ghcr.io/berriai/litellm-database:main-stable
+    model: anthropic/claude-sonnet-4-6
+    replicas: 2
+    redisHost: alpha-redis
+    hostAliases:
+      - ip: "192.168.140.31"
+        hostnames: ["alpha-redis"]
+      - ip: "192.168.140.30"
+        hostnames: ["alpha-postgresql"]
+    resources:
+      requests: { cpu: "250m", memory: "512Mi" }
+      limits:   { cpu: "1",    memory: "1Gi" }
+  exam:
+    image:
+      repository: harbor-jinhak.jinhaksa.com/ait-catch-alpha/catchup-exam
+      tag: v-alpha.1
+      pullPolicy: IfNotPresent
+    replicas: 0                         # batches/current.yaml 로 10~20
+    problemId: ainc2026
+    workspacePath: /home/coder/project
+    storage: 5Gi
+    storageClassName: ""                # ⚠️ 사내 SC
+    nodeSelector: {}
+    tolerations: []
+    runtimeClassName: ""
+    resources:
+      requests: { cpu: "500m", memory: "2Gi" }
+      limits:   { cpu: "2",    memory: "3Gi" }
+  networkPolicy:
+    enabled: true
+    packageMirrorCIDRs: []              # ⚠️ 사내 미러 CIDR

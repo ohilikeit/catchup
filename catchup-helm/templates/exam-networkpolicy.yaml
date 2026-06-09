@@ -1,0 +1,42 @@
+{{- /*
+NetworkPolicy — 학생 pod egress = litellm(4000) + DNS(+사내 미러)만. 외부 AI·인터넷 직결 차단(docs/3 §4).
+common-helm 미지원 → 커스텀. local 은 examPlatform.networkPolicy.enabled=false 로 생략.
+⚠️ k3s 기본 flannel 은 NP 컨트롤러 내장 — alpha/prod 에서 추가 설치 없이 켤 수 있다(필요 시 Calico).
+*/ -}}
+{{- $ep := .Values.examPlatform -}}
+{{- if $ep.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: exam-egress
+  namespace: {{ include "catchup.namespace" . }}
+  labels:
+    {{- include "catchup.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: { app: exam }
+  policyTypes: [Egress]
+  egress:
+    # 게이트웨이(LiteLLM)만
+    - to:
+        - podSelector:
+            matchLabels: { app: litellm }
+      ports:
+        - { port: 4000 }
+    # DNS
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }
+    {{- with $ep.networkPolicy.packageMirrorCIDRs }}
+    # 사내 npm/pypi 미러 egress (환경의 CIDR 로 한정)
+    - to:
+        {{- range . }}
+        - ipBlock:
+            cidr: {{ . | quote }}
+        {{- end }}
+    {{- end }}
+{{- end }}

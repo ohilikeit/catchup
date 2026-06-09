@@ -1,0 +1,28 @@
+# ArgoCD Application — source=catchup-helm(deploy 레포). ArgoCD 는 이 레포만 watch (docs/3 §5.3).
+# valueFiles 순서: applications → ingress → batches/current.yaml(회차 overlay, exam-ops 가 갱신).
+# ⚠️ alpha/prod 각각 별도 Application(아래는 alpha 예시). repoURL·targetRevision 은 사내값으로 교체.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: catchup-exam-platform-alpha
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://bitbucket.org/<org>/catchup-helm.git    # ★ deploy 레포(app 과 분리)
+    targetRevision: main
+    path: .                                  # chart 루트(umbrella)
+    helm:
+      valueFiles:
+        - alpha-applications-values.yaml
+        - alpha-ingress-values.yaml
+        - batches/current.yaml               # 회차 overlay — exam-ops 가 회차마다 갱신
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ait-catch-exam-alpha          # = {namespace}-{stage}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true                         # git 변경 자동 감지·sync (= 자동 버튼의 동력)
+    syncOptions:
+      - CreateNamespace=true

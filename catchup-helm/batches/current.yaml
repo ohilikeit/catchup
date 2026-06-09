@@ -1,0 +1,9 @@
+# 회차 overlay — exam-ops 가 "회차 열기/닫기" 시 이 파일만 커밋한다 (docs/3 §5.4).
+# ArgoCD valueFiles 의 마지막 항목으로 적용되어 examPlatform.exam.replicas/problemId 를 덮는다.
+#   회차 열기: replicas: N, problemId: <문제>
+#   회차 닫기: replicas: 0
+# git 에는 "규모"만(replicas·problemId), 회차 런타임(유저 매핑·deadline·trust)은 DB(churn 0).
+examPlatform:
+  exam:
+    replicas: 0
+    problemId: ainc2026

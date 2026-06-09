@@ -1,0 +1,92 @@
+# prod (사내, 50 동시) — 워크로드 values. (docs/6 §0.5 Phase 4)
+# common-helm: 상주 web(외부 노출) / examPlatform: litellm·exam(커스텀 templates).
+# 상주 인프라(postgres/redis/minio)는 클러스터에 안 띄우고 hostAliases 로 사내 기존 것 참조(사내 표준).
+# ⚠️ IP·도메인·harbor 프로젝트·StorageClass 는 실값으로 교체.
+
+common-helm:
+  namespace: ait-catch-exam            # fullnamespace = ait-catch-exam-prod
+  stage: "prod"
+  vaultDefaults:
+    sharedConfigMap:
+      enabled: true
+    environments:
+      prod:
+        address: "https://vault-jinhak.jinhaksa.com"
+        kvPath: "jinhak-kv/catchup"
+        hostAlias:
+          ip: "192.168.155.250"
+          hostname: "vault-jinhak.jinhaksa.com"
+  applications:
+    "catchup-web":
+      enabled: true
+      replicaCount: 3
+      image:
+        repository: harbor-jinhak.jinhaksa.com/ait-catch-prod/catchup-web
+        tag: v-prod.1                   # pipeline 이 image.tag 자동 bump
+        pullPolicy: IfNotPresent
+        containerPort: 3000
+      vaultconfig:                      # 시크릿 = Vault agent(secrets.env): DATABASE_URL·REDIS_URL·MINIO_*·LITELLM_MASTER_KEY·SESSION_SECRET
+        enabled: true
+        approle: "vault-agent-role"
+        mountPath: "/etc/secrets"
+        secretsFile:
+          enabled: true
+          filename: "secrets.env"
+          format: "env"
+          autoSource: false
+      hostAliases:                      # 외부 인프라 참조 (⚠️ 실 IP 로 교체)
+        - ip: "192.168.78.30"
+          hostnames: ["prod-postgresql"]
+        - ip: "192.168.155.61"
+          hostnames: ["prod-redis"]
+        - ip: "192.168.155.62"
+          hostnames: ["prod-minio"]
+      extraEnvVars:
+        - { name: ANTHROPIC_BASE_URL, value: "http://litellm:4000" }   # 클러스터 내부 게이트웨이
+      service:
+        type: ClusterIP
+        port: 3000
+      resources:
+        requests: { cpu: "500m", memory: "1Gi" }
+        limits:   { cpu: "2",    memory: "2Gi" }
+
+# ── 커스텀(common-helm 밖) — litellm·exam StatefulSet·NetworkPolicy ──
+examPlatform:
+  secrets:
+    create: false                       # prod: Vault/External Secrets 가 litellm-secrets 제공
+    litellm:
+      anthropicApiKey: ""
+      masterKey: ""
+      databaseUrl: ""
+  litellm:
+    image: ghcr.io/berriai/litellm-database:main-stable
+    model: anthropic/claude-sonnet-4-6  # "*" → Sonnet 강제 (대원칙 5⑤)
+    replicas: 2
+    redisHost: prod-redis               # hostAliases 로 해석
+    hostAliases:
+      - ip: "192.168.155.61"
+        hostnames: ["prod-redis"]
+      - ip: "192.168.78.30"
+        hostnames: ["prod-postgresql"]
+    resources:
+      requests: { cpu: "500m", memory: "1Gi" }
+      limits:   { cpu: "2",    memory: "2Gi" }
+  exam:
+    image:
+      repository: harbor-jinhak.jinhaksa.com/ait-catch-prod/catchup-exam
+      tag: v-prod.1
+      pullPolicy: IfNotPresent
+    replicas: 0                         # batches/current.yaml 로 50 (+사전워밍 5~10)
+    problemId: ainc2026
+    workspacePath: /home/coder/project
+    storage: 5Gi
+    storageClassName: ""                # ⚠️ 사내 SC + 노드풀 taint
+    nodeSelector: {}
+    tolerations: []
+    runtimeClassName: ""                # 격리 강화 필요 시 gVisor(runsc)
+    resources:                          # 50명 동시 실측치 (Phase 4)
+      requests: { cpu: "500m", memory: "2Gi" }
+      limits:   { cpu: "2",    memory: "3Gi" }
+  networkPolicy:
+    enabled: true                       # 필요 시 Calico
+    packageMirrorCIDRs: []              # ⚠️ 사내 npm/pypi 미러 CIDR

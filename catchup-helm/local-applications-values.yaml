@@ -1,0 +1,77 @@
+# local (k3d, 2~5명) — 기능 검증 전용. 사내 표준과 다른 유일한 환경 (docs/6 §0.5).
+#   • Vault 없음 → web 시크릿은 평문 extraEnvVars, litellm 은 examPlatform.secrets.create=true 로 평문 Secret
+#   • 이미지는 k3d image import → pullPolicy Never, 로컬 태그
+#   • 상주 인프라(postgres/redis/minio)는 호스트의 docker-compose 를 host.k3d.internal 로 참조
+#     (k3d 셋업 시 조정 — pnpm db:up 으로 띄운 컨테이너 재사용)
+# ⚠️ 진짜 ANTHROPIC_API_KEY 는 git 에 넣지 말 것 — helm install ... --set examPlatform.secrets.litellm.anthropicApiKey=sk-ant-...
+
+common-helm:
+  namespace: ait-catch-exam            # fullnamespace = ait-catch-exam-local
+  stage: "local"
+  applications:
+    "catchup-web":
+      enabled: true
+      replicaCount: 1
+      image:
+        repository: catchup-web
+        tag: local
+        pullPolicy: Never               # k3d 로 import 한 이미지만
+        containerPort: 3000
+      vaultconfig:
+        enabled: false                  # local 은 Vault 미사용
+      hostAliases:
+        - ip: "host.k3d.internal"       # ⚠️ k3d 가 host.k3d.internal 을 IP 로 못 받으면 실 IP 로 교체
+          hostnames: ["catchup-infra"]
+      extraEnvVars:                      # local 평문 — 호스트 docker-compose 인프라(포트는 .env)
+        - { name: ANTHROPIC_BASE_URL,  value: "http://litellm:4000" }
+        - { name: DATABASE_URL, value: "postgresql://catchup:catchup@catchup-infra:5433/catchup" }
+        - { name: REDIS_URL,    value: "redis://catchup-infra:6379" }
+        - { name: MINIO_ENDPOINT,   value: "http://catchup-infra:9000" }
+        - { name: MINIO_ACCESS_KEY, value: "catchup" }
+        - { name: MINIO_SECRET_KEY, value: "catchup-minio" }
+        - { name: SESSION_SECRET,   value: "dev-session-secret" }
+        - { name: LITELLM_MASTER_KEY, value: "sk-master-dev" }
+      service:
+        type: ClusterIP
+        port: 3000
+      resources:
+        requests: { cpu: "100m", memory: "256Mi" }
+        limits:   { cpu: "500m", memory: "512Mi" }
+
+examPlatform:
+  secrets:
+    create: true                        # local: 평문 litellm-secrets 생성
+    litellm:
+      anthropicApiKey: "sk-ant-REPLACE_ME"   # --set 으로 주입 권장
+      masterKey: "sk-master-dev"
+      databaseUrl: "postgresql://litellm:litellm@catchup-infra:5433/litellm"
+  litellm:
+    image: ghcr.io/berriai/litellm-database:main-stable
+    model: anthropic/claude-sonnet-4-6
+    replicas: 1
+    redisHost: catchup-infra
+    hostAliases:
+      - ip: "host.k3d.internal"
+        hostnames: ["catchup-infra"]
+    resources:
+      requests: { cpu: "100m", memory: "256Mi" }
+      limits:   { cpu: "500m", memory: "512Mi" }
+  exam:
+    image:
+      repository: catchup-exam
+      tag: local
+      pullPolicy: Never
+    replicas: 0                         # batches/current.yaml 로 1~2 (소수 검증)
+    problemId: ainc2026
+    workspacePath: /home/coder/project
+    storage: 2Gi
+    storageClassName: local-path        # k3s 기본
+    nodeSelector: {}
+    tolerations: []
+    runtimeClassName: ""
+    resources:                          # 머신 한계로 축소
+      requests: { cpu: "250m", memory: "1Gi" }
+      limits:   { cpu: "1",    memory: "2Gi" }
+  networkPolicy:
+    enabled: false                      # local 은 생략 (기능 검증에 지장 없음)
+    packageMirrorCIDRs: []

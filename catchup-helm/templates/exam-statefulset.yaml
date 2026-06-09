@@ -1,0 +1,86 @@
+{{- /*
+exam 학생 pod (임시 0↔N) — 커스텀 템플릿.
+common-helm 은 StatefulSet·initContainer·volumeClaimTemplates 를 표현 못 하므로 여기서 직접 정의.
+50명이 각자 독립 워크스페이스(PVC)를 가져야 하므로 Deployment+정적PVC 가 아니라 StatefulSet 이 본질적으로 필요.
+평시 replicas 0 — 회차에만 batches/current.yaml overlay 가 replicas/problemId 를 덮어 0↔N (exam-ops 커밋).
+가상키(ANTHROPIC_AUTH_TOKEN)는 여기 박지 않는다 — attach 시점 주입 (docs/3 §3 경우 B).
+*/ -}}
+{{- $ep := .Values.examPlatform -}}
+{{- $ns := include "catchup.namespace" . -}}
+{{- $img := printf "%s:%s" $ep.exam.image.repository $ep.exam.image.tag -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: exam
+  namespace: {{ $ns }}
+  labels:
+    app: exam
+    {{- include "catchup.labels" . | nindent 4 }}
+spec:
+  serviceName: exam
+  replicas: {{ $ep.exam.replicas }}      # 평시 0. 회차 overlay 가 N 으로 덮음
+  selector:
+    matchLabels: { app: exam }
+  template:
+    metadata:
+      labels: { app: exam }
+    spec:
+      {{- if $ep.exam.runtimeClassName }}
+      runtimeClassName: {{ $ep.exam.runtimeClassName }}   # gVisor(runsc) 등 격리 강화
+      {{- end }}
+      securityContext:                     # docs/3 §8 하드닝
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile: { type: RuntimeDefault }
+      {{- with $ep.exam.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $ep.exam.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: seeder                     # PROBLEM_ID 로 scaffold 시드(crash-safe, docs/3 §6·§11)
+          image: {{ $img }}
+          imagePullPolicy: {{ $ep.exam.image.pullPolicy }}
+          command: ["/usr/local/bin/seed-and-start.sh", "--seed-only"]
+          env:
+            - { name: PROBLEM_ID, value: {{ $ep.exam.problemId | quote }} }
+          volumeMounts:
+            - { name: workspace, mountPath: {{ $ep.exam.workspacePath | quote }} }
+      containers:
+        - name: exam
+          image: {{ $img }}
+          imagePullPolicy: {{ $ep.exam.image.pullPolicy }}
+          env:
+            - { name: ANTHROPIC_BASE_URL, value: "http://litellm:4000" }   # 클러스터 내부 게이트웨이
+            - { name: ANTHROPIC_MODEL, value: "claude-sonnet-4-5" }
+            - { name: ANTHROPIC_SMALL_FAST_MODEL, value: "claude-sonnet-4-5" }
+          ports: [{ containerPort: 8080 }]
+          resources:
+            {{- toYaml $ep.exam.resources | nindent 12 }}
+          volumeMounts:
+            - { name: workspace, mountPath: {{ $ep.exam.workspacePath | quote }} }
+  volumeClaimTemplates:                    # /workspace = PVC. pod 죽어도 작업물 보존(docs/3 §2·§11)
+    - metadata: { name: workspace }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if $ep.exam.storageClassName }}
+        storageClassName: {{ $ep.exam.storageClassName | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $ep.exam.storage | quote }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: exam
+  namespace: {{ $ns }}
+  labels:
+    {{- include "catchup.labels" . | nindent 4 }}
+spec:
+  clusterIP: None                          # headless — StatefulSet 안정 네트워크 ID
+  selector: { app: exam }
+  ports: [{ port: 8080, targetPort: 8080 }]

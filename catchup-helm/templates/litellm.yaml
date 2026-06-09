@@ -1,0 +1,98 @@
+{{- /*
+LiteLLM 게이트웨이 (상주 공용, 내부 전용) — 커스텀 템플릿.
+common-helm 은 임의 ConfigMap·config 볼륨 마운트를 지원하지 않으므로 여기서 직접 정의한다.
+진짜 키는 litellm-secrets 로만 주입:
+  • local : examPlatform.secrets.create=true → 아래에서 평문 Secret 생성
+  • alpha/prod : create=false → Vault/External Secrets 가 동명(litellm-secrets) 제공
+redis/postgres 등 외부 인프라는 examPlatform.litellm.hostAliases 로 참조(사내 표준).
+*/ -}}
+{{- $ep := .Values.examPlatform -}}
+{{- $ns := include "catchup.namespace" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litellm-config
+  namespace: {{ $ns }}
+  labels:
+    {{- include "catchup.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    model_list:
+      - model_name: "*"
+        litellm_params:
+          model: {{ $ep.litellm.model }}
+          api_key: os.environ/ANTHROPIC_API_KEY
+    litellm_settings:
+      drop_params: true
+      set_verbose: false
+    general_settings:
+      master_key: os.environ/LITELLM_MASTER_KEY
+      database_url: os.environ/DATABASE_URL
+{{- if $ep.secrets.create }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: litellm-secrets
+  namespace: {{ $ns }}
+  labels:
+    {{- include "catchup.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  ANTHROPIC_API_KEY: {{ $ep.secrets.litellm.anthropicApiKey | quote }}
+  LITELLM_MASTER_KEY: {{ $ep.secrets.litellm.masterKey | quote }}
+  DATABASE_URL: {{ $ep.secrets.litellm.databaseUrl | quote }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm
+  namespace: {{ $ns }}
+  labels:
+    app: litellm
+    {{- include "catchup.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $ep.litellm.replicas }}
+  selector:
+    matchLabels: { app: litellm }
+  template:
+    metadata:
+      labels: { app: litellm }
+    spec:
+      {{- with $ep.litellm.hostAliases }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: litellm
+          # ⚠️ PyPI 1.82.7/1.82.8 멀웨어 — 검증된 Docker 태그로 핀 고정 (docs/3 §2)
+          image: {{ $ep.litellm.image }}
+          args: ["--config", "/etc/litellm/config.yaml", "--port", "4000"]
+          ports: [{ containerPort: 4000 }]
+          envFrom:
+            - secretRef: { name: litellm-secrets }
+          env:
+            - { name: REDIS_HOST, value: {{ $ep.litellm.redisHost | quote }} }
+            - { name: REDIS_PORT, value: "6379" }
+          volumeMounts:
+            - { name: config, mountPath: /etc/litellm }
+          resources:
+            {{- toYaml $ep.litellm.resources | nindent 12 }}
+          readinessProbe:
+            httpGet: { path: /health/liveliness, port: 4000 }
+            initialDelaySeconds: 5
+      volumes:
+        - { name: config, configMap: { name: litellm-config } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: litellm
+  namespace: {{ $ns }}
+  labels:
+    {{- include "catchup.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP                # 내부 전용 — web/exam pod 만 접근
+  selector: { app: litellm }
+  ports: [{ port: 4000, targetPort: 4000 }]

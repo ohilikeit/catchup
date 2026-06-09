@@ -1,0 +1,16 @@
+# prod 인그레스 — web 만 외부 노출. code-server iframe 프록시 = websocket 통과 필수(docs/3 §2.5).
+common-helm:
+  namespace: ait-catch-exam
+  stage: "prod"
+  ingress:
+    enabled: true
+    annotations:
+      # websocket(code-server iframe 역프록시) 통과
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    hosts:
+      - host: "exam.internal"            # ⚠️ 사내 운영 도메인으로 교체
+        paths:
+          - path: "/"
+            pathType: Prefix
+            serviceName: "catchup-web"   # common-helm 이 {name}-{stage}-service 로 해석
+            servicePort: 3000
