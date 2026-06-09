@@ -1,0 +1,16 @@
+# 빌드 컨텍스트에서 제외 — 이미지 빌드 속도/크기.
+**/node_modules
+**/.next
+**/.turbo
+.git
+.gitignore
+data
+catchup-helm
+catchairecruit-helm
+experiments
+docs
+**/*.log
+.env.secret
+.omc
+.gstack
+.claude

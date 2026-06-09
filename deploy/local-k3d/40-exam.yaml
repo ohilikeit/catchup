@@ -1,0 +1,76 @@
+# ⚠️ initContainer(seeder) 생략 — seed-and-start.sh 가 --seed-only 를 지원하지 않음.
+# 메인 컨테이너가 기동 시 crash-safe seeder(lock 파일 방식)를 직접 실행 후 code-server 를 띄운다.
+# 로컬 검증용이므로 PROBLEM_ID scaffold 는 /registry 마운트 없이 환경변수만 설정한다.
+# (scaffold 파일이 없으면 [seed] ERROR 로 종료 — registry 볼륨 마운트가 필요하면 주석 참고)
+#
+# PROBLEM_ID=ainc2026 으로 시드하려면 exam 이미지 안에 /registry/ainc2026/scaffold 가 포함돼야 하거나,
+# ConfigMap/hostPath 로 /registry 를 주입해야 한다. 로컬 iframe 접속 검증만이 목적이라면 임의 문제로 교체.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: exam
+  namespace: catchup-local
+  labels:
+    app: exam
+spec:
+  serviceName: exam
+  replicas: 1
+  selector:
+    matchLabels:
+      app: exam
+  template:
+    metadata:
+      labels:
+        app: exam
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000                 # PVC(/home/coder/project) 쓰기 권한 — code-server 가 씀
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: exam
+          image: catchup-exam:local
+          imagePullPolicy: Never
+          # ⚠️ 로컬 검증 전용: seed-and-start.sh(scaffold 시드)를 건너뛰고 code-server 만 직접 기동.
+          # scaffold(/registry/<PROBLEM_ID>) 가 없으면 seeder 가 exit 1 → CrashLoop 이므로 우회.
+          # 정식 운영은 ArgoCD StatefulSet + initContainer(seeder) + registry 마운트(docs/3 §3).
+          command: ["code-server", "--bind-addr", "0.0.0.0:8080", "--auth", "none", "/home/coder/project"]
+          env:
+            - name: ANTHROPIC_BASE_URL
+              value: "http://litellm:4000"
+            - name: ANTHROPIC_MODEL
+              value: "claude-sonnet-4-5"
+            - name: ANTHROPIC_SMALL_FAST_MODEL
+              value: "claude-sonnet-4-5"
+            - name: PROBLEM_ID
+              value: "ainc2026"
+            - name: ATTEMPT_ID
+              value: "local-spike-0"
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: workspace
+              mountPath: /home/coder/project
+  volumeClaimTemplates:
+    - metadata:
+        name: workspace
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: exam
+  namespace: catchup-local
+spec:
+  clusterIP: None
+  selector:
+    app: exam
+  ports:
+    - port: 8080
+      targetPort: 8080

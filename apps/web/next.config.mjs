@@ -13,6 +13,9 @@ const nextConfig = {
   reactStrictMode: true,
   // Build-less internal packages: Next compiles their raw src directly.
   transpilePackages: ['@app/ui', '@app/core'],
+  // hosted iframe 프록시(/exam/[id]/ide/) — trailing slash 를 308 로 리다이렉트하지 않고
+  // route handler 가 직접 받게 한다(code-server 의 서브패스 prefix 가 유지돼야 하므로). docs/2 §2.
+  skipTrailingSlashRedirect: true,
 };
 
 export default nextConfig;
