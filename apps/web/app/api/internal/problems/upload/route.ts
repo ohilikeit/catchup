@@ -11,8 +11,24 @@ import type { UploadFilePart } from '@/lib/services/problemService';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// ⚠️ Node 18 런타임에는 `File` 전역이 없다(Node 20+). instanceof File 대신 구조적 체크.
+interface FileLike {
+  name: string;
+  size: number;
+  type: string;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
+function isFileLike(v: FormDataEntryValue | null): v is FileLike & FormDataEntryValue {
+  return (
+    typeof v === 'object' &&
+    v !== null &&
+    typeof (v as FileLike).arrayBuffer === 'function' &&
+    typeof (v as FileLike).name === 'string'
+  );
+}
+
 async function filePart(value: FormDataEntryValue | null): Promise<UploadFilePart | null> {
-  if (!(value instanceof File) || value.size === 0) return null;
+  if (!isFileLike(value) || value.size === 0) return null;
   return {
     filename: value.name,
     mime: value.type || null,

@@ -40,7 +40,7 @@ spec:
           env:
             - { name: HOME, value: /tmp }            # mc config dir(uid 1000 쓰기 가능)
             # scaffold 객체 키(= problem_versions.public_scaffold_ref). 운영은 exam-ops 가 회차 문제로 주입; 로컬 고정.
-            - { name: SCAFFOLD_REF, value: "exam-scaffold/ainc2026/v1/scaffold.tgz" }
+            - { name: SCAFFOLD_REF, value: "exam-scaffold/ainc2026/v1/ainc2026-scaffold.tgz" }
           envFrom:
             - secretRef: { name: app-secrets }       # MINIO_ENDPOINT/PORT/ACCESS_KEY/SECRET_KEY
           command:
