@@ -1,0 +1,114 @@
+# CatchUP — bitbucket CI/CD 파이프라인 (Phase 2b, 사내 전용).
+# ⚠️ 이 파일은 사내 bitbucket + harbor + catchup-helm 레포가 있어야 동작한다(로컬 k3d 는 setup.sh/up.sh 로 우회).
+# 사내 표준(catchairecruit) 파이프라인을 catchup 의 2개 이미지(web·exam)에 맞춘 것.
+#   흐름: ENV 빌드인자 수집 → 환경변수 set → 이미지 빌드·harbor push → catchup-helm values image.tag bump(commit)
+#         → ArgoCD 가 catchup-helm 변경 감지 → auto-sync 배포 (docs/6 §0.5 alpha/prod).
+# 필요한 repo variables(사내 Jinhaksa 루트에서 상속): ENV_ALPHA/ENV_PRODUCTION, *_HARBOR_*, HELM_REPO_ACCESS_TOKEN.
+
+image: python:3.12
+
+definitions:
+  services:
+    docker:
+      memory: 6144
+  steps:
+    # ── 환경변수 set (alpha/prod) ─────────────────────────────────────────
+    - step: &set-alpha-variables
+        name: set alpha environment variables
+        script:
+          - export ENVIRONMENT=ALPHA
+          - export NAMESPACE=$(echo $BITBUCKET_PROJECT_KEY | tr '[:upper:]' '[:lower:]')   # ait
+          - export BASE_PACKAGE_VERSION=$(python setup.py --version 2>/dev/null || echo 0.1.0)
+          - export TAG=$BASE_PACKAGE_VERSION-alpha.$BITBUCKET_BUILD_NUMBER
+          - export HARBOR_REPO=${CENTER_JINHAK_HARBOR_DOMAIN}/${NAMESPACE}-catch-alpha
+          - export HARBOR_USER=$CENTER_JINHAK_HARBOR_USER_NAME
+          - export HARBOR_PWD=$CENTER_JINHAK_HARBOR_PASSWORD
+          - export HELM_VALUES_FILE="alpha-applications-values.yaml"
+          - printenv > ENVIRONMENT_VARIABLES.txt
+        artifacts: [ENVIRONMENT_VARIABLES.txt]
+
+    - step: &set-production-variables
+        name: set production environment variables
+        script:
+          - export ENVIRONMENT=PROD
+          - export NAMESPACE=$(echo $BITBUCKET_PROJECT_KEY | tr '[:upper:]' '[:lower:]')
+          - export BASE_PACKAGE_VERSION=$(python setup.py --version 2>/dev/null || echo 0.1.0)
+          - export TAG=$BASE_PACKAGE_VERSION-prod.$BITBUCKET_BUILD_NUMBER
+          - export HARBOR_REPO=${CENTER_JINHAK_HARBOR_DOMAIN}/${NAMESPACE}-catch-prod
+          - export HARBOR_USER=$CENTER_JINHAK_HARBOR_USER_NAME
+          - export HARBOR_PWD=$CENTER_JINHAK_HARBOR_PASSWORD
+          - export HELM_VALUES_FILE="prod-applications-values.yaml"
+          - printenv > ENVIRONMENT_VARIABLES.txt
+        artifacts: [ENVIRONMENT_VARIABLES.txt]
+
+    # ── 이미지 빌드·push: web (Next 앱, custom server) ────────────────────
+    - step: &build-web-image
+        name: build & push catchup-web image
+        size: 4x
+        runtime: { cloud: { atlassian-ip-ranges: true } }
+        services: [docker]
+        script:
+          - export $(cat ENVIRONMENT_VARIABLES.txt | xargs)
+          - export IMAGE="catchup-web:v${TAG}"
+          - docker build -f apps/web/Dockerfile -t $IMAGE .
+          - echo $HARBOR_PWD | docker login $HARBOR_REPO --username $HARBOR_USER --password-stdin
+          - docker tag $IMAGE ${HARBOR_REPO}/${IMAGE}
+          - docker push ${HARBOR_REPO}/${IMAGE}
+
+    # ── 이미지 빌드·push: exam (code-server + claude code + seeder) ───────
+    - step: &build-exam-image
+        name: build & push catchup-exam image
+        size: 4x
+        runtime: { cloud: { atlassian-ip-ranges: true } }
+        services: [docker]
+        script:
+          - export $(cat ENVIRONMENT_VARIABLES.txt | xargs)
+          - export IMAGE="catchup-exam:v${TAG}"
+          - docker build -f experiments/s1-docker-spike/exam-image/Dockerfile -t $IMAGE experiments/s1-docker-spike/exam-image/
+          - echo $HARBOR_PWD | docker login $HARBOR_REPO --username $HARBOR_USER --password-stdin
+          - docker tag $IMAGE ${HARBOR_REPO}/${IMAGE}
+          - docker push ${HARBOR_REPO}/${IMAGE}
+
+    # ── catchup-helm values 의 image.tag bump + Chart 버전 + git push → ArgoCD auto-sync ──
+    - step: &update-helm
+        name: bump catchup-helm image tags
+        size: 4x
+        runtime: { cloud: { atlassian-ip-ranges: true } }
+        script:
+          - export $(cat ENVIRONMENT_VARIABLES.txt | xargs)
+          - apt-get update && apt-get install -y git
+          - wget -q https://get.helm.sh/helm-v3.16.4-linux-amd64.tar.gz && tar xf helm-v3.16.4-linux-amd64.tar.gz && mv linux-amd64/helm /usr/local/bin
+          - wget -q https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
+          - git config --global user.name bitbucket-pipelines
+          - git config --global user.email catchup-ci@bots.bitbucket.org
+          - git config --global push.default current
+          - git clone https://x-token-auth:${HELM_REPO_ACCESS_TOKEN}@bitbucket.org/jinhaksa/catchup-helm.git
+          - cd catchup-helm
+          # Chart patch 버전 +1 (-${ENVIRONMENT} 접미)
+          - CHART_VERSION=$(yq e ".version" Chart.yaml)
+          - MAJOR=$(echo $CHART_VERSION | awk -F. '{print $1}'); MINOR=$(echo $CHART_VERSION | awk -F. '{print $2}')
+          - PATCH=$(echo $CHART_VERSION | awk -F'.' '{print $3}' | awk -F- '{print $1}')
+          - yq e ".version = \"${MAJOR}.${MINOR}.$((PATCH+1))-${ENVIRONMENT}\"" -i Chart.yaml
+          # web(common-helm application) + exam(커스텀 StatefulSet) image.tag 동시 bump
+          - yq e ".common-helm.applications.catchup-web.image.tag = \"v$TAG\"" -i $HELM_VALUES_FILE
+          - yq e ".examPlatform.exam.image.tag = \"v$TAG\"" -i $HELM_VALUES_FILE
+          - cat $HELM_VALUES_FILE | grep -A2 'image:' || true
+          - git add $HELM_VALUES_FILE Chart.yaml
+          - git commit -m "(catchup) ${ENVIRONMENT} image tag → v$TAG"
+          - git push     # → ArgoCD 가 catchup-helm 변경 감지 → auto-sync (배포의 실제 트리거)
+
+pipelines:
+  custom:
+    # 수동 트리거(사내 bitbucket UI). docs/6: alpha 부터 실 파이프라인.
+    deploy-alpha:
+      - step: *set-alpha-variables
+      - parallel:
+          - step: *build-web-image
+          - step: *build-exam-image
+      - step: *update-helm
+    deploy-production:
+      - step: *set-production-variables
+      - parallel:
+          - step: *build-web-image
+          - step: *build-exam-image
+      - step: *update-helm
