@@ -13,7 +13,9 @@
 > 4개 ingress(`catchup`/`litellm`/`minio`/`argocd`.localhost). **hosted 시험 루프 실증**: 문제 업로드(`/api/internal/problems/upload`→MinIO, DB는 ref) →
 > exam pod seeder가 MinIO에서 scaffold pull(initContainer mc+tar) → exam-ops가 슬롯 register → 학생 로그인→시작→**슬롯 원자배정(SKIP LOCKED)**→
 > web 역프록시가 code-server 도달(302)→제출까지 전 사슬 동작. Phase 2b 아티팩트(`bitbucket-pipelines.yml`·`catchup-helm/SECRETS.md`) 작성(실행은 사내).
-> 잔여(로컬): 브라우저 IDE 풀렌더(code-server sub-path 에셋)·재활용/패키징 Job(Phase 3).
+> 추가 구현: **문제 업로드 automation**(`/api/internal/problems/upload`, scaffold→MinIO·DB=ref) · **exam-ops 최소판**(`deploy/local-k3d/exam-ops.sh` provision: replicas N + 슬롯 register) ·
+> **회차 학생 1명 추가 + 임시비번 평문 관리자 조회**(0011, admin 회차상세). **2b 아티팩트**(`bitbucket-pipelines.yml`·`catchup-helm/SECRETS.md`, 실행은 사내).
+> 잔여(로컬): exam-ops 자동화 본체(0↔N 자동 트리거·워밍 버퍼·SKIP LOCKED 큐·재활용 PVC wipe)·패키징 Job·마감 스윕(Phase 3).
 >
 > 📌 **현황 (2026-06-08 코드 대조)** — 코어의 *로컬 완결 가능 부분*은 계획보다 앞서 있다.
 > **DB 스키마**(exam·hosted·ops)·**대시보드**(회차 개설·로스터 import·스코프)·**MinIO 실물 저장**(lib/storage·버킷·서버 sha256)·**문제 업로드**(scaffold/hidden→MinIO)는 구현 완료 — **로컬 완결 가능한 코어는 사실상 끝났다.**
@@ -114,7 +116,7 @@ catchup-helm/
 
 ### 1c. 앱 셸 (학생 화면) — 레퍼런스 [2 §2, 4] — 🟡 **셸 골격 완성 / hosted iframe 미구현**
 - [x] 시험 페이지 골격: 상단바 + 서버 `deadline_at` 기준 카운트다운([`Countdown.tsx`](../apps/web/app/(exam)/_components/Countdown.tsx)) + hosted 런타임([`ExamRuntime.tsx`](../apps/web/app/(exam)/exam/[attemptId]/ExamRuntime.tsx)) + 마감 처리. 서버 라우트가 status로 intro/done 분기
-- [x] **hosted 런타임 구현·로컬 e2e 검증(2026-06-09)**: iframe(`/exam/[id]/ide` HTTP 역프록시 route) + WS 프록시(custom `server.mjs`) + 1:1 슬롯 매핑(`hosted.slots.endpoint`) + 마감 게이트(서버 판정). 로컬 k3d 에서 학생 로그인→시작→슬롯배정→web 프록시가 code-server 에 도달(302)→제출까지 확인. ⚠️ 브라우저 IDE **풀렌더**(code-server sub-path 에셋 경로)는 잔여
+- [x] **hosted 런타임 구현·로컬 e2e + 브라우저 풀렌더 검증(2026-06-09)**: iframe(`/exam/[id]/ide` HTTP 역프록시 route) + WS 프록시(custom `server.mjs`, 업그레이드→code-server 101 확인) + 1:1 슬롯 매핑(`hosted.slots.endpoint`) + 마감 게이트(서버 판정). 학생 로그인→시작→슬롯배정→web 프록시→**code-server HTML+전체 에셋(workbench.js 16.7MB 등) 풀렌더**→제출까지 확인. 핵심 수정: 역프록시 `content-encoding/length` 드롭(fetch 자동 압축해제 후 헤더 잔존 → gzip 이중해제 빈화면 버그)·code-server 상대경로(`serverBasePath:"."`)라 sub-path 우려 불요·날짜 TZ 하이드레이션(KST 고정)
 - [ ] **재접속 복귀**: 재로그인 → 진행 중 attempt 조회 → 같은 슬롯 재연결(5 §5) — hosted 의존, 미구현
 
 ### 1d. 관리자 대시보드 — 레퍼런스 [2 §13, 4] — 🟡 **운영 골격 구현 / 일부 관제 대기**
