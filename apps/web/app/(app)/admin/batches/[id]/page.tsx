@@ -44,7 +44,7 @@ export default async function AdminBatchDetailPage({
   ];
 
   const scheduledLabel = detail.scheduledAt
-    ? new Date(detail.scheduledAt).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' })
+    ? new Date(detail.scheduledAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' })
     : '미정';
   const budgetLabel = detail.llmBudgetUsd == null ? '상한 없음' : `$${detail.llmBudgetUsd.toFixed(2)}/인`;
   const subLine = `${detail.orgName} · ${detail.problemTitle} v${detail.problemVersion} · 정원 ${detail.capacity}명 · 예정 ${scheduledLabel} · LLM 예산 ${budgetLabel}`;

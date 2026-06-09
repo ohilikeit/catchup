@@ -14,7 +14,7 @@ import {
 // 평가·상세 리포트는 평가 모듈 소관(docs/1 §6) → ComingSoon.
 
 function fmtDate(d: Date | null): string {
-  return d ? new Date(d).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+  return d ? new Date(d).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' }) : '—';
 }
 
 export default async function MyReportPage({ params }: { params: { id: string } }) {

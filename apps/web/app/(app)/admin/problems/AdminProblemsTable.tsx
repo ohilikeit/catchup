@@ -9,7 +9,7 @@ const ROLE_TRACK_LABEL: Record<string, string> = {
 };
 
 function fmt(d: Date): string {
-  return new Date(d).toLocaleDateString('ko-KR', { dateStyle: 'medium' });
+  return new Date(d).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium' });
 }
 
 export function AdminProblemsTable({ rows }: { rows: ProblemWithVersions[] }) {

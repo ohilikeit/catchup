@@ -5,7 +5,7 @@ import type { SubmissionListItem } from '@/lib/db/repositories/submissions';
 import { SubmissionStatusTag, TrustTag } from '../../_components/ui';
 
 function fmt(d: Date | null): string {
-  return d ? new Date(d).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+  return d ? new Date(d).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' }) : '—';
 }
 
 const CAPTURED_VIA_LABEL: Record<string, string> = {

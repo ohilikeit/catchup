@@ -8,7 +8,7 @@ import { AttemptStatusTag, SubmissionStatusTag } from '../../_components/ui';
 // 응시 액션: ready/running → 시험 진입(intro), 그 외는 상태만.
 
 function fmt(d: Date | null): string {
-  return d ? new Date(d).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+  return d ? new Date(d).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' }) : '—';
 }
 
 export function MyExamsTable({ rows }: { rows: MyExamItem[] }) {

@@ -5,7 +5,7 @@ import { AttemptStatusTag, SubmissionStatusTag } from '../../../_components/ui';
 
 function fmt(d: Date | null): string {
   return d
-    ? new Date(d).toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
+    ? new Date(d).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'short' })
     : '—';
 }
 

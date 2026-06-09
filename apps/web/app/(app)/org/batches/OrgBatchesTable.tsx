@@ -5,7 +5,7 @@ import type { BatchListItem } from '@/lib/db/repositories/batches';
 import { BatchStatusTag } from '../../_components/ui';
 
 function fmt(d: Date | null): string {
-  return d ? new Date(d).toLocaleDateString('ko-KR', { dateStyle: 'medium' }) : '—';
+  return d ? new Date(d).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium' }) : '—';
 }
 
 export function OrgBatchesTable({ rows }: { rows: BatchListItem[] }) {

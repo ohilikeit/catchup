@@ -11,7 +11,7 @@ import type { ImportSummary } from '@/lib/services/batchService';
 import { createBatchAction, setBatchStatusAction, importRosterAction, importRosterXlsxAction } from './actions';
 
 function fmt(d: Date | null): string {
-  return d ? new Date(d).toLocaleDateString('ko-KR', { dateStyle: 'medium' }) : '—';
+  return d ? new Date(d).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium' }) : '—';
 }
 
 function toFormData(file: File): FormData {

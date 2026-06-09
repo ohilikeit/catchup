@@ -7,7 +7,7 @@ import type { IssueOrgAdminResult } from '@/lib/services/staffService';
 import { createOrgAction, deactivateOrgAction, issueOrgAdminAction } from './actions';
 
 function fmt(d: Date): string {
-  return new Date(d).toLocaleDateString('ko-KR', { dateStyle: 'medium' });
+  return new Date(d).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium' });
 }
 
 type IssuedOk = Extract<IssueOrgAdminResult, { ok: true }>;

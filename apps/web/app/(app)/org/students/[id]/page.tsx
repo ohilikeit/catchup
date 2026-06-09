@@ -15,7 +15,7 @@ import {
 // 점수·리포트는 평가 모듈 소관 → ComingSoon.
 
 function fmt(d: Date | null): string {
-  return d ? new Date(d).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+  return d ? new Date(d).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' }) : '—';
 }
 
 export default async function OrgStudentDetailPage({

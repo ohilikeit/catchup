@@ -3,7 +3,7 @@ import { DataTable, Tag, type Column } from '@app/ui';
 import type { UserWithOrgs } from '@/lib/db/repositories/users';
 
 function fmt(d: Date): string {
-  return new Date(d).toLocaleDateString('ko-KR', { dateStyle: 'medium' });
+  return new Date(d).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium' });
 }
 
 export function AdminStudentsTable({ rows }: { rows: UserWithOrgs[] }) {
