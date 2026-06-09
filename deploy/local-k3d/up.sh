@@ -108,9 +108,14 @@ cat <<EOF
     kubectl -n $NS port-forward svc/postgres 5433:5432 &
     DATABASE_URL=postgresql://catchup:catchup@localhost:5433/catchup pnpm db:migrate
 
-  접속:
-    kubectl -n $NS    port-forward svc/web 3000:3000      # http://localhost:3000
+  접속 — ingress(traefik, k3d LB 8088→80) 경유:
+    http://catchup.localhost:8088   web 앱
+    http://minio.localhost:8088     minio 콘솔
+    (*.localhost 는 loopback 으로 해석됨. 안 되면 /etc/hosts 에 '127.0.0.1 catchup.localhost minio.localhost')
+
+  또는 port-forward:
+    kubectl -n $NS    port-forward svc/web 3000:3000           # http://localhost:3000
     kubectl -n argocd port-forward svc/argocd-server 8081:443  # https://localhost:8081 (admin)
-    kubectl -n $NS    port-forward svc/minio 9001:9001    # http://localhost:9001 (콘솔)
+    kubectl -n $NS    port-forward svc/minio 9001:9001         # http://localhost:9001 (콘솔)
 EOF
 b "완료 — local-k3d 환경 기동"

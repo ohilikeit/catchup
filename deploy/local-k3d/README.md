@@ -15,6 +15,8 @@ alpha/prod는 catchup-helm 사용. 이 디렉터리는 **로컬 전용**.
 | `20-litellm.yaml` | litellm-config ConfigMap + Deployment + Service(4000) |
 | `30-web.yaml` | web Deployment(catchup-web:local) + Service(3000) |
 | `40-exam.yaml` | exam StatefulSet(catchup-exam:local) + headless Service(8080) |
+| `50-ingress.yaml` | traefik Ingress — web(catchup.localhost) · minio 콘솔(minio.localhost) |
+| `argocd-application.yaml` | ArgoCD Application(로컬 GitOps) — origin/exp 의 이 디렉터리를 sync |
 
 ## 배포 순서
 
@@ -115,6 +117,19 @@ open http://localhost:3000
 ```
 
 exam IDE iframe: `http://localhost:3000/exam/<attempt-id>/ide`
+
+### ingress 경유(port-forward 대신)
+
+`50-ingress.yaml` + traefik(k3d LB 8088→80)로 호스트명 접속:
+
+```
+http://catchup.localhost:8088    web 앱
+http://minio.localhost:8088      minio 콘솔
+```
+
+`*.localhost` 는 loopback 으로 해석된다(RFC 6761). 브라우저/OS가 해석 못 하면
+`/etc/hosts` 에 `127.0.0.1 catchup.localhost minio.localhost` 추가. argocd UI는 https
+리다이렉트 때문에 ingress 대신 `kubectl -n argocd port-forward svc/argocd-server 8081:443` 권장.
 
 ## 삭제
 
