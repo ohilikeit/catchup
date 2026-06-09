@@ -22,9 +22,9 @@ export interface ExamRuntimeData {
 
 /* ── hosted: 웹 IDE — code-server 풀사이즈 iframe + 새 창 열기 (인증 프록시 경유) ── */
 export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
-  // 인증 프록시 경로 — web 이 세션+슬롯 소유권을 검사해 "이 학생만" 자기 컨테이너에 접근(server.mjs WS + ide route HTTP).
-  // 상대경로라 같은 오리진(catchup.localhost)에서 동작 + 새 창/풀사이즈 모두 이 경로.
-  const IDE_URL = `/exam/${runtime.attemptId}/ide/?folder=/home/coder/project`;
+  // IDE 경로 — 같은 도메인 /exam-ide 를 traefik 이 ForwardAuth(세션+슬롯 소유권) 통과 시 code-server 에 직결.
+  // 같은 오리진이라 세션 쿠키 전달 + traefik→code-server 직결로 WS·에셋 완전 동작. 새 창/풀사이즈 동일 경로.
+  const IDE_URL = `/exam-ide/?folder=/home/coder/project`;
   const router = useRouter();
   const [expired, setExpired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
