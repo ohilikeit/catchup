@@ -26,6 +26,15 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: catchup-local
+  # exam StatefulSet 의 replicas 는 exam-ops(회차 0↔N)가 조절하므로 ArgoCD 가 드리프트로 보지 않게 무시.
+  # (git 의 replicas:0 은 "평소 꺼둠"의 기준일 뿐, 회차 중 수동/exam-ops 스케일을 selfHeal 이 되돌리면 안 됨)
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: exam
+      namespace: catchup-local
+      jsonPointers:
+        - /spec/replicas
   syncPolicy:
     automated:
       prune: true

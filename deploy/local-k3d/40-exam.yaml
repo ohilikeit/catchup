@@ -31,6 +31,42 @@ spec:
         fsGroup: 1000                 # PVC(/home/coder/project) 쓰기 권한 — code-server 가 씀
         seccompProfile:
           type: RuntimeDefault
+      # ── seeder(2a): scaffold 는 MinIO(exam-scaffold)에 객체로 저장, DB 엔 ref 포인터만(docs/5 §2). ──
+      # 1) fetch: mc 로 SCAFFOLD_REF(객체)를 /stage 로 받음   2) extract: 워크스페이스가 비었을 때만 tar 풀기.
+      # crash-safe: 재접속/재시작 시 작업물 보존(비어있지 않으면 스킵). 정식 운영은 exam-ops 가 문제별 ref 주입.
+      initContainers:
+        - name: fetch-scaffold
+          image: minio/mc:latest
+          env:
+            - { name: HOME, value: /tmp }            # mc config dir(uid 1000 쓰기 가능)
+            # scaffold 객체 키(= problem_versions.public_scaffold_ref). 운영은 exam-ops 가 회차 문제로 주입; 로컬 고정.
+            - { name: SCAFFOLD_REF, value: "exam-scaffold/ainc2026/v1/scaffold.tgz" }
+          envFrom:
+            - secretRef: { name: app-secrets }       # MINIO_ENDPOINT/PORT/ACCESS_KEY/SECRET_KEY
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              mc alias set m "http://${MINIO_ENDPOINT}:${MINIO_PORT}" "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY" >/dev/null
+              echo "[fetch] mc cp m/${SCAFFOLD_REF} → /stage/scaffold.tgz"
+              mc cp "m/${SCAFFOLD_REF}" /stage/scaffold.tgz
+          volumeMounts:
+            - { name: stage, mountPath: /stage }
+        - name: extract-scaffold
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              if [ -n "$(ls -A /home/coder/project 2>/dev/null)" ]; then
+                echo "[seed] 워크스페이스 비어있지 않음 → 스킵(작업물 보존)"; exit 0
+              fi
+              tar -xzf /stage/scaffold.tgz -C /home/coder/project
+              echo "[seed] 시드 완료: $(ls -A /home/coder/project | tr '\n' ' ')"
+          volumeMounts:
+            - { name: stage, mountPath: /stage }
+            - { name: workspace, mountPath: /home/coder/project }
       containers:
         - name: exam
           image: catchup-exam:local
@@ -63,6 +99,9 @@ spec:
           volumeMounts:
             - name: workspace
               mountPath: /home/coder/project
+      volumes:
+        - name: stage
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: workspace
