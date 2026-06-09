@@ -114,7 +114,7 @@ catchup-helm/
 - [x] 정책: 전부 private(익명 접근 none) — 서버(앱/Job) 자격으로만 접근
 - [x] [`lib/storage`](../apps/web/lib/storage/) 래퍼(put·get·서명 URL·서버 sha256·sanitize) + 루트 docker-compose MinIO(bind mount `./data/minio`로 호스트 확인). scaffold/hidden은 문제 업로드(§1d)가, artifacts/chatlogs는 hosted 패키징 Job(Phase 3)이 채운다 (BYOD 폐기로 업로드 제출 경로는 제거)
 
-### 1c. 앱 셸 (학생 화면) — 레퍼런스 [2 §2, 4] — 🟡 **셸 골격 완성 / hosted iframe 미구현**
+### 1c. 앱 셸 (학생 화면) — 레퍼런스 [2 §2, 4] — ✅ **셸 + hosted IDE(ForwardAuth) 로컬 검증 완료**
 - [x] 시험 페이지 골격: 상단바 + 서버 `deadline_at` 기준 카운트다운([`Countdown.tsx`](../apps/web/app/(exam)/_components/Countdown.tsx)) + hosted 런타임([`ExamRuntime.tsx`](../apps/web/app/(exam)/exam/[attemptId]/ExamRuntime.tsx)) + 마감 처리. 서버 라우트가 status로 intro/done 분기
 - [x] **hosted 런타임 구현·로컬 e2e + 브라우저 풀렌더 검증(2026-06-09)**: 학생 로그인→시작→**그 유저 슬롯 배정**→IDE→제출 전 사슬 동작. IDE 접근은 **ForwardAuth 인증 ingress**: `catchup.localhost/exam-ide` → traefik Middleware(forwardAuth=`/api/internal/exam-authz` 세션+running·assigned 슬롯 소유권 검사 → 그 유저만 통과 / stripPrefix) → **code-server 직결**. 같은 도메인이라 세션 쿠키 전달 + traefik→code-server 직결로 **HTML+전체 에셋(workbench.js 16.7MB)+WebSocket(101) 완전 동작**(folders·Claude Code 표시).
   - ⚠️ 채택 경위: `/exam/[id]/ide` web 역프록시(server.mjs WS·route HTTP)는 코드상 정상(pod 직접 101)이나 **k3d traefik↔Next 커스텀서버 WS 업그레이드가 502**(traefik "Peeking first byte i/o timeout") → ForwardAuth(인증 ingress→code-server 직결)로 우회. content-encoding 드롭·날짜 TZ(KST) 하이드레이션도 수정.
@@ -204,10 +204,10 @@ catchup-helm/
 
 ```
 Phase 0 (S1 ✅ 완료)
-   └→ Phase 1 (DB✅ · 대시보드✅ · MinIO✅ · 문제업로드✅ / 앱셸🟡 hosted미구현)   로컬 완결분 ✅
-        └→ Phase 2 (2a 로컬 k3d 검증 ⬜ → 2b alpha 실 파이프라인 ⬜)  ← 현재 여기  ┐ local: 소수 검증
-             └→ Phase 3 (exam-ops 자동화 ⬜)                          │ alpha: 실 GitOps
-                  └→ Phase 4 (50 동시 리허설 = S2 완료 ⬜)            ┘ prod: 50 규모·실부하
+   └→ Phase 1 (DB✅ · 대시보드✅ · MinIO✅ · 문제업로드✅ · 앱셸+hosted IDE✅)   로컬 완결분 ✅
+        └→ Phase 2 (2a 로컬 k3d 검증 ✅ → 2b alpha 실 파이프라인 ⬜ 아티팩트만)  ← 현재 여기  ┐ local: 소수 검증
+             └→ Phase 3 (exam-ops 자동화 ⬜ — 자동 프로비전·패키징·재활용)        │ alpha: 실 GitOps
+                  └→ Phase 4 (50 동시 리허설 = S2 완료 ⬜)                        ┘ prod: 50 규모·실부하
 [환경] local(k3d, 2~5명 확인) → alpha(실 파이프라인·StatefulSet 0↔N) → prod(50 동시) — §0.5
 [이후] S3 동적 오케스트레이터 — 동시 batch가 50 초과로 실제 필요해질 때만(2 §5)
 ```
