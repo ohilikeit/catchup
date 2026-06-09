@@ -66,16 +66,25 @@ kubectl config use-context "k3d-$CLUSTER" >/dev/null
 kubectl get nodes
 
 # ── 2. 이미지 빌드 + k3d import (레지스트리 우회) ──────────────────────────
+# ⚠️ 빌드와 import 는 별개다. 클러스터를 새로 만들면 노드 containerd 는 비어 있으므로,
+#    --no-build(빌드 생략) 라도 호스트에 있는 이미지를 반드시 import 해야 한다(imagePullPolicy: Never).
 if (( BUILD )); then
-  b "이미지 빌드 + import (catchup-web / catchup-exam)"
+  b "이미지 빌드 (catchup-web / catchup-exam)"
   docker build -f apps/web/Dockerfile -t catchup-web:local .
   docker build -f experiments/s1-docker-spike/exam-image/Dockerfile \
     -t catchup-exam:local experiments/s1-docker-spike/exam-image/
-  k3d image import catchup-web:local catchup-exam:local -c "$CLUSTER"
-  ok "web·exam 이미지 import 완료"
+  ok "web·exam 이미지 빌드 완료"
 else
-  ok "(--no-build) 이미지 빌드 건너뜀"
+  ok "(--no-build) 이미지 빌드 건너뜀 — import 는 계속 진행"
 fi
+b "k3d image import (호스트 → 노드 containerd)"
+for img in catchup-web:local catchup-exam:local; do
+  if ! docker image inspect "$img" >/dev/null 2>&1; then
+    err "$img 이미지가 없습니다 — 최초에는 --no-build 없이 실행해 빌드하세요"; exit 1
+  fi
+done
+k3d image import catchup-web:local catchup-exam:local -c "$CLUSTER"
+ok "web·exam 이미지 import 완료"
 
 # ── 3. ArgoCD 설치 ────────────────────────────────────────────────────────
 if (( ARGOCD )); then

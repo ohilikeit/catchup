@@ -86,9 +86,22 @@ ensure_key POSTGRES_PASSWORD catchup
 ensure_key POSTGRES_DB catchup
 ensure_key MINIO_ROOT_USER catchup
 ensure_key MINIO_ROOT_PASSWORD catchup-minio
-# ANTHROPIC_API_KEY 는 비어 있어도 됨(있으면 litellm 실호출 가능) — 보강하지 않는다.
+# ANTHROPIC_API_KEY·ARGOCD_ADMIN_PASSWORD 는 비어 있어도 됨(선택) — 보강하지 않는다.
+# 불변식 강제: 앱 S3 키 = MinIO 루트 키(드리프트 방지). 한쪽만 바꿔도 자동 일치시킨다.
+set_key() { # 항상 덮어쓰기(없으면 추가)
+  if grep -qE "^$1=" .env.secret; then
+    node -e 'const fs=require("fs"),f=".env.secret";let s=fs.readFileSync(f,"utf8");s=s.replace(new RegExp("^"+process.argv[1]+"=.*$","m"),process.argv[1]+"="+process.argv[2]);fs.writeFileSync(f,s)' "$1" "$2"
+  else printf '%s=%s\n' "$1" "$2" >> .env.secret; fi
+}
+RU="$(grep -E '^MINIO_ROOT_USER=' .env.secret | tail -1 | cut -d= -f2-)"
+RP="$(grep -E '^MINIO_ROOT_PASSWORD=' .env.secret | tail -1 | cut -d= -f2-)"
+set_key MINIO_ACCESS_KEY "$RU"
+set_key MINIO_SECRET_KEY "$RP"
 set -a; . ./.env.secret; set +a       # 이후 단계에서 $POSTGRES_USER 등으로 사용
-ok ".env.secret 로드 (누락 키 보강 완료)"
+ok ".env.secret 로드 (누락 키 보강 + MinIO 키 일관성 강제)"
+# MinIO 정책 가드(서버가 강제): USER≥3, PASSWORD≥8. 위반 시 CrashLoop 대신 즉시 명확히 실패.
+if (( ${#MINIO_ROOT_USER} < 3 )); then err "MINIO_ROOT_USER 는 3자 이상이어야 합니다(.env.secret, 현재 ${#MINIO_ROOT_USER}자)"; exit 1; fi
+if (( ${#MINIO_ROOT_PASSWORD} < 8 )); then err "MINIO_ROOT_PASSWORD 는 8자 이상이어야 합니다(MinIO 강제; .env.secret, 현재 ${#MINIO_ROOT_PASSWORD}자)"; exit 1; fi
 
 # ── 2. 의존성 설치 (pnpm install) — 이미지 빌드·마이그레이션 양쪽에 필요 ────
 step "의존성 설치 (pnpm install)"
@@ -137,7 +150,21 @@ kubectl -n "$NS" create secret generic litellm-secrets \
 kubectl -n "$NS" label secret app-secrets litellm-secrets app.kubernetes.io/instance- >/dev/null 2>&1 || true
 ok "app-secrets·litellm-secrets 생성 완료"
 
-# ── 3c. ArgoCD Application 적용 + 스택 기동 대기 ───────────────────────────
+# ── 3c. ArgoCD admin 암호 고정 (.env.secret ARGOCD_ADMIN_PASSWORD) ─────────
+# argocd 의 admin 계정 암호를 bcrypt 로 argocd-secret 에 박는다 → 새 클러스터에도 항상 같은 암호로 로그인.
+# 비워두면 ArgoCD 자동생성 암호(argocd-initial-admin-secret) 사용.
+step "ArgoCD admin 암호 설정"
+if [[ -n "${ARGOCD_ADMIN_PASSWORD:-}" ]]; then
+  PATCH="$(NODE_PATH="$PWD/apps/web/node_modules" node -e "const b=require('bcryptjs');console.log(JSON.stringify({stringData:{'admin.password':b.hashSync(process.argv[1],10),'admin.passwordMtime':new Date().toISOString()}}))" "$ARGOCD_ADMIN_PASSWORD")"
+  kubectl -n argocd patch secret argocd-secret --type=merge -p "$PATCH" >/dev/null
+  kubectl -n argocd rollout restart deploy/argocd-server >/dev/null 2>&1 || true
+  kubectl -n argocd rollout status deploy/argocd-server --timeout=120s >/dev/null 2>&1 || true
+  ok "ArgoCD admin / .env.secret 의 ARGOCD_ADMIN_PASSWORD 로 고정"
+else
+  ok "(ARGOCD_ADMIN_PASSWORD 미설정 — argocd-initial-admin-secret 자동 암호 사용)"
+fi
+
+# ── 3d. ArgoCD Application 적용 + 스택 기동 대기 ───────────────────────────
 step "ArgoCD Application 적용 + 스택 기동 대기"
 kubectl apply -f deploy/local-k3d/argocd-application.yaml >/dev/null
 kubectl -n "$NS" rollout status deploy/postgres --timeout=180s 2>/dev/null || true
@@ -209,7 +236,7 @@ cat <<EOF
     http://catchup.localhost    web 앱(메인). 시험 페이지는 /exam/<attemptId>
     http://litellm.localhost    litellm 대시보드 (로그인: LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY})
     http://minio.localhost      minio 콘솔 (id/pw: ${MINIO_ROOT_USER} / ${MINIO_ROOT_PASSWORD})
-    http://argocd.localhost     ArgoCD UI (admin / ${ARGO_PW:-<kubectl 로 확인>})
+    http://argocd.localhost     ArgoCD UI (admin / ${ARGOCD_ADMIN_PASSWORD:-${ARGO_PW:-<kubectl 로 확인>}})
 
   * Windows 브라우저에서 "연결할 수 없음"이면 hosts 에 추가:
       127.0.0.1  catchup.localhost litellm.localhost minio.localhost argocd.localhost
