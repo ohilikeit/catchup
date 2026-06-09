@@ -51,7 +51,9 @@ fi; ok "k3d $(k3d version 2>/dev/null | head -1)"
 # ── 1. k3d 클러스터 ───────────────────────────────────────────────────────
 b "k3d 클러스터 '$CLUSTER'"
 if k3d cluster list 2>/dev/null | grep -q "^$CLUSTER"; then
-  ok "이미 존재 — 유지"
+  # 재부팅 등으로 멈춰 있으면 start(멱등 — 이미 떠 있으면 no-op). "컴퓨터 켜고 처음" 케이스 대응.
+  k3d cluster start "$CLUSTER" >/dev/null 2>&1 || true
+  ok "이미 존재 — 기동 보장(start)"
 else
   # 호스트 80·8088 둘 다 traefik:80 으로 → http://*.localhost (포트 없는 깔끔한 주소) 사용 가능.
   k3d cluster create "$CLUSTER" --agents 1 -p "80:80@loadbalancer" -p "8088:80@loadbalancer" --wait
