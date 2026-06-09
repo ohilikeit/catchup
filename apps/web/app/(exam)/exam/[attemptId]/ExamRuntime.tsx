@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button, Notification, Tag, Icon } from '@app/ui';
 import { Countdown } from '../../_components/Countdown';
 import { ComingSoon } from '../../_components/ExamChrome';
@@ -21,7 +22,31 @@ export interface ExamRuntimeData {
 
 /* ── hosted: 웹 IDE iframe 자리표시(이번 범위에서 백엔드 미구현) ──────────────── */
 export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
+  const router = useRouter();
   const [expired, setExpired] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  async function submit() {
+    // 제출은 되돌릴 수 없으므로 확인. (네이티브 다이얼로그 — 앱 UI 토큰과 무관)
+    if (!window.confirm('지금 제출하시겠습니까? 제출 후에는 수정할 수 없습니다.')) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const res = await fetch(`/api/exam/${runtime.attemptId}/submit`, { method: 'POST' });
+      const body = await res.json();
+      if (!res.ok || !body?.success) {
+        setSubmitError(body?.error?.message ?? '제출에 실패했습니다.');
+        setSubmitting(false);
+        return;
+      }
+      router.push(`/exam/${runtime.attemptId}/done`);
+    } catch {
+      setSubmitError('네트워크 오류로 제출에 실패했습니다. 다시 시도하세요.');
+      setSubmitting(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-06">
       <RuntimeHeader
@@ -74,9 +99,20 @@ export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
         </Notification>
       ) : null}
 
+      {submitError ? (
+        <Notification kind="error" title="제출 실패">
+          {submitError}
+        </Notification>
+      ) : null}
+
       <div className="flex justify-end">
-        <Button kind="primary" icon="checkmark" disabled>
-          제출
+        <Button
+          kind="primary"
+          icon="checkmark"
+          disabled={submitting || expired}
+          onClick={submit}
+        >
+          {submitting ? '제출 중…' : '제출'}
         </Button>
       </div>
     </div>

@@ -81,3 +81,28 @@ export async function startExam(attemptId: string, examineeId: string): Promise<
     return { ok: true, deadlineAt: updated.deadlineAt ?? deadlineAt };
   });
 }
+
+export interface SubmitResult {
+  ok: boolean;
+  error?: string;
+}
+
+/**
+ * 학생 자가 제출: running → submitted. 소유권·상태를 트랜잭션 안에서 재검사(클라 신뢰 금지).
+ * 슬롯은 submitting으로 전이(Phase 3 패키징 Job 토대).
+ * ⚠️ 상태 전이만 — 실제 산출물 패키징(hosted 캡처→MinIO)은 Phase 3 exam-ops 소관(docs/6 Phase 3).
+ */
+export async function submitExam(attemptId: string, examineeId: string): Promise<SubmitResult> {
+  return withTransaction(async (client) => {
+    const attempt = await attemptsRepo.lockForSubmitTx(client, attemptId);
+    if (!attempt) return { ok: false, error: '응시를 찾을 수 없습니다.' };
+    if (attempt.examineeId !== examineeId) return { ok: false, error: '권한이 없습니다.' };
+    if (attempt.status !== 'running') {
+      return { ok: false, error: '진행 중인 시험만 제출할 수 있습니다.' };
+    }
+    await attemptsRepo.markSubmittedTx(client, attemptId);
+    await slotsRepo.markSubmittingTx(client, attemptId);
+    await attemptsRepo.addEventTx(client, attemptId, 'submitted', { by: 'examinee' });
+    return { ok: true };
+  });
+}
