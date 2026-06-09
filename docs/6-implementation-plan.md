@@ -116,7 +116,9 @@ catchup-helm/
 
 ### 1c. 앱 셸 (학생 화면) — 레퍼런스 [2 §2, 4] — 🟡 **셸 골격 완성 / hosted iframe 미구현**
 - [x] 시험 페이지 골격: 상단바 + 서버 `deadline_at` 기준 카운트다운([`Countdown.tsx`](../apps/web/app/(exam)/_components/Countdown.tsx)) + hosted 런타임([`ExamRuntime.tsx`](../apps/web/app/(exam)/exam/[attemptId]/ExamRuntime.tsx)) + 마감 처리. 서버 라우트가 status로 intro/done 분기
-- [x] **hosted 런타임 구현·로컬 e2e + 브라우저 풀렌더 검증(2026-06-09)**: iframe(`/exam/[id]/ide` HTTP 역프록시 route) + WS 프록시(custom `server.mjs`, 업그레이드→code-server 101 확인) + 1:1 슬롯 매핑(`hosted.slots.endpoint`) + 마감 게이트(서버 판정). 학생 로그인→시작→슬롯배정→web 프록시→**code-server HTML+전체 에셋(workbench.js 16.7MB 등) 풀렌더**→제출까지 확인. 핵심 수정: 역프록시 `content-encoding/length` 드롭(fetch 자동 압축해제 후 헤더 잔존 → gzip 이중해제 빈화면 버그)·code-server 상대경로(`serverBasePath:"."`)라 sub-path 우려 불요·날짜 TZ 하이드레이션(KST 고정)
+- [x] **hosted 런타임 구현·로컬 e2e + 브라우저 풀렌더 검증(2026-06-09)**: 학생 로그인→시작→**그 유저 슬롯 배정**→IDE→제출 전 사슬 동작. IDE 접근은 **ForwardAuth 인증 ingress**: `catchup.localhost/exam-ide` → traefik Middleware(forwardAuth=`/api/internal/exam-authz` 세션+running·assigned 슬롯 소유권 검사 → 그 유저만 통과 / stripPrefix) → **code-server 직결**. 같은 도메인이라 세션 쿠키 전달 + traefik→code-server 직결로 **HTML+전체 에셋(workbench.js 16.7MB)+WebSocket(101) 완전 동작**(folders·Claude Code 표시).
+  - ⚠️ 채택 경위: `/exam/[id]/ide` web 역프록시(server.mjs WS·route HTTP)는 코드상 정상(pod 직접 101)이나 **k3d traefik↔Next 커스텀서버 WS 업그레이드가 502**(traefik "Peeking first byte i/o timeout") → ForwardAuth(인증 ingress→code-server 직결)로 우회. content-encoding 드롭·날짜 TZ(KST) 하이드레이션도 수정.
+  - ⚠️ 로컬 단일 pod 권한(그 유저가 진행 중 시험 보유). 운영 다중 pod per-student 격리 = 슬롯별 경로/서브도메인 라우팅(Phase 3).
 - [ ] **재접속 복귀**: 재로그인 → 진행 중 attempt 조회 → 같은 슬롯 재연결(5 §5) — hosted 의존, 미구현
 
 ### 1d. 관리자 대시보드 — 레퍼런스 [2 §13, 4] — 🟡 **운영 골격 구현 / 일부 관제 대기**
