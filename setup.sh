@@ -145,7 +145,8 @@ kubectl -n "$NS" rollout status deploy/minio    --timeout=180s 2>/dev/null || tr
 kubectl -n "$NS" rollout status deploy/litellm  --timeout=180s 2>/dev/null || true
 kubectl -n "$NS" rollout status deploy/web      --timeout=240s 2>/dev/null || true
 # 재실행으로 .env.secret 의 키가 바뀐 경우, 이미 떠 있는 litellm 이 새 ANTHROPIC 키를 집도록 재시작.
-if [[ -n "${ANTHROPIC_API_KEY//[[:space:]]/}" ]]; then
+# (.env.secret 에 줄 자체가 없을 수 있으므로 :- 로 안전 처리 — set -u 하에서 unbound 방지)
+if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
   kubectl -n "$NS" rollout restart deploy/litellm >/dev/null 2>&1 || true
 fi
 ok "워크로드 배포 완료"
