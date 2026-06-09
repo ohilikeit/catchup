@@ -127,6 +127,7 @@ export async function importRoster(input: {
           email,
           fullName: name,
           passwordHash,
+          tempPassword, // 신규 계정에 한해 평문 보관(관리자 조회·전달용); 학생 비번 변경 시 NULL
         });
         await usersRepo.addExamineeMembershipTx(client, {
           orgId: input.orgId,

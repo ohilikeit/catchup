@@ -100,10 +100,10 @@ export async function findCredentialById(id: string): Promise<Credential | null>
   return row ? mapCredential(row) : null;
 }
 
-/** 비밀번호 변경(첫 로그인 임시비번 교체 등). password_changed_at도 갱신. */
+/** 비밀번호 변경(첫 로그인 임시비번 교체 등). password_changed_at 갱신 + 임시비번 평문 폐기(NULL). */
 export async function setPassword(userId: string, passwordHash: string): Promise<void> {
   await query(
-    `UPDATE auth.users SET password_hash = $2, password_changed_at = NOW() WHERE id = $1`,
+    `UPDATE auth.users SET password_hash = $2, password_changed_at = NOW(), temp_password = NULL WHERE id = $1`,
     [userId, passwordHash],
   );
 }
@@ -221,14 +221,15 @@ export async function isExamineeInOrgs(userId: string, orgIds: string[]): Promis
  */
 export async function upsertByEmailTx(
   client: PoolClient,
-  input: { email: string; fullName: string; passwordHash?: string | null },
+  input: { email: string; fullName: string; passwordHash?: string | null; tempPassword?: string | null },
 ): Promise<{ userId: string; created: boolean }> {
   const existing = await client.query<{ id: string }>('SELECT id FROM auth.users WHERE email = $1', [input.email]);
   const found = existing.rows[0];
   if (found) return { userId: found.id, created: false };
+  // 신규 계정: 임시비번을 해시(인증용)와 평문(관리자 조회·전달용) 둘 다 보관. 학생이 바꾸면 평문은 NULL 처리(setPassword).
   const res = await client.query<{ id: string }>(
-    'INSERT INTO auth.users (email, full_name, password_hash) VALUES ($1, $2, $3) RETURNING id',
-    [input.email, input.fullName, input.passwordHash ?? null],
+    'INSERT INTO auth.users (email, full_name, password_hash, temp_password) VALUES ($1, $2, $3, $4) RETURNING id',
+    [input.email, input.fullName, input.passwordHash ?? null, input.tempPassword ?? null],
   );
   return { userId: res.rows[0]!.id, created: true };
 }

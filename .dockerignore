@@ -14,3 +14,7 @@ docs
 .omc
 .gstack
 .claude
+
+# CI 단계간 전달 파일(이미지에 포함 금지)
+vars.env
+ENVIRONMENT_VARIABLES.txt

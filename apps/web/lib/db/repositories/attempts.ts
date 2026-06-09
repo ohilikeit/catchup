@@ -163,6 +163,9 @@ export interface RosterItem {
   attemptId: string;
   examineeId: string;
   examineeName: string;
+  examineeEmail: string | null;
+  /** 발급 임시비번 평문(관리자 전달용). 학생이 비번 변경하면 NULL. */
+  tempPassword: string | null;
   status: AttemptStatus;
   submissionStatus: string | null;
   submittedAt: Date | null;
@@ -173,11 +176,14 @@ export async function listRosterByBatch(batchId: string): Promise<RosterItem[]> 
     attempt_id: string;
     examinee_id: string;
     examinee_name: string;
+    examinee_email: string | null;
+    temp_password: string | null;
     status: AttemptStatus;
     submission_status: string | null;
     submitted_at: Date | null;
   }>(
     `SELECT a.id AS attempt_id, a.examinee_id, u.full_name AS examinee_name,
+            u.email AS examinee_email, u.temp_password,
             a.status, s.status AS submission_status, a.submitted_at
        FROM exam.attempts a
        JOIN auth.users u ON u.id = a.examinee_id
@@ -190,6 +196,8 @@ export async function listRosterByBatch(batchId: string): Promise<RosterItem[]> 
     attemptId: r.attempt_id,
     examineeId: r.examinee_id,
     examineeName: r.examinee_name,
+    examineeEmail: r.examinee_email,
+    tempPassword: r.temp_password,
     status: r.status,
     submissionStatus: r.submission_status,
     submittedAt: r.submitted_at,
