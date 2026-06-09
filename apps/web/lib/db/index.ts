@@ -8,3 +8,4 @@ export * as batchesRepo from './repositories/batches';
 export * as attemptsRepo from './repositories/attempts';
 export * as submissionsRepo from './repositories/submissions';
 export * as rosterRepo from './repositories/roster';
+export * as slotsRepo from './repositories/slots';

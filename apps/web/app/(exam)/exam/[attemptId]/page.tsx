@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import { requireSession } from '@/lib/auth/guard';
-import { getRuntime } from '@/lib/services/examService';
+import { getRuntimeWithSlot } from '@/lib/services/examService';
 import { ExamTopBar, MobileBlock } from '../../_components/ExamChrome';
 import { ExamRuntime, type ExamRuntimeData } from './ExamRuntime';
 
@@ -9,8 +9,9 @@ import { ExamRuntime, type ExamRuntimeData } from './ExamRuntime';
 
 export default async function ExamRuntimePage({ params }: { params: { attemptId: string } }) {
   const session = await requireSession();
-  const runtime = await getRuntime(params.attemptId, session.userId);
-  if (!runtime) notFound();
+  const result = await getRuntimeWithSlot(params.attemptId, session.userId);
+  if (!result) notFound();
+  const { runtime, slot } = result;
   if (runtime.status === 'ready') redirect(`/exam/${params.attemptId}/intro`);
   if (runtime.status === 'submitted') redirect(`/exam/${params.attemptId}/done`);
   if (runtime.status === 'expired' || runtime.status === 'void') {
@@ -25,6 +26,7 @@ export default async function ExamRuntimePage({ params }: { params: { attemptId:
     batchName: runtime.batchName,
     publicScaffoldRef: runtime.publicScaffoldRef,
     scaffoldSha256: runtime.scaffoldSha256,
+    slotEndpoint: slot?.endpoint ?? null,
   };
 
   return (

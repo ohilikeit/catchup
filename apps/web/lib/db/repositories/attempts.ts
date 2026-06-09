@@ -102,6 +102,7 @@ export async function listByExaminee(examineeId: string): Promise<MyExamItem[]> 
 export interface AttemptRuntime {
   attemptId: string;
   examineeId: string;
+  batchId: string;
   status: AttemptStatus;
   startsAt: Date | null;
   deadlineAt: Date | null;
@@ -119,6 +120,7 @@ export async function findRuntimeForExaminee(
   const r = await queryOne<{
     attempt_id: string;
     examinee_id: string;
+    batch_id: string;
     status: AttemptStatus;
     starts_at: Date | null;
     deadline_at: Date | null;
@@ -128,7 +130,7 @@ export async function findRuntimeForExaminee(
     public_scaffold_ref: string;
     scaffold_sha256: string;
   }>(
-    `SELECT a.id AS attempt_id, a.examinee_id, a.status,
+    `SELECT a.id AS attempt_id, a.examinee_id, a.batch_id, a.status,
             a.starts_at, a.deadline_at,
             b.name AS batch_name, b.status AS batch_status,
             p.title AS problem_title,
@@ -144,6 +146,7 @@ export async function findRuntimeForExaminee(
   return {
     attemptId: r.attempt_id,
     examineeId: r.examinee_id,
+    batchId: r.batch_id,
     status: r.status,
     startsAt: r.starts_at,
     deadlineAt: r.deadline_at,
@@ -283,6 +286,18 @@ export async function listEvents(attemptId: string): Promise<AttemptEvent[]> {
     [attemptId],
   );
   return rows.map((r) => ({ id: String(r.id), type: r.type, detail: r.detail ?? {}, createdAt: r.created_at }));
+}
+
+/** 응시 시작(트랜잭션 버전): ready/running → running. withTransaction 내에서 슬롯 배정과 원자적으로 실행. */
+export async function startRunningTx(client: PoolClient, id: string, deadlineAt: Date): Promise<Attempt | null> {
+  const res = await client.query<AttemptRow>(
+    `UPDATE exam.attempts
+        SET status = 'running', starts_at = COALESCE(starts_at, NOW()), deadline_at = $2
+      WHERE id = $1 AND status IN ('ready','running')
+      RETURNING *`,
+    [id, deadlineAt],
+  );
+  return res.rows[0] ? mapRow(res.rows[0]) : null;
 }
 
 /** 응시 시작: ready → running, starts_at/deadline_at 설정(서버가 시각 결정). */
