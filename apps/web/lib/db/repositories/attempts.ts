@@ -316,6 +316,17 @@ export async function markSubmittedTx(client: PoolClient, attemptId: string): Pr
   );
 }
 
+/** 운영: 강제 제출(ready/running → submitted). 이미 제출/만료/무효면 갱신 안 함. 반환: 성공 여부.
+ * ⚠️ 상태 전이만 — 산출물 패키징(hosted 캡처→MinIO)은 Phase 3 exam-ops 소관(docs/6 Phase 3). */
+export async function forceSubmitTx(client: PoolClient, attemptId: string): Promise<boolean> {
+  const res = await client.query(
+    `UPDATE exam.attempts SET status = 'submitted', submitted_at = NOW()
+      WHERE id = $1 AND status IN ('ready','running')`,
+    [attemptId],
+  );
+  return (res.rowCount ?? 0) > 0;
+}
+
 /** 마감 초과 시 만료 처리(이벤트로도 기록되지만 상태도 박는다). */
 export async function markExpiredTx(client: PoolClient, attemptId: string): Promise<void> {
   await client.query(

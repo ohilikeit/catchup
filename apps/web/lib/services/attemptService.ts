@@ -63,6 +63,22 @@ export async function extendDeadline(attemptId: string, minutes: number, actorId
   });
 }
 
+/** 운영: 강제 제출. ready/running 응시를 즉시 submitted로 마감. 이미 제출/만료/무효면 거부. 이벤트 기록.
+ * ⚠️ 상태 전이만 — 실제 산출물 패키징(hosted 캡처→MinIO)은 Phase 3 exam-ops에서 붙는다(docs/6 Phase 3). */
+export async function forceSubmit(attemptId: string, actorId: string): Promise<OpsResult> {
+  return withTransaction(async (client) => {
+    const attempt = await attemptsRepo.lockForSubmitTx(client, attemptId);
+    if (!attempt) return { ok: false, error: '응시를 찾을 수 없습니다.' };
+    const ok = await attemptsRepo.forceSubmitTx(client, attemptId);
+    if (!ok) return { ok: false, error: '대기/진행 중인 응시만 강제 제출할 수 있습니다.' };
+    await attemptsRepo.addEventTx(client, attemptId, 'force_submitted', {
+      from: attempt.status,
+      by: actorId,
+    });
+    return { ok: true };
+  });
+}
+
 /** 운영: 응시 무효(void). 제출 완료건은 불가. 이벤트 기록. */
 export async function voidAttempt(attemptId: string, reason: string, actorId: string): Promise<OpsResult> {
   return withTransaction(async (client) => {

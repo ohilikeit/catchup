@@ -247,6 +247,12 @@ function CreateBatchModal({
         <Field label="정원">
           <Input name="capacity" type="number" placeholder="50" min="1" max="500" />
         </Field>
+        <Field label="예정 일시 (선택)" helper="회차 시작 예정 시각. 비우면 미정으로 둡니다.">
+          <Input name="scheduledAt" type="datetime-local" />
+        </Field>
+        <Field label="1인당 LLM 예산 (USD, 선택)" helper="가상키 발급 시 적용될 1인당 사용 상한. 비우면 상한 없음.">
+          <Input name="llmBudgetUsd" type="number" step="0.01" min="0" placeholder="예: 5.00" />
+        </Field>
       </form>
     </Modal>
   );

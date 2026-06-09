@@ -29,7 +29,7 @@
 | **web 앱 셸** | 상단바(타이머·제출)+iframe 프록시 | 🟡 셸 골격 완성·hosted iframe 미구현 | 2 §2, 4 |
 | **관리자 대시보드** | 시험 준비·중앙 관제·운영 액션 | 🟡 회차개설·로스터·운영액션 구현 / spend 관제 대기 | 2 §13, 4 |
 | **DB 스키마** | batches/attempts/slots/submissions | ✅ `0003_exam`·`0004_hosted`·`0005_ops` | 5 §3 |
-| **litellm DB 흡수** | 가상키·spend 저장 (S1 별도 `litellm-db` → 메인 postgres) | ⬜ 통합 | 3 §0·§7 |
+| **litellm DB 흡수** | 가상키·spend 저장 (S1 별도 `litellm-db` → 메인 postgres) | 🟡 로컬 완결(메인 postgres 내 `litellm` 전용 DB·게이트웨이 compose profile) / prod 시크릿 배선은 Phase 2b | 3 §0·§7 |
 | **MinIO 버킷** | scaffold/hidden/artifacts/chatlogs | ✅ lib/storage·compose·setup.sh 부트스트랩 (전부 private) | 5 §2 |
 | **문제 업로드** | scaffold/hidden → MinIO + problem_versions | ✅ admin 폼·problemService(서버 sha256) | 5 §2 |
 | **제출 파이프라인** | 서버측 패키징 Job(hosted) + 마감 자동 회수 | ⬜ 패키징 Job 미구현 (MinIO·lib/storage는 준비됨) | 5 §4·§7 |
@@ -99,7 +99,7 @@ catchup-helm/
 - [x] `exam.submissions.attempt_id`(UNIQUE 1:1), `exam.submission_files`(kind·ref·sha256·size_bytes·mime)
 - [x] 상태 제약·인덱스(examinee_id·status / batch·status)·`updated_at` 트리거 → ⚠️ 계획의 `attempt_status` **ENUM**은 실제로 **CHECK 제약**으로 구현(`ready/running/submitted/expired/void`, 기능 동등). `hosted.slots`·`ops.roster_imports`([`0005_ops.sql`](../db/migrations/0005_ops.sql))도 포함
 - [x] 적용·검증: `pnpm db:migrate` (철칙 1·2)
-- [ ] **litellm DB 흡수** (S1 별도 `litellm-db` 폐기): 메인 postgres에 **litellm 전용 DB/schema** 생성 → `litellm-secrets.DATABASE_URL`을 메인 postgres로. LiteLLM 스키마는 **prisma가 자체 관리**(우리 `db/migrations`와 분리), 백업·마이그레이션 정책만 분리 (docs/3 §0·§7)
+- [x] **litellm DB 흡수** (S1 별도 `litellm-db` 폐기): 메인 postgres에 **litellm 전용 논리 DB `litellm`** 생성([`postgres-init/01-litellm-db.sql`](../db/postgres-init/01-litellm-db.sql) 최초 init + `setup.sh` 멱등 보장) → 게이트웨이 `DATABASE_URL`을 메인 postgres로([`infra/litellm/config.yaml`](../infra/litellm/config.yaml), compose `--profile gateway`). LiteLLM 스키마는 **prisma가 자체 관리**(우리 `db/migrations`와 분리; 실측: 게이트웨이 부팅 시 `litellm` DB에 `LiteLLM_*` 39테이블 생성, `catchup` DB 누수 0). **결정: schema가 아니라 별도 DB**(prisma가 통째 관리 → 백업·마이그레이션 깔끔히 분리, docs/3 §7). ⚠️ prod의 `DATABASE_URL` SealedSecret 배선은 Phase 2b
 
 ### 1b. MinIO 버킷·정책 — 레퍼런스 [5 §2] — ✅ **완료**
 - [x] 버킷 생성: `exam-scaffold` / `exam-hidden`(서버 전용) / `exam-artifacts` / `exam-chatlogs` (setup.sh 일회성 mc 부트스트랩 + 앱 `ensureBucket` 런타임 안전망)
@@ -113,9 +113,10 @@ catchup-helm/
 
 ### 1d. 관리자 대시보드 — 레퍼런스 [2 §13, 4] — 🟡 **운영 골격 구현 / 일부 관제 대기**
 - [x] 준비: 회차(batch) 생성·로스터 import(xlsx)·스코프 강제(admin 전체 / org_admin 자기 대학) → [`batchService.ts`](../apps/web/lib/services/batchService.ts), `admin/{batches,problems,students,submissions,orgs}`·`org/*` 라우트
-- [x] 준비: **문제 업로드(MinIO)** — admin 폼 → server action → [`problemService`](../apps/web/lib/services/problemService.ts)(서버 sha256·scaffold→exam-scaffold·hidden→exam-hidden) → `problem_versions`. [ ] 일정·예산 필드는 잔여
+- [x] 준비: **문제 업로드(MinIO)** — admin 폼 → server action → [`problemService`](../apps/web/lib/services/problemService.ts)(서버 sha256·scaffold→exam-scaffold·hidden→exam-hidden) → `problem_versions`
+- [x] 준비: **일정·예산** — 회차 속성으로 구현(문제버전이 아님): 예정 일시(`batches.scheduled_at`, 회차 개설 폼)·1인당 LLM 예산(`batches.llm_budget_usd`, [`0010`](../db/migrations/0010_batch_llm_budget.sql)·서버검증; 가상키 `max_budget` 적용은 Phase 3 exam-ops). 상세 헤더에 표시
 - [ ] 관제: 슬롯 현황(`hosted.slots`)·학생 진행(`attempt_events`)·**spend(/key/info)** — spend는 LiteLLM 게이트웨이 연동 대기
-- [x] 액션 골격: 회차 상태전이·시간 연장(`deadline_at`)·무효(`canOperate`=admin) → [ ] 강제 제출은 잔여
+- [x] 액션 골격: 회차 상태전이·시간 연장(`deadline_at`)·무효·**강제 제출**(`canOperate`=admin). 강제 제출은 ready/running→submitted 상태 전이+감사 이벤트([`attemptService.forceSubmit`](../apps/web/lib/services/attemptService.ts)); ⚠️ 실제 산출물 패키징(hosted 캡처→MinIO)은 Phase 3 exam-ops 소관
 
 **Phase 1 게이트**: 로컬에서 web 앱이 S1 exam 컨테이너를 iframe 프록시하고, 상단바 타이머·제출이 DB/MinIO에 저장되며, 대시보드로 회차를 만들 수 있다.
 > 현황: **대시보드 회차 생성·문제 업로드·MinIO 실물 저장 ✅** (로컬 완결분 완료). 게이트의 잔여 = **iframe 프록시**(로컬 불가, k8s 의존 → Phase 2) + **litellm DB 흡수**. BYOD 폐기로 *유일한 제출 경로가 hosted*라 Phase 2/3가 critical-path.

@@ -14,11 +14,29 @@ export async function createBatchAction(formData: FormData) {
   const capacityRaw = formData.get('capacity') as string;
   const capacity = capacityRaw ? Number(capacityRaw) : undefined;
 
+  // 예정 일시(datetime-local) — 빈 값이면 null. 잘못된 값은 거부(서버가 최종 판정).
+  const scheduledRaw = (formData.get('scheduledAt') as string | null)?.trim() || '';
+  let scheduledAt: Date | null = null;
+  if (scheduledRaw) {
+    const d = new Date(scheduledRaw);
+    if (Number.isNaN(d.getTime())) throw new Error('예정 일시 형식이 올바르지 않습니다.');
+    scheduledAt = d;
+  }
+
+  // 1인당 LLM 예산(USD) — 빈 값이면 null(상한 없음). 음수/비수 거부.
+  const budgetRaw = (formData.get('llmBudgetUsd') as string | null)?.trim() || '';
+  let llmBudgetUsd: number | null = null;
+  if (budgetRaw) {
+    const n = Number(budgetRaw);
+    if (!Number.isFinite(n) || n < 0) throw new Error('LLM 예산은 0 이상의 숫자여야 합니다.');
+    llmBudgetUsd = n;
+  }
+
   if (!orgId || !name || !problemVersionId) {
     throw new Error('필수 항목을 모두 입력하세요.');
   }
 
-  await batchService.createBatch({ orgId, name, problemVersionId, capacity });
+  await batchService.createBatch({ orgId, name, problemVersionId, capacity, scheduledAt, llmBudgetUsd });
   revalidatePath('/admin/batches');
 }
 

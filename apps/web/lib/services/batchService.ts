@@ -53,6 +53,7 @@ export async function createBatch(input: {
   problemVersionId: string;
   capacity?: number;
   scheduledAt?: Date | null;
+  llmBudgetUsd?: number | null;
 }) {
   const batch = await batchesRepo.create(input);
   await invalidateBatchLists();

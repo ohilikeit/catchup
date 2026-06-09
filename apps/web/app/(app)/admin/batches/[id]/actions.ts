@@ -24,3 +24,10 @@ export async function voidAttemptAction(batchId: string, attemptId: string, reas
   if (!result.ok) throw new Error(result.error);
   revalidatePath(`/admin/batches/${batchId}`);
 }
+
+export async function forceSubmitAction(batchId: string, attemptId: string) {
+  const session = await requireGlobalRole('admin');
+  const result = await attemptService.forceSubmit(attemptId, session.userId);
+  if (!result.ok) throw new Error(result.error);
+  revalidatePath(`/admin/batches/${batchId}`);
+}

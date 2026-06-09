@@ -14,6 +14,8 @@ export interface Batch {
   capacity: number;
   status: BatchStatus;
   scheduledAt: Date | null;
+  /** 회차 1인당 LLM 예산 상한(USD). 가상키 max_budget의 근거. NULL=상한 없음(0010). */
+  llmBudgetUsd: number | null;
   openedAt: Date | null;
   closedAt: Date | null;
   createdAt: Date;
@@ -28,6 +30,7 @@ interface BatchRow {
   capacity: number;
   status: BatchStatus;
   scheduled_at: Date | null;
+  llm_budget_usd: string | null; // NUMERIC → pg는 문자열로 반환
   opened_at: Date | null;
   closed_at: Date | null;
   created_at: Date;
@@ -43,6 +46,7 @@ function mapRow(r: BatchRow): Batch {
     capacity: r.capacity,
     status: r.status,
     scheduledAt: r.scheduled_at,
+    llmBudgetUsd: r.llm_budget_usd == null ? null : Number(r.llm_budget_usd),
     openedAt: r.opened_at,
     closedAt: r.closed_at,
     createdAt: r.created_at,
@@ -61,6 +65,7 @@ export interface BatchListItem {
   capacity: number;
   status: BatchStatus;
   scheduledAt: Date | null;
+  llmBudgetUsd: number | null;
   attemptCount: number;
   submittedCount: number;
   acceptedCount: number;
@@ -102,6 +107,7 @@ function mapListRow(r: BatchListRow): BatchListItem {
     capacity: r.capacity,
     status: r.status,
     scheduledAt: r.scheduled_at,
+    llmBudgetUsd: r.llm_budget_usd == null ? null : Number(r.llm_budget_usd),
     attemptCount: Number(r.attempt_count),
     submittedCount: Number(r.submitted_count),
     acceptedCount: Number(r.accepted_count),
@@ -157,16 +163,18 @@ export async function create(input: {
   problemVersionId: string;
   capacity?: number;
   scheduledAt?: Date | null;
+  llmBudgetUsd?: number | null;
 }): Promise<Batch> {
   const row = await queryOne<BatchRow>(
-    `INSERT INTO exam.batches (org_id, name, problem_version_id, capacity, scheduled_at)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    `INSERT INTO exam.batches (org_id, name, problem_version_id, capacity, scheduled_at, llm_budget_usd)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
     [
       input.orgId,
       input.name,
       input.problemVersionId,
       input.capacity ?? 50,
       input.scheduledAt ?? null,
+      input.llmBudgetUsd ?? null,
     ],
   );
   return mapRow(row!);

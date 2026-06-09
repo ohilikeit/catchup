@@ -4,7 +4,7 @@ import { DataTable, Button, Modal, Field, Input, type Column } from '@app/ui';
 import { useToast } from '@app/core';
 import type { RosterItem } from '@/lib/db/repositories/attempts';
 import { AttemptStatusTag, SubmissionStatusTag } from '../../../_components/ui';
-import { extendDeadlineAction, voidAttemptAction } from './actions';
+import { extendDeadlineAction, voidAttemptAction, forceSubmitAction } from './actions';
 
 function fmt(d: Date | null): string {
   return d
@@ -14,7 +14,8 @@ function fmt(d: Date | null): string {
 
 type RowAction =
   | { type: 'extend'; item: RosterItem }
-  | { type: 'void'; item: RosterItem };
+  | { type: 'void'; item: RosterItem }
+  | { type: 'forceSubmit'; item: RosterItem };
 
 export function AdminBatchRosterClient({
   batchId,
@@ -53,6 +54,18 @@ export function AdminBatchRosterClient({
     });
   }
 
+  function handleForceSubmit(attemptId: string) {
+    startTransition(async () => {
+      try {
+        await forceSubmitAction(batchId, attemptId);
+        setModal(null);
+        toast({ kind: 'success', title: '강제 제출 완료', message: '응시가 제출 상태로 마감되었습니다.' });
+      } catch (e) {
+        toast({ kind: 'error', title: '강제 제출 실패', message: String((e as Error).message) });
+      }
+    });
+  }
+
   const columns: Array<Column<RosterItem>> = [
     { key: 'examineeName', header: '응시자', sortable: true },
     {
@@ -75,9 +88,21 @@ export function AdminBatchRosterClient({
           {
             key: 'actions' as keyof RosterItem,
             header: '',
-            className: 'w-40 text-right',
+            className: 'w-64 text-right',
             render: (r: RosterItem) => (
               <span className="flex items-center gap-02 justify-end">
+                {(r.status === 'ready' || r.status === 'running') && (
+                  <Button
+                    kind="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setModal({ type: 'forceSubmit', item: r });
+                    }}
+                  >
+                    강제 제출
+                  </Button>
+                )}
                 <Button
                   kind="ghost"
                   size="sm"
@@ -131,7 +156,44 @@ export function AdminBatchRosterClient({
           onSubmit={(reason) => handleVoid(modal.item.attemptId, reason)}
         />
       )}
+
+      {modal?.type === 'forceSubmit' && (
+        <ForceSubmitModal
+          item={modal.item}
+          pending={pending}
+          onClose={() => setModal(null)}
+          onSubmit={() => handleForceSubmit(modal.item.attemptId)}
+        />
+      )}
     </>
+  );
+}
+
+/* ── 강제 제출 모달 ─────────────────────────────────────────────────────────── */
+function ForceSubmitModal({
+  item,
+  pending,
+  onClose,
+  onSubmit,
+}: {
+  item: RosterItem;
+  pending: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <Modal
+      title={`강제 제출 — ${item.examineeName}`}
+      primaryLabel={pending ? '처리 중...' : '강제 제출'}
+      secondaryLabel="취소"
+      onClose={onClose}
+      onPrimary={onSubmit}
+    >
+      <p className="cds-body-01 text-text-secondary">
+        이 응시를 지금 즉시 <b>제출</b> 상태로 마감합니다. 진행 중이거나 대기 중인 응시에만 적용되며,
+        이후 학생은 더 이상 진행할 수 없습니다. 되돌릴 수 없습니다.
+      </p>
+    </Modal>
   );
 }
 
