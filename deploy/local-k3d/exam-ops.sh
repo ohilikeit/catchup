@@ -24,8 +24,24 @@ slots_dump() {
 case "$CMD" in
   provision)
     [ -z "$BATCH_ID" ] && { echo "usage: exam-ops.sh provision <batchId> [N]"; exit 1; }
+    # ⭐ 이 회차가 쓰는 문제(scaffold) 해석 — batch.problem_version_id → public_scaffold_ref(MinIO 객체 키).
+    #    회차마다 통일된 scaffold 1개. seeder 는 exam-batch ConfigMap 의 SCAFFOLD_REF 로 그 문제를 pull 한다.
+    REF="$(kubectl -n "$NS" exec deploy/postgres -- psql -U "${POSTGRES_USER:-catchup}" -d "${POSTGRES_DB:-catchup}" -At -c \
+      "SELECT pv.public_scaffold_ref FROM exam.batches b JOIN exam.problem_versions pv ON pv.id=b.problem_version_id WHERE b.id='$BATCH_ID'" 2>/dev/null | tr -d '[:space:]')"
+    if [ -z "$REF" ]; then
+      echo "✗ batch=$BATCH_ID 의 문제(problem_version)를 찾을 수 없습니다 — 회차에 문제가 연결됐는지 확인"; exit 1
+    fi
+    PID="$(kubectl -n "$NS" exec deploy/postgres -- psql -U "${POSTGRES_USER:-catchup}" -d "${POSTGRES_DB:-catchup}" -At -c \
+      "SELECT pv.problem_code FROM exam.batches b JOIN exam.problem_versions pv ON pv.id=b.problem_version_id WHERE b.id='$BATCH_ID'" 2>/dev/null | tr -d '[:space:]')"
+    echo "▶ 회차 문제: $PID  (scaffold=$REF)"
+    echo "▶ exam-batch ConfigMap 갱신(seeder 가 이 회차 문제를 pull)"
+    kubectl -n "$NS" create configmap exam-batch \
+      --from-literal=SCAFFOLD_REF="$REF" --from-literal=PROBLEM_ID="${PID:-unknown}" --from-literal=BATCH_ID="$BATCH_ID" \
+      --dry-run=client -o yaml | kubectl apply -f - >/dev/null
     echo "▶ exam StatefulSet → $N replicas"
     kubectl -n "$NS" scale statefulset/exam --replicas="$N"
+    # 이미 떠 있던 pod 가 이전 회차 scaffold 를 들고 있을 수 있으니 재생성(새 ConfigMap·새 시드 반영).
+    kubectl -n "$NS" rollout restart statefulset/exam >/dev/null 2>&1 || true
     kubectl -n "$NS" rollout status statefulset/exam --timeout=180s
     echo "▶ ready 슬롯 등록 (batch=$BATCH_ID, slot 0..$((N-1)))"
     for i in $(seq 0 $((N-1))); do

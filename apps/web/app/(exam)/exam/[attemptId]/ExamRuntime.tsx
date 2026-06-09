@@ -20,8 +20,11 @@ export interface ExamRuntimeData {
   slotEndpoint: string | null;
 }
 
-/* ── hosted: 웹 IDE iframe 자리표시(이번 범위에서 백엔드 미구현) ──────────────── */
+/* ── hosted: 웹 IDE — code-server 풀사이즈 iframe + 새 창 열기 (인증 프록시 경유) ── */
 export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
+  // 인증 프록시 경로 — web 이 세션+슬롯 소유권을 검사해 "이 학생만" 자기 컨테이너에 접근(server.mjs WS + ide route HTTP).
+  // 상대경로라 같은 오리진(catchup.localhost)에서 동작 + 새 창/풀사이즈 모두 이 경로.
+  const IDE_URL = `/exam/${runtime.attemptId}/ide/?folder=/home/coder/project`;
   const router = useRouter();
   const [expired, setExpired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -56,11 +59,16 @@ export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
       />
 
       <div className="bg-layer-02 border border-border-subtle-01">
-        <div className="border-b border-border-subtle-01 px-05 py-03 flex items-center gap-02">
-          <span className="text-icon-secondary">
-            <Icon name="data" size={16} />
+        <div className="border-b border-border-subtle-01 px-05 py-03 flex items-center justify-between gap-02">
+          <span className="flex items-center gap-02">
+            <span className="text-icon-secondary"><Icon name="data" size={16} /></span>
+            <span className="cds-helper-01 text-text-secondary">웹 IDE (code-server + Claude Code)</span>
           </span>
-          <span className="cds-helper-01 text-text-secondary">웹 IDE</span>
+          {!expired && runtime.slotEndpoint !== null && (
+            <Button kind="ghost" size="sm" icon="launch" onClick={() => window.open(IDE_URL, '_blank', 'noopener')}>
+              새 창에서 전체화면으로 열기
+            </Button>
+          )}
         </div>
 
         {expired ? (
@@ -73,13 +81,14 @@ export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
             />
           </div>
         ) : runtime.slotEndpoint !== null ? (
-          /* 슬롯 배정됨: 프록시 경로로 iframe 렌더. WebSocket 실프록시는 Phase 2(custom server) TODO. */
+          /* 슬롯 배정됨: code-server 를 풀사이즈 iframe 으로(WS·에셋 직접 동작). 새 창 버튼도 제공. */
           <iframe
-            src={`/exam/${runtime.attemptId}/ide/`}
-            className="w-full border-0"
-            style={{ height: '600px' }}
+            src={IDE_URL}
+            className="w-full border-0 block"
+            style={{ height: 'calc(100vh - 220px)', minHeight: '600px' }}
             title="웹 IDE"
-            sandbox="allow-scripts allow-same-origin allow-forms"
+            allow="clipboard-read; clipboard-write"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"
           />
         ) : (
           /* 슬롯 미배정(현 로컬/Phase 1-2): 환경 준비 중 안내 유지. */

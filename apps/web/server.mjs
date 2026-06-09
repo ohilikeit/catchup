@@ -18,12 +18,12 @@
 
 import { createServer } from 'node:http';
 import { parse } from 'node:url';
+import net from 'node:net';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { config as loadEnv } from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import next from 'next';
-import httpProxy from 'http-proxy';
 import pg from 'pg';
 
 // next.config.mjs 와 동일하게 모노레포 루트 .env.secret 을 로드(pool·세션 시크릿이
@@ -76,11 +76,36 @@ function readCookie(header, name) {
 const IDE_RE = /^\/exam\/([^/]+)\/ide(?:\/|$)/;
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-const proxy = httpProxy.createProxyServer({ ws: true, changeOrigin: true });
-proxy.on('error', (err, _req, socket) => {
-  console.error('[ws] proxy error:', err?.message);
-  if (socket && typeof socket.destroy === 'function' && !socket.destroyed) socket.destroy();
-});
+
+// ── 수동 WS 프록시(raw TCP 양방향 파이프) ──
+// http-proxy 라이브러리는 traefik 뒤에서 upgrade 파이핑이 불안정(502/1006). 대신 code-server 로 직접
+// TCP 연결해 원본 upgrade 요청 + head 를 그대로 흘리고 소켓을 양방향 pipe 한다 → web 은 바이트만 중계,
+// traefik 은 code-server 의 깔끔한 101 을 받는다. endpoint 는 서버 신뢰값(slot.endpoint), 스킴 http/https 만.
+function pipeWebSocket(endpoint, req, clientSocket, head) {
+  let target;
+  try {
+    target = new URL(endpoint);
+  } catch {
+    return clientSocket.destroy();
+  }
+  if (target.protocol !== 'http:' && target.protocol !== 'https:') return clientSocket.destroy();
+  const port = Number(target.port) || (target.protocol === 'https:' ? 443 : 80);
+  const upstream = net.connect(port, target.hostname, () => {
+    // 원본 요청 라인 + 헤더 재구성(클라의 Sec-WebSocket-Key 등 보존). Host 만 target 으로 교체.
+    let raw = `GET ${req.url} HTTP/1.1\r\n`;
+    for (const [k, v] of Object.entries(req.headers)) {
+      if (k.toLowerCase() === 'host') continue;
+      for (const val of Array.isArray(v) ? v : [v]) raw += `${k}: ${val}\r\n`;
+    }
+    raw += `Host: ${target.host}\r\n\r\n`;
+    upstream.write(raw);
+    if (head && head.length) upstream.write(head);
+    upstream.pipe(clientSocket);
+    clientSocket.pipe(upstream);
+  });
+  upstream.on('error', () => { if (!clientSocket.destroyed) clientSocket.destroy(); });
+  clientSocket.on('error', () => { if (!upstream.destroyed) upstream.destroy(); });
+}
 
 // ── WS 게이트: 인증·소유권·상태·마감·슬롯 검사 후 code-server 로 프록시 ──
 async function guardAndProxy(attemptId, req, socket, head) {
@@ -104,7 +129,7 @@ async function guardAndProxy(attemptId, req, socket, head) {
 
   // 접두(/exam/<id>/ide) 제거 → code-server 루트 기준 경로(HTTP route 와 동일 규칙).
   req.url = req.url.replace(/^\/exam\/[^/]+\/ide/, '') || '/';
-  proxy.ws(req, socket, head, { target: row.endpoint });
+  pipeWebSocket(row.endpoint, req, socket, head);
 }
 
 await app.prepare();

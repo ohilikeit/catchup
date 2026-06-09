@@ -39,10 +39,11 @@ spec:
           image: minio/mc:latest
           env:
             - { name: HOME, value: /tmp }            # mc config dir(uid 1000 쓰기 가능)
-            # scaffold 객체 키(= problem_versions.public_scaffold_ref). 운영은 exam-ops 가 회차 문제로 주입; 로컬 고정.
-            - { name: SCAFFOLD_REF, value: "exam-scaffold/ainc2026/v1/ainc2026-scaffold.tgz" }
           envFrom:
             - secretRef: { name: app-secrets }       # MINIO_ENDPOINT/PORT/ACCESS_KEY/SECRET_KEY
+            # ⭐ SCAFFOLD_REF 는 회차(batch)의 문제다 — exam-ops 가 provision 시 그 회차 problem_versions.public_scaffold_ref
+            #    를 이 ConfigMap 에 써넣는다(회차마다 다른 문제 = 통일 scaffold). git 에 없으므로 selfHeal 무관.
+            - configMapRef: { name: exam-batch, optional: true }
           command:
             - /bin/sh
             - -c
