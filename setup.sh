@@ -65,7 +65,7 @@ step ".env.secret 준비"
 if [[ -f .env.secret ]]; then
   ok ".env.secret 이미 존재 — 유지"
 else
-  cp .env.example .env.secret
+  cp .env.secret.example .env.secret
   # 안전한 SESSION_SECRET 자동 생성(템플릿의 불안정 기본값 치환)
   SECRET="$(node -e 'console.log(require("crypto").randomBytes(48).toString("base64url"))')"
   # macOS(BSD)/Linux(GNU) sed 양쪽 호환을 위해 node로 in-place 치환
@@ -99,20 +99,22 @@ ok "컨테이너 기동 요청 완료"
 # minio 컨테이너 네트워크에 붙어 readiness까지 대기 후 생성(멱등). 앱도 첫 put에서 ensureBucket로 자동 생성하므로 실패해도 치명적 아님.
 step "MinIO 버킷 생성"
 MINIO_USER="${MINIO_ROOT_USER:-catchup}"; MINIO_PASS="${MINIO_ROOT_PASSWORD:-catchup-minio}"
-MINIO_NET="$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' catchup-minio 2>/dev/null || true)"
+# 컨테이너 이름이 프로젝트마다 다르므로($DC가 프로젝트 인식), 서비스명 minio의 컨테이너 ID로 네트워크를 해석.
+MINIO_CID="$($DC ps -q minio 2>/dev/null || true)"
+MINIO_NET="$([[ -n "$MINIO_CID" ]] && docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' "$MINIO_CID" 2>/dev/null || true)"
 if [[ -n "$MINIO_NET" ]] && docker run --rm --network "$MINIO_NET" --entrypoint /bin/sh minio/mc:latest -c "
   until mc alias set local http://minio:9000 '$MINIO_USER' '$MINIO_PASS' >/dev/null 2>&1; do sleep 1; done
   for b in exam-scaffold exam-hidden exam-artifacts exam-chatlogs; do mc mb -p \"local/\$b\" >/dev/null 2>&1; mc anonymous set none \"local/\$b\" >/dev/null 2>&1; done
 " >/dev/null 2>&1; then
   ok "버킷 4종 준비(scaffold/hidden/artifacts/chatlogs, 전부 private)"
 else
-  err "MinIO 버킷 자동 생성 실패 — 앱이 첫 put에서 자동 생성하므로 치명적 아님('docker logs catchup-minio'로 확인)"
+  err "MinIO 버킷 자동 생성 실패 — 앱이 첫 put에서 자동 생성하므로 치명적 아님('$DC logs minio'로 확인)"
 fi
 
 # ── 4. Postgres 준비 대기(healthy) ───────────────────────────────────────
 step "PostgreSQL 준비 대기"
 TRIES=0
-until docker exec catchup-postgres pg_isready -U "$PG_USER" -d "$PG_DB" >/dev/null 2>&1; do
+until $DC exec -T postgres pg_isready -U "$PG_USER" -d "$PG_DB" >/dev/null 2>&1; do
   TRIES=$((TRIES + 1))
   if (( TRIES > 30 )); then
     err "PostgreSQL이 시간 내 준비되지 않았습니다. '$DC logs postgres'로 확인하세요."
@@ -122,6 +124,25 @@ until docker exec catchup-postgres pg_isready -U "$PG_USER" -d "$PG_DB" >/dev/nu
   sleep 2
 done
 ok "PostgreSQL 준비 완료"
+
+# ── 4b. LiteLLM 전용 DB 보장(흡수; docs/3 §0·§7) ──────────────────────────
+# 빈 볼륨은 db/postgres-init 가 만들지만, 기존 볼륨엔 없으므로 여기서 멱등 보장.
+# LiteLLM 스키마(가상키·spend)는 게이트웨이 컨테이너의 prisma가 이 DB 안에서 자체 관리(우리 마이그레이션과 분리).
+step "LiteLLM 전용 DB 보장"
+if $DC exec -T postgres psql -U "$PG_USER" -d "$PG_DB" -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'litellm') THEN
+    CREATE ROLE litellm LOGIN PASSWORD 'litellm';
+  END IF;
+END $$;
+SELECT 'CREATE DATABASE litellm OWNER litellm'
+ WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'litellm')\gexec
+SQL
+then
+  ok "litellm DB 준비(메인 postgres 내 전용 DB)"
+else
+  err "litellm DB 보장 실패 — 게이트웨이(--profile gateway) 기동 전 'pnpm db:migrate' 후 재시도하거나 수동 생성 필요"
+fi
 
 # ── 5. 마이그레이션 ───────────────────────────────────────────────────────
 step "DB 마이그레이션 적용"

@@ -16,10 +16,19 @@ CatchUP 플랫폼의 데이터 계층. **단일 DB 안을 도메인별 Postgres 
 > ⭐ 뼈대의 끝 = `exam.submissions`(accepted) + 불변 `problem_version` + `trust`. 평가·리포트(`grading.*`)는
 > 이 입구를 소비하는 별도 트랙이라, hosted 어댑터 내부가 바뀌어도 이 스키마는 무변경.
 
+### 별도 DB: `litellm` (게이트웨이 전용 — 우리 마이그레이션 밖)
+
+LiteLLM 게이트웨이의 **가상키·spend**는 같은 PostgreSQL 인스턴스 안의 **별도 논리 DB `litellm`**에 저장된다
+(흡수; docs/3 §0·§7). 이 DB의 스키마는 **게이트웨이 컨테이너의 prisma가 자체 관리**하므로 위 schema 표(우리
+`catchup` DB)와 **완전히 분리**된다 — `db/migrations`는 이 DB를 건드리지 않는다(백업·마이그레이션 정책만 분리).
+
+- 생성: 빈 볼륨 최초 init = [`postgres-init/01-litellm-db.sql`](./postgres-init/01-litellm-db.sql), 기존 볼륨 = `setup.sh`의 멱등 보장 단계.
+- 사용: 게이트웨이는 옵트인 — `docker compose --profile gateway up -d`(진짜 Anthropic 키 필요).
+
 ## 로컬 실행
 
 ```bash
-cp .env.example .env.secret   # 루트에서 1회 (DATABASE_URL/REDIS_URL 기본값 OK, gitignore됨)
+cp .env.secret.example .env.secret   # 루트에서 1회 (DATABASE_URL/REDIS_URL 기본값 OK, gitignore됨)
 docker compose up -d          # postgres 16 + redis 7 (healthy까지 대기)
 pnpm db:migrate               # db/migrations/*.sql 순서대로 적용
 pnpm db:migrate:status        # 적용/미적용 목록

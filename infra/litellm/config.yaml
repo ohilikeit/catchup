@@ -1,0 +1,18 @@
+# 메인 스택 LiteLLM 게이트웨이 — 진짜 키 보관·"*"→Sonnet 강제·가상키/spend 저장.
+# 핵심: model_name "*" → 학생/claude code가 무슨 모델을 부르든 전부 Sonnet으로 라우팅(서버 강제, 대원칙 5⑤).
+#       진짜 ANTHROPIC_API_KEY는 이 게이트웨이(컨테이너)에만. 학생/앱엔 가상키만.
+#       가상키·spend는 메인 postgres의 litellm 전용 DB에 저장(흡수). 스키마는 prisma가 자체 관리.
+# 근거: docs/3 §0·§2·§7, docs/2 §3·§8, code.claude.com/docs/en/llm-gateway
+model_list:
+  - model_name: "*"                       # 모든 모델명 요청을 한 곳으로
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6  # ← 무조건 Sonnet (모델 강제). 최신으로 바꾸려면 여기만 수정
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+litellm_settings:
+  drop_params: true        # claude code가 보내는 미지원 파라미터를 조용히 제거(호환성)
+  set_verbose: false
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY   # 가상키 발급용 관리자 키(/key/generate·/key/info)
+  database_url: os.environ/DATABASE_URL       # 가상키·spend 저장(메인 postgres의 litellm DB)

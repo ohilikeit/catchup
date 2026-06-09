@@ -392,7 +392,7 @@ spec:
 ---
 
 ## 7. 남은 결정 / TODO (채우고 넘어갈 것)
-- [ ] **DB 통합 방식 확정**: 메인 postgres에 litellm 전용 DB vs schema(search_path). 백업/마이그레이션 분리 정책.
+- [x] **DB 통합 방식 확정**: → **별도 논리 DB `litellm`**(schema·search_path 아님). prisma가 그 DB를 통째 관리하므로 우리 `db/migrations`와 충돌·오염 없이 백업/마이그레이션을 깔끔히 분리. 로컬 실현 완료(`db/postgres-init`·`infra/litellm`·compose `--profile gateway`); prod는 `DATABASE_URL`을 SealedSecret으로(Phase 2b).
 - [ ] **Anthropic Tier 산정**: 동시 50명 실측(OTPM 병목) → Tier 3+ 또는 Priority Tier 신청. 캐싱율 모니터링.
 - [ ] **시크릿 관리**: SealedSecrets/External Secrets로 진짜 키·master key를 git 안전 보관.
 - [ ] **가상키 주입 경로 구현**: exam-ops의 register→/key/generate→pod 전달(attach) 에이전트.

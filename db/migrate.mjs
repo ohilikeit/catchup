@@ -21,7 +21,7 @@ loadEnv({ path: resolve(__dirname, '..', '.env.secret') });
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
-  console.error('✗ DATABASE_URL 이 설정되지 않았습니다. .env.secret 을 확인하세요 (.env.example 참고).');
+  console.error('✗ DATABASE_URL 이 설정되지 않았습니다. .env.secret 을 확인하세요 (.env.secret.example 참고).');
   process.exit(1);
 }
 

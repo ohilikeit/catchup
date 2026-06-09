@@ -6,7 +6,7 @@
 
 function required(name: string): string {
   const v = process.env[name];
-  if (!v) throw new Error(`환경변수 ${name} 이(가) 설정되지 않았습니다. .env.example 을 참고하세요.`);
+  if (!v) throw new Error(`환경변수 ${name} 이(가) 설정되지 않았습니다. .env.secret.example 을 참고하세요.`);
   return v;
 }
 
@@ -55,5 +55,15 @@ export const env = {
   },
   get minioSecretKey(): string {
     return process.env.MINIO_SECRET_KEY ?? 'catchup-minio';
+  },
+
+  /* ── LiteLLM 게이트웨이 — 가상키 발급(/key/generate)·spend 조회(/key/info). docs/3 §2.
+   * 게이트웨이는 옵트인(docker compose --profile gateway). 미기동 시 관련 기능만 비활성.
+   * 진짜 Anthropic 키는 게이트웨이에만 — 앱은 master key로 가상키를 발급/조회만 한다(대원칙 5⑤). ── */
+  get litellmBaseUrl(): string {
+    return process.env.LITELLM_BASE_URL ?? 'http://localhost:4000';
+  },
+  get litellmMasterKey(): string {
+    return required('LITELLM_MASTER_KEY');
   },
 } as const;

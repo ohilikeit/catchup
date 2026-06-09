@@ -4,7 +4,8 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: catchup-postgres
+    # container_name 고정 안 함 — Compose가 프로젝트명(=폴더명) 기반으로 자동 명명.
+    # 폴더명을 바꿔도 옛 컨테이너와 이름이 충돌하지 않음. setup.sh는 `docker compose` 서브커맨드로 참조.
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-catchup}
@@ -15,6 +16,8 @@ services:
       - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - catchup-pgdata:/var/lib/postgresql/data
+      # 빈 볼륨 최초 init 시 litellm 전용 DB/롤 생성(흡수). 기존 볼륨은 setup.sh가 멱등 보장.
+      - ./db/postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       # DB가 실제로 쿼리를 받을 준비가 됐는지(부팅 헬스체크). 앱/러너는 healthy 후 붙음.
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-catchup} -d ${POSTGRES_DB:-catchup}"]
@@ -24,7 +27,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: catchup-redis
     restart: unless-stopped
     # appendonly: 재시작 후에도 휘발 데이터를 복구(필수는 아님 — Redis는 통째로 날려도 손실 0).
     command: ["redis-server", "--appendonly", "yes"]
@@ -40,7 +42,6 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: catchup-minio
     restart: unless-stopped
     # S3 호환 객체 스토리지. 제출 산출물·대화로그의 실체 저장(docs/5 §1·§2).
     # 버킷 생성은 setup.sh(일회성 mc)가 담당 — 앱도 첫 put에서 자동 생성(ensureBucket).
@@ -55,6 +56,31 @@ services:
       # bind mount: 객체가 레포 안 ./data/minio 에 직접 쌓여 호스트에서 확인 가능(gitignore).
       # 버킷 1개 = 하위 디렉터리, 객체 = <object>/xl.meta+part(평문 아님). 깔끔한 열람은 콘솔(:9001)/mc.
       - ./data/minio:/data
+
+  # LiteLLM 게이트웨이 — 진짜 키 보관·가상키 발급(/key/generate)·spend·"*"→Sonnet 강제. (상주 공용 1개; docs/3 §0·§2)
+  # ⚠️ 기본 스택에는 안 뜬다 — 진짜 키가 필요하므로 게이트웨이가 필요할 때만 옵트인:
+  #     docker compose --profile gateway up -d
+  # DB는 메인 postgres의 litellm 전용 DB(흡수). 스키마는 이미지의 prisma가 그 DB 안에서 자체 관리.
+  litellm:
+    image: ghcr.io/berriai/litellm-database:main-stable   # ⚠️ PyPI 1.82.7/1.82.8 멀웨어 — Docker 태그 사용
+    restart: unless-stopped
+    profiles: ["gateway"]
+    command: ["--config", "/etc/litellm/config.yaml", "--port", "4000"]
+    environment:
+      # 컨테이너 내부에서 메인 postgres(서비스명)로 접속 — litellm 전용 DB.
+      DATABASE_URL: postgresql://litellm:litellm@postgres:5432/litellm
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-master-dev}
+      # 진짜 Anthropic 키 — 게이트웨이에만(학생/앱엔 가상키만). 빈 기본값: 키 없이도 compose 정리 명령이 막히지 않게.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      REDIS_HOST: redis            # replica 간 rate/budget 동기화(단일이라도 무해)
+      REDIS_PORT: "6379"
+    volumes:
+      - ./infra/litellm:/etc/litellm:ro
+    ports:
+      - "${LITELLM_PORT:-4000}:4000"     # 가상키 발급·spend 조회·Admin UI(/ui)
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   catchup-pgdata:
