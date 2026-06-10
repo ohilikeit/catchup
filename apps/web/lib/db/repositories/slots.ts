@@ -42,6 +42,22 @@ function mapRow(r: SlotRow): Slot {
 }
 
 /**
+ * 트랜잭션 안에서 attempt의 기존 슬롯 조회 — 재시작(재접속 후 시작 재클릭) 멱등 처리용.
+ * ⚠️ 이 확인 없이 assignReadySlotTx를 또 타면 attempt_id UNIQUE 위반(두 번째 슬롯 점유 시도).
+ */
+export async function findSlotByAttemptTx(
+  client: PoolClient,
+  attemptId: string,
+): Promise<{ slotNo: number; endpoint: string | null } | null> {
+  const res = await client.query<{ slot_no: number; endpoint: string | null }>(
+    `SELECT slot_no, endpoint FROM hosted.slots WHERE attempt_id = $1`,
+    [attemptId],
+  );
+  const row = res.rows[0];
+  return row ? { slotNo: row.slot_no, endpoint: row.endpoint } : null;
+}
+
+/**
  * 원자 슬롯 배정(hot path). docs/2 §6 배정 SQL 그대로.
  *
  * FOR UPDATE SKIP LOCKED: 5명 동시 클릭 시 각자 서로 다른 슬롯을 잡도록 보장.

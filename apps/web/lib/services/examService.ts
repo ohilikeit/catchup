@@ -71,8 +71,11 @@ export async function startExam(attemptId: string, examineeId: string): Promise<
     if (!updated) return { ok: false, error: '시작에 실패했습니다.' };
 
     // 2. 슬롯 배정(best-effort): ready 슬롯이 없으면 null이어도 진행.
-    //    Phase 2/3에서 슬롯 풀이 상시 존재하면 배정 필수(slot 없으면 대기)로 강화 예정.
-    const assigned = await slotsRepo.assignReadySlotTx(client, rt.batchId, attemptId);
+    //    재시작 멱등: 이미 이 attempt에 배정된 슬롯이 있으면 그 슬롯을 그대로 쓴다 —
+    //    없을 때만 새로 점유(없이 또 점유하면 attempt_id UNIQUE 위반, 실측 23505).
+    const assigned =
+      (await slotsRepo.findSlotByAttemptTx(client, attemptId)) ??
+      (await slotsRepo.assignReadySlotTx(client, rt.batchId, attemptId));
 
     // 3. 감사 이벤트 기록.
     await attemptsRepo.addEventTx(client, attemptId, 'started', {

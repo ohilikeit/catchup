@@ -6,7 +6,7 @@ import { ExamTopBar, MobileBlock, Card } from '../../../_components/ExamChrome';
 import { StartExamButton } from './StartExamButton';
 
 // (exam) intro — 시작 전 안내·규칙·환경 점검(docs/1 §1·§4). delivery·점수를 모름.
-// 서버: 세션 게이트 + 소유권 확인. 이미 제출됐으면 done으로.
+// 서버: 세션 게이트 + 소유권 확인. 이미 제출됐으면 done, 진행 중이면 runtime으로(재접속 복귀).
 
 const RULES = [
   '제한시간은 시작 시점부터 카운트되며, 마감 후 제출은 서버에서 거부됩니다.',
@@ -26,6 +26,9 @@ export default async function ExamIntroPage({ params }: { params: { attemptId: s
   const runtime = await getRuntime(params.attemptId, session.userId);
   if (!runtime) notFound();
   if (runtime.status === 'submitted') redirect(`/exam/${params.attemptId}/done`);
+  if (runtime.status === 'expired' || runtime.status === 'void') redirect(`/exam/${params.attemptId}/done`);
+  // 재접속 복귀: 이미 진행 중이면 안내를 건너뛰고 바로 진행 화면(배정된 슬롯)으로.
+  if (runtime.status === 'running') redirect(`/exam/${params.attemptId}`);
 
   return (
     <div className="min-h-screen flex flex-col">
