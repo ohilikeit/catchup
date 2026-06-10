@@ -177,9 +177,16 @@ catchup-helm/
 - [x] **가상키 주입 경로**: provision이 슬롯당 `/key/generate`(예산=`llm_budget_usd`) → Secret `exam-virtual-keys` → pod 기동 래퍼가 ordinal 키 export. ⚠️ 계획의 pod self-register/heartbeat 방식(§3 경우 B) 대신 **provision 일괄 발급**으로 구현(동시 버스트 A에 충분; B 재활용 시 재검토)
 - [🟡] **자동 회차 트리거(0↔50) = cold path**: 대시보드 "시험 환경 열기" → [`examOpsService.provisionBatch`](../apps/web/lib/services/examOpsService.ts) → **로컬: k8s API 직접**(ConfigMap·Secret·scale 0→N·슬롯 라우팅·register, PVC wipe 포함). close = N→0+회수. ⬜ alpha부터는 같은 서비스의 k8s 호출부를 `catchup-helm/batches/current.yaml` 커밋(bitbucket API)으로 교체(§5.4). **풀 용량 사건만**(학생 배정 아님)
 - [x] **슬롯 할당 = hot path**: [시험 시작] → DB 트랜잭션(`UPDATE … FOR UPDATE SKIP LOCKED`)으로 ready 슬롯 원자 점유 → 슬롯별 IDE 경로. **git/ArgoCD/Helm 무관** — 5명 동시 클릭 동시성 안전 (docs/2 §6). 가상키는 슬롯에 선부착(provision)이라 배정 시 추가 동작 없음
-- [ ] **운영 모델 플래그**: `batches`에 동시 버스트(A) / 비동기 창(B) 모드 — **B 엔진을 만들면 A는 설정으로 떨어짐**(풀=명부·공유 마감·재활용 생략). 효율 이득은 입장이 흩어질 때만 (docs/2 §5·§7)
-- [ ] **비동기 슬롯 재활용(B)**: attempt 단위 `down→warming→ready→assigned→submitting→recycling→ready` 상태머신(0004=…assigned; [`0008`](../db/migrations/0008_slot_window_states.sql)이 submitting·recycling 추가) + **재배정 전 PVC wipe+재시드**(작업물 누수 0) (docs/2 §6, docs/5 §3)
-- [ ] **B 운영 정책 확정**(구현 전): 입장 큐(순서·타임아웃·창밖 차단·admission)·idle reclaim(heartbeat 임계값)·워밍 버퍼 보충 주체·다일창 문제유출(변형 뱅크 필수)·0007 조건부 CHECK(`mode=window`시 window 필드 강제) (docs/2 §6)
+- [ ] **워밍 풀 통합 모델(A=B 단일 엔진) — 라이브 입장** (2026-06-10 설계 확정, docs/2 §5~§7·0007의 "A는 B의 특수 케이스" 원칙을 구현 계획으로 구체화):
+  - **파라미터 1개로 통합**: `batches.warm_count`(0013 예정) = 미리 띄울 pod 수(고정값; "20%"는 관리자가 capacity×0.2를 입력). NULL=capacity ⇒ 지금의 일괄(A). 작게 주면 라이브 입장(B). **모드 분기 코드 없음 — 전부 데이터**.
+  - **provision 변경(선준비 최대화)**: 가상키 capacity개 선발급·Secret/슬롯별 Service·Ingress/슬롯 row는 **capacity만큼 전부 선생성**(키는 슬롯 번호에 붙으므로 가능), **replicas만 warm_count로 시작**. cold 성장 = `scale +Δ` 한 줄(이미 있는 인프라 전부 재사용).
+  - **슬롯 ready 전이 주체 = web 컨트롤러**(k8s pod Ready 폴링 → down/warming→ready). ⚠️ pod self-register는 배제 — 학생 pod은 적대적 클라이언트라 INTERNAL_API_SECRET을 줄 수 없다(대원칙 ⑤).
+  - **시작 클릭(hot path 확장)**: ready 슬롯 있으면 즉시 배정(현행 SKIP LOCKED 그대로) / 없으면 **입장 큐**(`hosted.entry_queue`, 0013)에 FIFO 등록 → 대기 화면으로. **큐와 무관하게 git/Helm은 안 만진다**.
+  - **reconcile(버퍼 보충·큐 배정) = 요청 유도형**: 대기 화면의 상태 폴링 엔드포인트가 호출될 때마다 idempotent reconcile(pg advisory lock으로 동시 1개): ① pod Ready↔슬롯 ready 동기화 ② 큐 head에 ready 슬롯 FIFO 배정 ③ `ready+기동중 < 대기열+warm_count`면 replicas+Δ(상한 capacity). **별도 데몬·cron 불필요**(로컬 단순함 — alpha+에서 주기 트리거 보강 여지).
+  - **대기 UI(전원 제공)**: 시작 후 슬롯 미배정이면 진행 화면 대신 대기 화면 — 단계 표시 ① 대기열 n번째(DB) ② 환경 기동 중(pod Pending/Creating, k8s API) ③ 문제 설치 중(initContainer) ④ 연결 — 배정되면 자동 전환.
+  - **실시간 채널 결정: 폴링(2초) 채택, WebSocket 비권고** — ⚠️ 이 인프라에서 web 경유 WS는 **실측 502**(1c 채택 경위: k3d traefik↔Next 커스텀서버 업그레이드 실패 — IDE도 그래서 ForwardAuth 직결로 우회). 대기 상태는 초 단위 전이라 2초 폴링으로 "과정"이 충분히 라이브하게 보이고, 인원당 폴링 부하는 무시 가능. 필요해지면 SSE(순수 HTTP 스트림, traefik 무사통과)로 업그레이드 — WS는 다시 안 간다.
+- [ ] **비동기 슬롯 재활용(워밍 풀 후속)**: attempt 단위 `…→submitting→recycling→ready` 재활용([`0008`](../db/migrations/0008_slot_window_states.sql)) + **재배정 전 PVC wipe+재시드**(작업물 누수 0). 명부 ≤ capacity면 불필요 — 명부가 풀보다 클 때만 (docs/2 §6, docs/5 §3)
+- [ ] **B 운영 정책 확정**(재활용 구현 전): 큐 타임아웃·창밖 차단(0007 window_*)·idle reclaim(heartbeat 임계값)·다일창 문제유출(변형 뱅크 필수)·0007 조건부 CHECK (docs/2 §6)
 - [x] **제출 파이프라인**: 제출/강제제출 → 패키징 Job(PVC readOnly→tar+sha256→MinIO `exam-artifacts`→[internal 콜백](../apps/web/app/api/internal/submissions/package/route.ts)이 submissions·submission_files 등록, 슬롯 submitting→recycling). fail-soft(제출 자체는 트랜잭션으로 확정)
 - [ ] **마감 자동 회수**: deadline 스윕 → 미제출도 자동 패키징(누락 0)
 - [x] **취합 순서 불변**: accepted 확정(패키징 콜백) → close(scale-down) → 다음 provision이 PVC wipe·재시드 — close는 PVC를 지우지 않아 누락분 재패키징 여지 보존
