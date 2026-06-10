@@ -73,9 +73,22 @@ spec:
           image: catchup-exam:local
           imagePullPolicy: Never
           # ⚠️ 로컬 검증 전용: seed-and-start.sh(scaffold 시드)를 건너뛰고 code-server 만 직접 기동.
-          # scaffold(/registry/<PROBLEM_ID>) 가 없으면 seeder 가 exit 1 → CrashLoop 이므로 우회.
-          # 정식 운영은 ArgoCD StatefulSet + initContainer(seeder) + registry 마운트(docs/3 §3).
-          command: ["code-server", "--bind-addr", "0.0.0.0:8080", "--auth", "none", "/home/coder/project"]
+          # (시드는 위 initContainer 가 MinIO 에서 수행.)
+          # ⭐ 기동 래퍼: 자기 ordinal(hostname exam-N → N)에 해당하는 가상키(slot-N)를 Secret 마운트에서
+          # 읽어 ANTHROPIC_AUTH_TOKEN 으로 export 후 code-server 실행 — IDE 터미널(claude code)이 상속한다.
+          # 키는 exam-ops provision 이 슬롯당 발급한 LiteLLM 가상키(예산제) — 진짜 키는 게이트웨이에만.
+          command:
+            - /bin/sh
+            - -c
+            - |
+              ORD="${HOSTNAME##*-}"
+              if [ -f "/var/run/exam-keys/slot-${ORD}" ]; then
+                export ANTHROPIC_AUTH_TOKEN="$(cat /var/run/exam-keys/slot-${ORD})"
+                echo "[start] slot-${ORD} 가상키 주입됨"
+              else
+                echo "[start] slot-${ORD} 가상키 없음 — LLM 비활성(provision 전 기동?)"
+              fi
+              exec code-server --bind-addr 0.0.0.0:8080 --auth none /home/coder/project
           env:
             - name: ANTHROPIC_BASE_URL
               value: "http://litellm:4000"
@@ -83,10 +96,9 @@ spec:
               value: "claude-sonnet-4-5"
             - name: ANTHROPIC_SMALL_FAST_MODEL
               value: "claude-sonnet-4-5"
-            - name: PROBLEM_ID
-              value: "ainc2026"
-            - name: ATTEMPT_ID
-              value: "local-spike-0"
+          envFrom:
+            # 회차 메타(BATCH_ID·PROBLEM_ID) — exam-ops provision 이 갱신(표시/추적용).
+            - configMapRef: { name: exam-batch, optional: true }
           ports:
             - containerPort: 8080
           # 1인당 자원: 보장(requests) cpu 0.5·mem 2Gi / 상한(limits) cpu 2·mem 4Gi (S1 실측 4g 반영).
@@ -100,9 +112,17 @@ spec:
           volumeMounts:
             - name: workspace
               mountPath: /home/coder/project
+            - name: virtual-keys
+              mountPath: /var/run/exam-keys
+              readOnly: true
       volumes:
         - name: stage
           emptyDir: {}
+        # 슬롯별 가상키(exam-ops provision 이 생성·close 가 삭제). optional — 없으면 LLM 만 비활성.
+        - name: virtual-keys
+          secret:
+            secretName: exam-virtual-keys
+            optional: true
   volumeClaimTemplates:
     - metadata:
         name: workspace

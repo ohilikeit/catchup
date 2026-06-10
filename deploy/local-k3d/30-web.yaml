@@ -1,3 +1,54 @@
+# web 의 exam-ops 권한 — 회차 provision/close·패키징 Job 을 web 이 k8s API 로 직접 수행(docs/6 Phase 3 로컬판).
+# 최소권한: exam 동적 리소스(ConfigMap exam-batch·Secret exam-virtual-keys·exam-slot-* Service·
+# exam-ide-slots Ingress·pkg-* Job·workspace-exam-* PVC)와 exam StatefulSet scale 에 한정된 namespace Role.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: web
+  namespace: catchup-local
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: web-exam-ops
+  namespace: catchup-local
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets", "services"]
+    verbs: ["get", "list", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets/scale"]
+    verbs: ["get", "patch", "update"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "create", "update", "patch", "delete"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: web-exam-ops
+  namespace: catchup-local
+subjects:
+  - kind: ServiceAccount
+    name: web
+    namespace: catchup-local
+roleRef:
+  kind: Role
+  name: web-exam-ops
+  apiGroup: rbac.authorization.k8s.io
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,6 +66,7 @@ spec:
       labels:
         app: web
     spec:
+      serviceAccountName: web
       containers:
         - name: web
           image: catchup-web:local

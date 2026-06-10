@@ -1,31 +1,10 @@
 import { notFound } from 'next/navigation';
-import { Breadcrumb, MetricGrid, MetricTile, Button } from '@app/ui';
+import { Breadcrumb, MetricGrid, MetricTile } from '@app/ui';
 import { requireGlobalRole } from '@/lib/auth/guard';
 import { getBatchDetailForViewer } from '@/lib/services/batchService';
 import { PageHead, BatchStatusTag } from '../../../_components/ui';
 import { AdminBatchRosterClient } from './AdminBatchRosterClient';
-import { setBatchStatusAction } from './actions';
-
-async function BatchStatusForm({
-  batchId,
-  status,
-  label,
-  kind,
-}: {
-  batchId: string;
-  status: 'open' | 'closed';
-  label: string;
-  kind: 'primary' | 'secondary';
-}) {
-  const action = setBatchStatusAction.bind(null, batchId, status);
-  return (
-    <form action={action}>
-      <Button kind={kind} size="field" type="submit">
-        {label}
-      </Button>
-    </form>
-  );
-}
+import { BatchEnvControls } from './BatchEnvControls';
 
 export default async function AdminBatchDetailPage({
   params,
@@ -58,11 +37,8 @@ export default async function AdminBatchDetailPage({
         action={
           <div className="flex items-center gap-03">
             <BatchStatusTag status={detail.status} />
-            {canOperate && detail.status === 'scheduled' && (
-              <BatchStatusForm batchId={detail.id} status="open" label="시작" kind="primary" />
-            )}
-            {canOperate && detail.status === 'open' && (
-              <BatchStatusForm batchId={detail.id} status="closed" label="종료" kind="secondary" />
+            {canOperate && (
+              <BatchEnvControls batchId={detail.id} status={detail.status} capacity={detail.capacity} />
             )}
           </div>
         }
