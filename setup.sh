@@ -31,6 +31,18 @@ ok() { printf '  \033[32m✓\033[0m %s\n' "$*"; }
 err() { printf '  \033[31m✗\033[0m %s\n' "$*" >&2; }
 step() { printf '\n\033[1;34m▶ %s\033[0m\n' "$*"; }
 
+# Deployment 가 ArgoCD sync 로 '생성'될 때까지 기다린 뒤 rollout 완료를 기다린다.
+# kubectl rollout status 는 리소스가 아직 없으면 NotFound 로 즉시 끝나 버려서(레이스),
+# Application apply 직후엔 대기 없이 통과 → 버킷 생성·port-forward 가 빈 클러스터에 꽂힌다.
+wait_deploy() { # $1=이름 $2=타임아웃(초, 기본 180) — 생성 대기와 rollout 대기에 같은 예산 사용
+  local name="$1" timeout="${2:-180}" waited=0
+  until kubectl -n "$NS" get deploy "$name" >/dev/null 2>&1; do
+    (( waited >= timeout )) && { err "deploy/$name 이 ${timeout}s 내에 생성되지 않음(ArgoCD sync 지연?)"; return 1; }
+    sleep 2; (( waited += 2 ))
+  done
+  kubectl -n "$NS" rollout status deploy/"$name" --timeout="${timeout}s"
+}
+
 # ── 0. 사전 요구사항 (node·pnpm·docker) — kubectl/helm/k3d 는 up.sh 가 설치 ──
 step "사전 요구사항 확인"
 if ! command -v node >/dev/null 2>&1; then
@@ -167,10 +179,10 @@ fi
 # ── 3d. ArgoCD Application 적용 + 스택 기동 대기 ───────────────────────────
 step "ArgoCD Application 적용 + 스택 기동 대기"
 kubectl apply -f deploy/local-k3d/argocd-application.yaml >/dev/null
-kubectl -n "$NS" rollout status deploy/postgres --timeout=180s 2>/dev/null || true
-kubectl -n "$NS" rollout status deploy/minio    --timeout=180s 2>/dev/null || true
-kubectl -n "$NS" rollout status deploy/litellm  --timeout=180s 2>/dev/null || true
-kubectl -n "$NS" rollout status deploy/web      --timeout=240s 2>/dev/null || true
+wait_deploy postgres 180 || true
+wait_deploy minio    180 || true
+wait_deploy litellm  180 || true
+wait_deploy web      240 || true
 # 재실행으로 .env.secret 의 키가 바뀐 경우, 이미 떠 있는 litellm 이 새 ANTHROPIC 키를 집도록 재시작.
 # (.env.secret 에 줄 자체가 없을 수 있으므로 :- 로 안전 처리 — set -u 하에서 unbound 방지)
 if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
@@ -181,7 +193,7 @@ ok "워크로드 배포 완료"
 # ── 4. MinIO 버킷 보장 (클러스터 minio pod 안에서 mc) ──────────────────────
 # docs/5 §2: scaffold/hidden/artifacts/chatlogs, 전부 private. 앱도 첫 put 에서 ensureBucket 하지만 미리 보장.
 step "MinIO 버킷 생성 (cluster)"
-kubectl -n "$NS" rollout status deploy/minio --timeout=180s >/dev/null 2>&1 || true
+wait_deploy minio 180 >/dev/null 2>&1 || true
 if kubectl -n "$NS" exec deploy/minio -- sh -c '
   mc alias set lo http://localhost:9000 "${MINIO_ROOT_USER:-catchup}" "${MINIO_ROOT_PASSWORD:-catchup-minio}" >/dev/null 2>&1
   for bk in exam-scaffold exam-hidden exam-artifacts exam-chatlogs; do
@@ -198,7 +210,7 @@ fi
 # 러너는 호스트에서 돌고 DATABASE_URL 인라인 override 로 클러스터 postgres(localhost:5433)를 가리킨다.
 # 자격증명은 .env.secret 단일 소스(POSTGRES_*). litellm 전용 DB 는 postgres-init(10-postgres.yaml)이 생성.
 step "DB 마이그레이션 (cluster postgres)"
-kubectl -n "$NS" rollout status deploy/postgres --timeout=180s >/dev/null 2>&1 || true
+wait_deploy postgres 180 >/dev/null 2>&1 || true
 kubectl -n "$NS" port-forward svc/postgres 5433:5432 >/tmp/catchup-pf-pg.log 2>&1 &
 PF_PID=$!
 cleanup_pf() { kill "$PF_PID" >/dev/null 2>&1 || true; }
