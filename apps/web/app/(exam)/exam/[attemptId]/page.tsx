@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { requireSession } from '@/lib/auth/guard';
 import { getRuntimeWithSlot } from '@/lib/services/examService';
-import { ExamTopBar, MobileBlock } from '../../_components/ExamChrome';
+import { MobileBlock } from '../../_components/ExamChrome';
 import { ExamRuntime, type ExamRuntimeData } from './ExamRuntime';
 
 // (exam) 진행 화면 — 전달방식은 hosted 단일(docs/1 §1·§4).
@@ -29,17 +29,13 @@ export default async function ExamRuntimePage({ params }: { params: { attemptId:
     slotNo: slot?.slotNo ?? null,
   };
 
+  // ⭐ 풀스크린: 시작 직후부터 IDE가 화면을 꽉 채운다(타이머·제출은 런타임 상단 바에 내장).
   return (
-    <div className="min-h-screen flex flex-col">
-      <ExamTopBar title={runtime.problemTitle} sub={runtime.batchName} />
-
+    <>
       <MobileBlock />
-
-      <main className="hidden md:block flex-1">
-        <div className="mx-auto max-w-[960px] px-06 py-08">
-          <ExamRuntime runtime={data} />
-        </div>
+      <main className="hidden md:block">
+        <ExamRuntime runtime={data} />
       </main>
-    </div>
+    </>
   );
 }
