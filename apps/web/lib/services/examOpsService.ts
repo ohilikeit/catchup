@@ -148,6 +148,7 @@ export async function provisionBatch(batchId: string, warmOverride?: number): Pr
   // ── 7. 슬롯 register (DB) — capacity 전부, state='down'. pod이 실제 Ready가 되면
   //      reconcilePool이 ready로 전이(거짓 ready 0 — pod 없는 슬롯에 배정되는 일 없음). ──
   await slotsRepo.resetBatchSlots(batchId);
+  await entryQueueRepo.clearBatch(batchId); // 이전 운영의 입장 대기열 잔재 제거(used/waiting 부풀림 방지)
   await withTransaction(async (client) => {
     for (let i = 0; i < slots; i++) {
       await slotsRepo.registerSlotTx(client, {
@@ -347,11 +348,13 @@ export async function reconcilePool(batchId: string): Promise<void> {
       if (!assigned) break;
     }
 
-    // ③ 스케일 보충: 사용 중 + 대기 + 워밍 여유(warm_count, NULL=전부)만큼 떠 있게.
+    // ③ 스케일 보충: warm_count = "최소 보장선". 실수요(used+대기)가 그 아래면 warm 만큼만
+    //    미리 띄우고, 넘으면 실수요만큼만(추가 헤드룸 없음 — "20%만 미리, 그 이상은 도착분만").
+    //    상한은 정원(poolSize). warm_count NULL=정원 ⇒ 일괄(A).
     const { used } = await slotsRepo.countPoolUsage(batchId);
     const waiting = await entryQueueRepo.countWaiting(batchId);
     const warmSpare = batch.warmCount ?? poolSize;
-    const desired = Math.min(poolSize, used + waiting + warmSpare);
+    const desired = Math.min(poolSize, Math.max(warmSpare, used + waiting));
     const current = await getStsReplicas(ns);
     if (desired > current) await scaleStatefulSet(ns, EXAM_STS, desired); // ★GITOPS① cold 성장도 replicas 커밋으로
   } catch (e: unknown) {
