@@ -59,3 +59,24 @@ export async function replaceScaffoldAction(
     return { ok: false, message: e instanceof Error ? e.message : String(e) };
   }
 }
+
+/** 문제 활성/비활성 토글(소프트). 비활성 문제는 새 회차 개설 후보에서 빠진다. */
+export async function setProblemActiveAction(code: string, isActive: boolean): Promise<ReplaceResult> {
+  await requireGlobalRole('admin');
+  const r = await problemService.setProblemActive(code, isActive);
+  revalidatePath(`/admin/problems/${encodeURIComponent(code)}`);
+  revalidatePath('/admin/problems');
+  return { ok: r.ok, message: r.ok ? (isActive ? '문제를 활성화했습니다.' : '문제를 비활성화했습니다.') : (r.error ?? '실패했습니다.') };
+}
+
+/**
+ * 문제 하드 삭제(상세 Danger Zone) — 미사용일 때만. service가 사용 여부를 선판정.
+ * 성공 시 클라가 목록으로 이동(이 문제 상세는 사라짐).
+ */
+export async function deleteProblemAction(code: string): Promise<ReplaceResult> {
+  await requireGlobalRole('admin');
+  const r = await problemService.deleteProblem(code);
+  if (!r.ok) return { ok: false, message: r.error ?? '삭제에 실패했습니다.' };
+  revalidatePath('/admin/problems');
+  return { ok: true, message: '문제를 삭제했습니다.' };
+}

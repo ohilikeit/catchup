@@ -106,6 +106,7 @@ const BATCH: Record<string, { label: string; color: TagColor }> = {
   scheduled: { label: '예정', color: 'gray' },
   open: { label: '진행', color: 'green' },
   closed: { label: '종료', color: 'gray' },
+  cancelled: { label: '취소', color: 'red' },
 };
 
 export function BatchStatusTag({ status }: { status: string }) {

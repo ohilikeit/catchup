@@ -1,5 +1,5 @@
 import 'server-only';
-import { query, queryOne } from '../pool';
+import { query, queryOne, getPool } from '../pool';
 
 // organizations repository — SQL을 여기에만 가두는 패턴의 레퍼런스 구현.
 // 근거: reference/02 §14(파라미터 바인딩·행 매퍼·동적 UPDATE·RETURNING), reference/01 §5(SQL은 repository에만).
@@ -119,4 +119,24 @@ export async function update(
 /** soft delete: 물리 삭제 대신 비활성화(시험 기록 보존, reference/02 §11). */
 export async function deactivate(id: string): Promise<Organization | null> {
   return update(id, { isActive: false });
+}
+
+/** 하드 삭제 가능 판정용 의존 카운트. 멤버(담당자·학생)·회차 — 둘 다 ON DELETE RESTRICT. */
+export async function countDependents(id: string): Promise<{ members: number; batches: number }> {
+  const row = await queryOne<{ members: string; batches: string }>(
+    `SELECT (SELECT COUNT(*) FROM auth.org_members WHERE org_id = $1) AS members,
+            (SELECT COUNT(*) FROM exam.batches    WHERE org_id = $1) AS batches`,
+    [id],
+  );
+  return { members: Number(row?.members ?? 0), batches: Number(row?.batches ?? 0) };
+}
+
+/**
+ * 대학 하드 삭제. invitations 는 ON DELETE CASCADE 로 함께 삭제.
+ * ⚠️ org_members·batches 는 ON DELETE RESTRICT — service 가 countDependents=0 을 선판정한 뒤에만 호출.
+ * 반환: 삭제된 행 수.
+ */
+export async function deleteOrg(id: string): Promise<number> {
+  const res = await getPool().query(`DELETE FROM auth.organizations WHERE id = $1`, [id]);
+  return res.rowCount ?? 0;
 }

@@ -1,8 +1,9 @@
 import 'server-only';
 import { attemptsRepo, batchesRepo, entryQueueRepo, problemsRepo, slotsRepo, withTransaction, getPool } from '../db';
-import { DEFAULT_DURATION_MIN } from './examService';
+import { DEFAULT_DURATION_MIN, sweepDeadlines } from './examService';
 import { BUCKETS } from '../storage';
-import { generateVirtualKey, deleteVirtualKeys } from '../litellm/keys';
+import { generateVirtualKey, deleteVirtualKeys, getKeyInfo } from '../litellm/keys';
+import type { SlotState } from '../db/repositories/slots';
 import {
   inCluster,
   k8sNamespace,
@@ -29,7 +30,13 @@ import {
 // "회차 열기" 한 번 = 문제 ConfigMap + 가상키 Secret + StatefulSet 0→N + 슬롯별 Service/Ingress + 슬롯 register.
 // ⭐ 풀 ≠ 할당: 여기는 pod 개수(회차 단위, 관리자 사건)만 다룬다. 학생 배정은 examService의
 //    DB 트랜잭션(SKIP LOCKED)이며 git/k8s API와 무관(docs/2 §5·§6).
-// alpha/prod 는 같은 흐름을 catchup-helm 커밋 → ArgoCD sync 로 바꾼다(§5.4) — 이 서비스의 k8s 호출부만 교체.
+//
+// ⚠️ [GitOps 전환 지점 — alpha/prod] 로컬은 k8s API 직접 호출(아래 ★GITOPS 마커 지점):
+//   ① provision/reconcile 의 scaleStatefulSet(replicas)     → catchup-helm/batches/current.yaml 의 replicas 커밋
+//   ② provision 의 ConfigMap/Secret applyObject              → values/batch overlay 커밋
+//   ③ close 의 scale 0 + 라우팅 deleteObject                 → current.yaml replicas:0 커밋
+//   교체 범위는 "회차 단위 사건"뿐(hot path 슬롯 배정은 DB라 불변). alpha 작업 시 이 호출들을
+//   gitTrigger 전략 뒤로 추출한다(지금은 과설계 금지·대원칙 ③ — 실 파이프라인 검증 전엔 추상화 보류). §5.4.
 
 const MAX_SLOTS = 50;
 
@@ -122,8 +129,8 @@ export async function provisionBatch(batchId: string, warmOverride?: number): Pr
     paths.configMap(ns, 'exam-batch'),
     examBatchConfigMap(ns, { batchId, scaffoldRef: version.publicScaffoldRef, problemCode: version.problemCode }),
   );
-  await applyObject(paths.secret(ns, 'exam-virtual-keys'), virtualKeysSecret(ns, keys));
-  await scaleStatefulSet(ns, EXAM_STS, warm);
+  await applyObject(paths.secret(ns, 'exam-virtual-keys'), virtualKeysSecret(ns, keys)); // ★GITOPS②
+  await scaleStatefulSet(ns, EXAM_STS, warm); // ★GITOPS① replicas 커밋으로 교체(alpha+)
 
   // ── 6. 슬롯별 라우팅: Service(pod 고정) N개 + Ingress(/exam-ide/{i}) — per-student 격리의 실체 ──
   for (let i = 0; i < slots; i++) {
@@ -175,8 +182,18 @@ export async function closeBatch(batchId: string): Promise<CloseResult> {
   const batch = await batchesRepo.findById(batchId);
   if (!batch) throw new Error('회차를 찾을 수 없습니다.');
 
+  // 0. ⭐ 취합 먼저: 마감 지난 미제출 응시를 전수 회수(패키징 Job 생성). scale-down 전에 해야
+  //    PVC가 살아 있는 동안 캡처된다(docs/5 §5 "취합 먼저, 폐기 나중"). Job은 PVC만 마운트 →
+  //    바로 뒤 scale 0 으로 exam pod이 죽어도 독립 실행되고, PVC는 close가 안 지운다(다음 provision wipe).
+  try {
+    const swept = await sweepDeadlines(batchId);
+    if (swept > 0) warnings.push(`마감 경과 미제출 ${swept}건을 자동 회수(패키징)했습니다.`);
+  } catch (e: unknown) {
+    warnings.push(`마감 자동 회수 일부 실패(close는 계속): ${e instanceof Error ? e.message : e}`);
+  }
+
   // 1. 풀 회수(0) + 슬롯별 라우팅 제거.
-  await scaleStatefulSet(ns, EXAM_STS, 0);
+  await scaleStatefulSet(ns, EXAM_STS, 0); // ★GITOPS③ current.yaml replicas:0 커밋으로 교체(alpha+)
   await deleteObject(paths.ingress(ns, 'exam-ide-slots')).catch(() => undefined);
   for (const name of await listNamesByPrefix(paths.services(ns), 'exam-slot-')) {
     await deleteObject(paths.service(ns, name));
@@ -336,7 +353,7 @@ export async function reconcilePool(batchId: string): Promise<void> {
     const warmSpare = batch.warmCount ?? poolSize;
     const desired = Math.min(poolSize, used + waiting + warmSpare);
     const current = await getStsReplicas(ns);
-    if (desired > current) await scaleStatefulSet(ns, EXAM_STS, desired);
+    if (desired > current) await scaleStatefulSet(ns, EXAM_STS, desired); // ★GITOPS① cold 성장도 replicas 커밋으로
   } catch (e: unknown) {
     console.error(`[exam-ops] reconcile 실패 batch=${batchId}:`, e instanceof Error ? e.message : e);
   } finally {
@@ -350,6 +367,55 @@ export interface PoolSnapshot {
   podsStarting: number;
   replicas: number;
   poolSize: number;
+}
+
+/* ── spend·슬롯 관제(대시보드 1d) — LiteLLM /key/info 집계 ─────────────────
+ * ⭐ 진짜 키는 노출 안 함(master key 로 spend 숫자만). 키는 슬롯에 선부착(provision)·
+ *    close 시 revoke·NULL → open 회차에서만 의미. 게이트웨이는 web 에서 http 로 항상 접근(k8s 무관). */
+
+export interface SlotOpsView {
+  slotNo: number;
+  state: SlotState;
+  /** 이 슬롯 가상키의 누적 사용액(USD). 키 없음/조회 실패 시 null. */
+  spendUsd: number | null;
+  /** 이 슬롯에 배정된 응시(있으면). */
+  attemptId: string | null;
+}
+
+export interface BatchOpsSnapshot {
+  /** 회차 누적 LLM 사용액(USD) — 조회된 슬롯 합. */
+  totalSpendUsd: number;
+  /** 1인당 예산 상한(USD). null=상한 없음. */
+  perKeyBudgetUsd: number | null;
+  /** 게이트웨이 응답이 하나라도 있었는가(전부 실패면 false = 관제 불가 표시). */
+  reachable: boolean;
+  slots: SlotOpsView[];
+}
+
+/**
+ * 회차 운영 스냅샷: 슬롯 상태 + 슬롯별/합계 spend. 관리자 상세 화면용(open 회차).
+ * 슬롯별 /key/info 를 병렬 조회(로컬 소수 규모 — 50 이하). 키 없는 슬롯은 spend=null.
+ */
+export async function batchOpsSnapshot(batchId: string): Promise<BatchOpsSnapshot> {
+  const slots = await slotsRepo.listByBatch(batchId);
+  const infos = await Promise.all(
+    slots.map((s) => (s.virtualKey ? getKeyInfo(s.virtualKey) : Promise.resolve(null))),
+  );
+
+  let totalSpendUsd = 0;
+  let perKeyBudgetUsd: number | null = null;
+  let reachable = false;
+  const views: SlotOpsView[] = slots.map((s, i) => {
+    const info = infos[i];
+    if (info) {
+      reachable = true;
+      totalSpendUsd += info.spend;
+      if (info.maxBudget != null) perKeyBudgetUsd = info.maxBudget;
+    }
+    return { slotNo: s.slotNo, state: s.state, spendUsd: info ? info.spend : null, attemptId: s.attemptId };
+  });
+
+  return { totalSpendUsd, perKeyBudgetUsd, reachable, slots: views };
 }
 
 /** 대기 화면 표시용 풀 스냅샷(읽기 전용 — reconcile과 무관하게 항상 응답). */

@@ -4,7 +4,7 @@ import { DataTable, Button, Modal, Field, Input, Select, Tag, Notification, type
 import { useToast } from '@app/core';
 import type { OrgWithCounts } from '@/lib/db/repositories/organizations';
 import type { IssueOrgAdminResult } from '@/lib/services/staffService';
-import { createOrgAction, deactivateOrgAction, issueOrgAdminAction } from './actions';
+import { createOrgAction, deactivateOrgAction, deleteOrgAction, issueOrgAdminAction } from './actions';
 
 function fmt(d: Date): string {
   return new Date(d).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium' });
@@ -63,6 +63,19 @@ export function AdminOrgsClient({ orgs }: { orgs: OrgWithCounts[] }) {
     });
   }
 
+  function handleDelete(org: OrgWithCounts) {
+    // 파괴 액션 — 확인 후. 서버가 멤버·회차 0을 최종 판정(클라 가드는 편의).
+    if (!window.confirm(`대학 "${org.name}"을(를) 삭제합니다. 되돌릴 수 없습니다. 계속할까요?`)) return;
+    startTransition(async () => {
+      const res = await deleteOrgAction(org.id);
+      toast(
+        res.ok
+          ? { kind: 'success', title: '대학 삭제됨', message: res.message }
+          : { kind: 'error', title: '삭제할 수 없음', message: res.message },
+      );
+    });
+  }
+
   const columns: Array<Column<OrgWithCounts>> = [
     { key: 'name', header: '기관명', sortable: true },
     { key: 'code', header: '코드', render: (r) => r.code ?? '—' },
@@ -84,20 +97,36 @@ export function AdminOrgsClient({ orgs }: { orgs: OrgWithCounts[] }) {
     {
       key: 'actions',
       header: '',
-      className: 'w-24 text-right',
-      render: (r) =>
-        r.isActive ? (
-          <Button
-            kind="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDeactivate(r.id, r.name);
-            }}
-          >
-            비활성화
-          </Button>
-        ) : null,
+      className: 'w-44 text-right',
+      render: (r) => (
+        <span className="flex items-center gap-02 justify-end">
+          {r.isActive && (
+            <Button
+              kind="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeactivate(r.id, r.name);
+              }}
+            >
+              비활성화
+            </Button>
+          )}
+          {r.studentCount + r.staffCount + r.batchCount === 0 && (
+            <Button
+              kind="ghost"
+              size="sm"
+              icon="trash"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(r);
+              }}
+            >
+              삭제
+            </Button>
+          )}
+        </span>
+      ),
     },
   ];
 

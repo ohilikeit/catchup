@@ -2,7 +2,7 @@ import 'server-only';
 import { withTransaction } from '../db';
 import * as problemsRepo from '../db/repositories/problems';
 import type { RoleTrack } from '../db/repositories/problems';
-import { putObject, getObjectBuffer, removeObject, sha256, sanitizeFilename, BUCKETS } from '../storage';
+import { putObject, getObjectBuffer, removeObject, removeByPrefix, sha256, sanitizeFilename, BUCKETS } from '../storage';
 import {
   normalizeScaffoldArchive,
   normalizedScaffoldName,
@@ -126,6 +126,45 @@ export async function overwriteScaffold(
   }
 
   return { ref, sha256: digest, normalize: normalized.summary };
+}
+
+/* ── 문제 삭제/비활성화(관리자) — admin/problems 삭제 관리 ──────────────────
+ * 정책: 회차에 쓰인 적 있으면 하드 삭제 금지(재현·이력 보존) → is_active 비활성화로만 내린다.
+ * 미사용이면 버전·MinIO 객체까지 완전 삭제. (docs/6 Phase 1d, reference/02 RESTRICT 체인) */
+
+export interface ProblemDeleteResult {
+  ok: boolean;
+  error?: string;
+}
+
+/** 문제 활성/비활성 토글(소프트). 비활성 문제는 새 회차 개설 후보에서 빠진다(listVersionOptions). */
+export async function setProblemActive(code: string, isActive: boolean): Promise<ProblemDeleteResult> {
+  const updated = await problemsRepo.setActive(code.trim(), isActive);
+  if (!updated) return { ok: false, error: '문제를 찾을 수 없습니다.' };
+  return { ok: true };
+}
+
+/**
+ * 문제 하드 삭제 — ⭐ 어떤 버전도 회차에 안 쓰였을 때만. 쓰인 적 있으면 비활성화로 유도.
+ * DB(버전+문제)는 트랜잭션으로, MinIO(scaffold/hidden 객체)는 커밋 후 prefix 일괄 삭제(best-effort).
+ * hidden은 키를 DB에 안 남기므로 `<code>/` prefix 로 쓸어낸다.
+ */
+export async function deleteProblem(code: string): Promise<ProblemDeleteResult> {
+  const c = code.trim();
+  const problem = await problemsRepo.findProblemByCode(c);
+  if (!problem) return { ok: false, error: '문제를 찾을 수 없습니다.' };
+  if (await problemsRepo.isUsedByBatch(c)) {
+    return { ok: false, error: '회차에 사용된 문제는 삭제할 수 없습니다. 대신 비활성화하세요(이력·재현성 보존).' };
+  }
+
+  await withTransaction(async (client) => {
+    await problemsRepo.deleteProblemTx(client, c);
+  });
+
+  // MinIO 정리(best-effort — DB가 정보원이므로 실패해도 삭제 자체는 확정). prefix=`<code>/`.
+  await removeByPrefix(BUCKETS.scaffold, `${c}/`).catch(() => undefined);
+  await removeByPrefix(BUCKETS.hidden, `${c}/`).catch(() => undefined);
+  return { ok: true };
 }
 
 /* ── 스캐폴드 미리보기(관리자 검수) — admin/problems/[code] 가 소비 ───────────

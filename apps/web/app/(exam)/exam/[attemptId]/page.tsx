@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import { requireSession } from '@/lib/auth/guard';
-import { getRuntimeWithSlot } from '@/lib/services/examService';
+import { getRuntimeWithSlot, noteReconnect } from '@/lib/services/examService';
 import { MobileBlock } from '../../_components/ExamChrome';
 import { ExamRuntime, type ExamRuntimeData } from './ExamRuntime';
 
@@ -16,6 +16,11 @@ export default async function ExamRuntimePage({ params }: { params: { attemptId:
   if (runtime.status === 'submitted') redirect(`/exam/${params.attemptId}/done`);
   if (runtime.status === 'expired' || runtime.status === 'void') {
     redirect(`/exam/${params.attemptId}/done`);
+  }
+
+  // 재접속 관측(docs/5 §5): 진행 화면 재진입을 타임라인에 디바운스 기록(슬롯 배정된 경우만 = 실제 재연결).
+  if (slot && slot.state === 'assigned') {
+    await noteReconnect(runtime.attemptId);
   }
 
   // Date → ISO 문자열로 직렬화해 클라 컴포넌트에 plain 데이터로 전달.

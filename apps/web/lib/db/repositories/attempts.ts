@@ -358,6 +358,25 @@ export async function markExpiredTx(client: PoolClient, attemptId: string): Prom
   );
 }
 
+/**
+ * 마감 자동 회수 대상: deadline 지난 running 응시(있으면 batch 한정).
+ * idx_attempt 인덱스(batch_id,status)를 타며, deadline_at IS NOT NULL 만(아직 시작 안 한 ready 제외).
+ * 반환: attemptId 목록(스윕이 각각 강제 마감 + 패키징한다).
+ */
+export async function listExpiredRunning(batchId?: string): Promise<string[]> {
+  const rows = batchId
+    ? await query<{ id: string }>(
+        `SELECT id FROM exam.attempts
+          WHERE status = 'running' AND deadline_at IS NOT NULL AND deadline_at < NOW() AND batch_id = $1`,
+        [batchId],
+      )
+    : await query<{ id: string }>(
+        `SELECT id FROM exam.attempts
+          WHERE status = 'running' AND deadline_at IS NOT NULL AND deadline_at < NOW()`,
+      );
+  return rows.map((r) => r.id);
+}
+
 /** 로스터 import: 회차에 응시 멱등 생성(uq_attempt로 중복 차단). 반환: 생성여부. */
 export async function ensureAttemptTx(
   client: PoolClient,
@@ -370,6 +389,25 @@ export async function ensureAttemptTx(
     [input.batchId, input.examineeId],
   );
   return (res.rowCount ?? 0) > 0;
+}
+
+/**
+ * 재접속 관측 이벤트(append-only) — 단, 직전 reconnect 가 withinSec 이내면 기록 생략(디바운스).
+ * 새로고침/폴링마다 쌓이지 않게 — "다시 돌아왔다"의 의미가 있는 간격에서만 한 줄 남긴다.
+ * 반환: 실제로 기록했는지 여부.
+ */
+export async function recordReconnectIfStale(attemptId: string, withinSec = 300): Promise<boolean> {
+  const res = await queryOne<{ id: string }>(
+    `INSERT INTO exam.attempt_events (attempt_id, type, detail)
+     SELECT $1, 'reconnect', '{}'::jsonb
+      WHERE NOT EXISTS (
+        SELECT 1 FROM exam.attempt_events
+         WHERE attempt_id = $1 AND type = 'reconnect'
+           AND created_at > NOW() - make_interval(secs => $2))
+     RETURNING id`,
+    [attemptId, withinSec],
+  );
+  return res != null;
 }
 
 /** 감사 이벤트(append-only). 트랜잭션 안에서 기록. */

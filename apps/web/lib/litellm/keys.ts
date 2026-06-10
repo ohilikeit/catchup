@@ -37,6 +37,34 @@ export async function generateVirtualKey(input: {
   return body.key;
 }
 
+export interface KeyInfo {
+  /** 누적 사용액(USD). */
+  spend: number;
+  /** 예산 상한(USD). null=상한 없음. */
+  maxBudget: number | null;
+}
+
+/**
+ * 가상키 1개의 spend/예산 조회(/key/info) — 관제용. best-effort: 실패하면 null(키 만료·게이트웨이 불통).
+ * ⭐ master key 로 조회 — 진짜 키는 노출되지 않는다(spend 숫자만).
+ */
+export async function getKeyInfo(key: string): Promise<KeyInfo | null> {
+  try {
+    const res = await fetch(`${env.litellmBaseUrl}/key/info?key=${encodeURIComponent(key)}`, {
+      headers: { authorization: `Bearer ${env.litellmMasterKey}` },
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { info?: { spend?: number; max_budget?: number | null } };
+    const info = body.info ?? {};
+    return {
+      spend: typeof info.spend === 'number' ? info.spend : 0,
+      maxBudget: typeof info.max_budget === 'number' ? info.max_budget : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** 가상키 일괄 삭제(회차 close). best-effort — 실패해도 던지지 않고 에러 메시지 반환(null=성공). */
 export async function deleteVirtualKeys(keys: string[]): Promise<string | null> {
   if (keys.length === 0) return null;

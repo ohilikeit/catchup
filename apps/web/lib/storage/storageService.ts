@@ -44,6 +44,27 @@ export async function removeObject(bucket: BucketName, key: string): Promise<voi
   await getStorage().removeObject(bucket, key);
 }
 
+/**
+ * prefix 하위 객체 일괄 삭제(멱등) — 문제 삭제 시 scaffold/hidden 정리용.
+ * hidden은 키를 DB에 기록하지 않으므로(서버 전용) prefix(`<code>/`)로 쓸어야 한다.
+ * 반환: 삭제한 객체 수.
+ */
+export async function removeByPrefix(bucket: BucketName, prefix: string): Promise<number> {
+  await ensureBucket(bucket);
+  const s = getStorage();
+  const keys: string[] = [];
+  const stream = s.listObjectsV2(bucket, prefix, true);
+  await new Promise<void>((resolve, reject) => {
+    stream.on('data', (obj: { name?: string }) => {
+      if (obj.name) keys.push(obj.name);
+    });
+    stream.on('end', () => resolve());
+    stream.on('error', reject);
+  });
+  if (keys.length > 0) await s.removeObjects(bucket, keys);
+  return keys.length;
+}
+
 /** 서명 GET URL(기본 5분). artifacts/chatlogs는 비공개라 다운로드는 서명 URL로만. */
 export async function presignedGetUrl(bucket: BucketName, key: string, expirySeconds = 300): Promise<string> {
   return getStorage().presignedGetObject(bucket, key, expirySeconds);

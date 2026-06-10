@@ -7,7 +7,8 @@
 # 이 스크립트는 web pod 안에서 internal route 를 호출만 한다(INTERNAL_API_SECRET 은 web env 에 있음).
 #
 #   provision <batchId> [N]  : 회차 환경 열기(N 생략 시 batch.capacity)
-#   close <batchId>          : 회차 환경 회수
+#   close <batchId>          : 회차 환경 회수(close 직전 마감 자동 회수 포함)
+#   sweep <batchId>          : 마감 지난 미제출 응시 자동 회수(패키징) — 중간 수동 트리거
 #   slots                    : 현재 슬롯 상태(DB) 조회
 #
 # 전제: ./setup.sh 로 스택 기동됨.
@@ -52,9 +53,15 @@ case "$CMD" in
     call_internal "/api/internal/exam-ops/close" "{\"batchId\":\"$BATCH_ID\"}"
     echo "✓ close 완료 — 현재 슬롯:"; slots_dump
     ;;
+  sweep)
+    [ -z "$BATCH_ID" ] && { echo "usage: exam-ops.sh sweep <batchId>"; exit 1; }
+    echo "▶ sweep (마감 지난 미제출 자동 회수)"
+    call_internal "/api/internal/exam-ops/sweep" "{\"batchId\":\"$BATCH_ID\"}"
+    echo "✓ sweep 완료 — 현재 슬롯:"; slots_dump
+    ;;
   slots)
     echo "현재 슬롯:"; slots_dump
     ;;
   *)
-    echo "usage: exam-ops.sh {provision <batchId> [N] | close <batchId> | slots}"; exit 1;;
+    echo "usage: exam-ops.sh {provision <batchId> [N] | close <batchId> | sweep <batchId> | slots}"; exit 1;;
 esac

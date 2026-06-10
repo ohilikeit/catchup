@@ -83,6 +83,43 @@ export async function closeBatchEnvAction(batchId: string): Promise<EnvActionRes
   }
 }
 
+/**
+ * 회차 하드 삭제(상세 Danger Zone) — admin 전역. service가 "scheduled + 응시 0"을 선판정.
+ * 성공 시 클라가 목록으로 이동(이 회차 상세는 사라짐).
+ */
+export async function deleteBatchAction(batchId: string): Promise<EnvActionResult> {
+  await requireGlobalRole('admin');
+  const r = await batchService.deleteBatch(batchId);
+  if (!r.ok) return { ok: false, message: r.error ?? '삭제에 실패했습니다.' };
+  revalidatePath('/admin/batches');
+  return { ok: true, message: '회차를 삭제했습니다.' };
+}
+
+/**
+ * 회차 취소(소프트, cancelled) — 이력 있는 회차를 내릴 때. open이면 환경 회수(close)를 먼저 하고
+ * cancelled 로 전이한다(진행 중 슬롯·가상키 누수 방지). teardown 실패는 경고로 보고하되 취소는 유지.
+ */
+export async function cancelBatchAction(batchId: string): Promise<EnvActionResult> {
+  await requireGlobalRole('admin');
+  const batch = await batchesRepo.findById(batchId);
+  if (!batch) return { ok: false, message: '회차를 찾을 수 없습니다.' };
+  if (batch.status === 'cancelled') return { ok: false, message: '이미 취소된 회차입니다.' };
+
+  let warn = '';
+  if (batch.status === 'open') {
+    try {
+      const r = await examOpsService.closeBatch(batchId);
+      if (r.warnings.length > 0) warn = ` ${r.warnings.join(' ')}`;
+    } catch (e: unknown) {
+      warn = ` (환경 회수 실패: ${e instanceof Error ? e.message : String(e)})`;
+    }
+  }
+  await batchService.setBatchStatus(batchId, 'cancelled');
+  revalidatePath(`/admin/batches/${batchId}`);
+  revalidatePath('/admin/batches');
+  return { ok: true, message: `회차를 취소했습니다.${warn}` };
+}
+
 export async function extendDeadlineAction(batchId: string, attemptId: string, minutes: number) {
   const session = await requireGlobalRole('admin');
   const result = await attemptService.extendDeadline(attemptId, minutes, session.userId);

@@ -54,6 +54,13 @@ export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
     }
   }
 
+  // 카운트다운 만료: 화면은 즉시 차단(클라) + 서버에 마감 회수 알림(미제출도 패키징).
+  // fire-and-forget — 실패해도 화면은 차단되고, close 스윕이 누락 안전망(서버가 deadline 재판정).
+  function handleExpire() {
+    setExpired(true);
+    void fetch(`/api/exam/${runtime.attemptId}/expire`, { method: 'POST' }).catch(() => undefined);
+  }
+
   const ideReady = !expired && runtime.slotNo !== null;
 
   return (
@@ -71,7 +78,7 @@ export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
           </span>
         </div>
         <div className="flex items-center gap-04 shrink-0">
-          <Countdown deadlineAt={runtime.deadlineAt} onExpire={() => setExpired(true)} />
+          <Countdown deadlineAt={runtime.deadlineAt} onExpire={handleExpire} />
           {ideReady && (
             <Button kind="ghost" size="sm" icon="launch" onClick={() => window.open(IDE_URL, '_blank', 'noopener')}>
               새 창

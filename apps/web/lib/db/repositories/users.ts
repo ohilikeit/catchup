@@ -1,6 +1,6 @@
 import 'server-only';
 import type { PoolClient } from 'pg';
-import { query, queryOne } from '../pool';
+import { query, queryOne, getPool } from '../pool';
 import type { GlobalRole, OrgRole } from '../../auth/roles';
 
 // users repository — 정체성 + 전역역할 + 조직소속 조회. organizations.ts 패턴을 따른다.
@@ -142,28 +142,60 @@ export async function listOrgMemberships(userId: string): Promise<UserOrgMembers
 /** admin/students: 사용자 + 소속 org 목록(집계). 페이지네이션. */
 export interface UserWithOrgs extends User {
   orgs: { orgId: string; orgName: string; orgRole: OrgRole }[];
+  /** 이 사용자의 응시 건수(약한참조 집계) — 하드 삭제 가능 판정·표시용. */
+  attemptCount: number;
 }
 
 export async function listWithOrgs(opts: { limit?: number; offset?: number } = {}): Promise<UserWithOrgs[]> {
   const limit = Math.min(opts.limit ?? 50, 200);
   const offset = opts.offset ?? 0;
   // org 목록은 JSON 집계로 한 행에 — N+1 회피(reference/09).
-  const rows = await query<UserRow & { orgs: UserWithOrgs['orgs'] | null }>(
+  const rows = await query<UserRow & { orgs: UserWithOrgs['orgs'] | null; attempt_count: string }>(
     `SELECT u.*,
             COALESCE(
-              JSON_AGG(JSON_BUILD_OBJECT('orgId', m.org_id, 'orgName', o.name, 'orgRole', m.org_role))
+              JSON_AGG(DISTINCT JSONB_BUILD_OBJECT('orgId', m.org_id, 'orgName', o.name, 'orgRole', m.org_role))
                 FILTER (WHERE m.org_id IS NOT NULL),
               '[]'
-            ) AS orgs
+            ) AS orgs,
+            COUNT(DISTINCT a.id) AS attempt_count
        FROM auth.users u
        LEFT JOIN auth.org_members m ON m.user_id = u.id
        LEFT JOIN auth.organizations o ON o.id = m.org_id
+       LEFT JOIN exam.attempts a ON a.examinee_id = u.id
       GROUP BY u.id
       ORDER BY u.created_at DESC
       LIMIT $1 OFFSET $2`,
     [limit, offset],
   );
-  return rows.map((r) => ({ ...mapRow(r), orgs: r.orgs ?? [] }));
+  return rows.map((r) => ({ ...mapRow(r), orgs: r.orgs ?? [], attemptCount: Number(r.attempt_count) }));
+}
+
+/** 사용자 응시 건수(약한참조 — attempts.examinee_id 는 FK가 아니라 앱이 집계로 가드). */
+export async function countAttempts(userId: string): Promise<number> {
+  const row = await queryOne<{ n: string }>(
+    `SELECT COUNT(*) AS n FROM exam.attempts WHERE examinee_id = $1`,
+    [userId],
+  );
+  return Number(row?.n ?? 0);
+}
+
+/** 사용자 활성/비활성 토글(소프트 삭제 — 시험 기록 보존, 0002 주석). 반환: 성공 여부. */
+export async function setActive(userId: string, isActive: boolean): Promise<boolean> {
+  const res = await getPool().query(
+    `UPDATE auth.users SET is_active = $2 WHERE id = $1`,
+    [userId, isActive],
+  );
+  return (res.rowCount ?? 0) > 0;
+}
+
+/**
+ * 사용자 하드 삭제. user_roles·org_members·invitations 는 ON DELETE CASCADE.
+ * ⚠️ attempts.examinee_id 는 FK가 아니라(약한참조) DB가 막지 않는다 → service가 countAttempts=0 선판정.
+ * 반환: 삭제된 행 수.
+ */
+export async function deleteUser(userId: string): Promise<number> {
+  const res = await getPool().query(`DELETE FROM auth.users WHERE id = $1`, [userId]);
+  return res.rowCount ?? 0;
 }
 
 /** org/students: 특정 org의 examinee 목록(조직 스코프). */

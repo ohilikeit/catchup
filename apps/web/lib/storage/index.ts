@@ -5,6 +5,7 @@ export {
   putObject,
   getObjectBuffer,
   removeObject,
+  removeByPrefix,
   presignedGetUrl,
   pingStorage,
   sha256,

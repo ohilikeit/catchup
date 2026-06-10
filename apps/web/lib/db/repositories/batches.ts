@@ -1,10 +1,10 @@
 import 'server-only';
-import { query, queryOne } from '../pool';
+import { query, queryOne, getPool } from '../pool';
 
 // batches repository — 회차(=동시 50명 한 창). 전달방식은 hosted 단일(docs/1 §5).
 // 목록 쿼리는 org/problem 조인 + attempt/submission 집계로 N+1을 피한다(reference/09).
 
-export type BatchStatus = 'scheduled' | 'open' | 'closed';
+export type BatchStatus = 'scheduled' | 'open' | 'closed' | 'cancelled';
 
 export interface Batch {
   id: string;
@@ -187,11 +187,22 @@ export async function create(input: {
 }
 
 export async function setStatus(id: string, status: BatchStatus): Promise<Batch | null> {
-  // open/closed 전이 시 타임스탬프도 같이(서버가 시각의 단일 근거).
-  const col = status === 'open' ? 'opened_at' : status === 'closed' ? 'closed_at' : null;
+  // open 전이는 opened_at, closed/cancelled(종단)는 closed_at 을 찍는다(서버가 시각의 단일 근거).
+  const col = status === 'open' ? 'opened_at' : status === 'closed' || status === 'cancelled' ? 'closed_at' : null;
   const sql = col
     ? `UPDATE exam.batches SET status = $1, ${col} = NOW() WHERE id = $2 RETURNING *`
     : `UPDATE exam.batches SET status = $1 WHERE id = $2 RETURNING *`;
   const row = await queryOne<BatchRow>(sql, [status, id]);
   return row ? mapRow(row) : null;
+}
+
+/**
+ * 회차 하드 삭제. slots·roster_imports·entry_queue 는 ON DELETE CASCADE 로 함께 삭제.
+ * ⚠️ attempts.batch_id 는 ON DELETE RESTRICT — 응시가 1건이라도 있으면 DB가 거부(throw).
+ *    그래서 service 가 "scheduled + 응시 0" 을 선판정한 뒤에만 호출한다(이력 보존 불변식).
+ * 반환: 삭제된 행 수(1=성공, 0=이미 없음).
+ */
+export async function deleteBatch(id: string): Promise<number> {
+  const res = await getPool().query(`DELETE FROM exam.batches WHERE id = $1`, [id]);
+  return res.rowCount ?? 0;
 }

@@ -40,6 +40,19 @@ export async function getRuntimeWithSlot(
   return { runtime, slot };
 }
 
+/**
+ * 재접속 관측(docs/5 §5): 진행 화면 재진입 시 'reconnect' 이벤트 디바운스 기록.
+ * ⭐ 복귀 메커니즘 자체(같은 슬롯·서버 deadline)는 이미 동작 — 이건 운영 타임라인용 관측 한 줄.
+ * fail-soft: 기록 실패가 화면 진입을 막지 않는다.
+ */
+export async function noteReconnect(attemptId: string): Promise<void> {
+  try {
+    await attemptsRepo.recordReconnectIfStale(attemptId);
+  } catch {
+    /* 관측 실패는 무시 — 진입을 막지 않는다 */
+  }
+}
+
 export interface StartResult {
   ok: boolean;
   deadlineAt?: Date;
@@ -131,6 +144,68 @@ export async function submitExam(attemptId: string, examineeId: string): Promise
 
   if (result.ok) await triggerPackaging(attemptId);
   return result;
+}
+
+/* ── 마감 자동 회수(제출 버튼 의존 제거) — docs/5 §5 "마감까지 제출 안 눌러도 서버가 회수" ──
+ * 강제 제출과 동일 경로(forceSubmitTx→markSubmittingTx→triggerPackaging)를 재사용하되,
+ * ⭐ deadline_at < NOW() 를 서버가 트랜잭션 안에서 재판정한다(클라 onExpire는 신뢰 안 함, 대원칙 ⑤).
+ * 미제출도 패키징 Job이 PVC를 캡처 → trust=verified 로 회수(누락 0). */
+
+export interface AutoCollectResult {
+  ok: boolean;
+  collected?: boolean; // true=이번 호출로 마감 회수됨 / false=대상 아님(이미 제출·미만료 등)
+  error?: string;
+}
+
+/**
+ * 한 응시를 마감 회수: running + 마감 경과면 submitted 전이 + 슬롯 submitting + 'auto_collected' 이벤트.
+ * 커밋 후 패키징을 fail-soft 트리거(슬롯 미배정이면 packageAttempt가 자동 생략).
+ */
+async function autoCollectAttempt(attemptId: string): Promise<AutoCollectResult> {
+  const result = await withTransaction<AutoCollectResult>(async (client) => {
+    const attempt = await attemptsRepo.lockForSubmitTx(client, attemptId);
+    if (!attempt) return { ok: false, error: '응시를 찾을 수 없습니다.' };
+    if (attempt.status !== 'running') return { ok: true, collected: false };
+    // 서버 재판정: 마감이 실제로 지났는가(클라가 일찍 onExpire를 불러도 여기서 거른다).
+    if (!attempt.deadlineAt || attempt.deadlineAt.getTime() > Date.now()) {
+      return { ok: true, collected: false };
+    }
+    await attemptsRepo.forceSubmitTx(client, attemptId);
+    await slotsRepo.markSubmittingTx(client, attemptId);
+    await attemptsRepo.addEventTx(client, attemptId, 'auto_collected', {
+      reason: 'deadline_expired',
+      deadlineAt: attempt.deadlineAt.toISOString(),
+    });
+    return { ok: true, collected: true };
+  });
+
+  if (result.ok && result.collected) await triggerPackaging(attemptId);
+  return result;
+}
+
+/**
+ * 학생 화면의 카운트다운 만료 콜백(onExpire) 처리 — 소유권 확인 후 즉시 마감 회수.
+ * 화면을 켜둔 학생은 마감 즉시 회수되고, 화면을 끈 학생은 close 스윕(아래)이 안전망.
+ */
+export async function expireExam(attemptId: string, examineeId: string): Promise<AutoCollectResult> {
+  const rt = await attemptsRepo.findRuntimeForExaminee(attemptId, examineeId);
+  if (!rt) return { ok: false, error: '응시를 찾을 수 없거나 권한이 없습니다.' };
+  return autoCollectAttempt(attemptId);
+}
+
+/**
+ * 마감 일괄 스윕: deadline 지난 running 응시를 전수 회수(미제출도 패키징). batchId 생략 시 전역.
+ * close 직전·운영 스윕에서 호출 — 취합(패키징 Job 생성)을 scale-down보다 먼저 끝낸다(docs/5 §5).
+ * 반환: 회수된 응시 수.
+ */
+export async function sweepDeadlines(batchId?: string): Promise<number> {
+  const expired = await attemptsRepo.listExpiredRunning(batchId);
+  let collected = 0;
+  for (const id of expired) {
+    const r = await autoCollectAttempt(id);
+    if (r.ok && r.collected) collected++;
+  }
+  return collected;
 }
 
 /**

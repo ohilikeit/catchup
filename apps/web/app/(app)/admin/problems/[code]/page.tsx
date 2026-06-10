@@ -6,6 +6,7 @@ import { problemsRepo } from '@/lib/db';
 import { listScaffoldFiles, previewScaffoldFile } from '@/lib/services/problemService';
 import { PageHead, EmptyState } from '../../../_components/ui';
 import { ScaffoldReplace } from './ScaffoldReplace';
+import { ProblemDangerZone } from './ProblemDangerZone';
 
 // admin/problems/[code] — 업로드된 문제(스캐폴드)를 눈으로 검수하는 상세 페이지.
 // 서버 컴포넌트만으로 동작: 버전 선택(?v=)·파일 선택(?file=)을 쿼리로 받아 MinIO 아카이브를
@@ -35,6 +36,7 @@ export default async function AdminProblemDetailPage({
   const problem = await problemsRepo.findProblemByCode(code);
   if (!problem) notFound();
   const versions = await problemsRepo.listVersionsByCode(code);
+  const usedByBatch = await problemsRepo.isUsedByBatch(code);
 
   const selected = versions.find((x) => String(x.version) === searchParams.v) ?? versions[0] ?? null;
   const listing = selected ? await listScaffoldFiles(selected.publicScaffoldRef) : null;
@@ -157,6 +159,13 @@ export default async function AdminProblemDetailPage({
           )}
         </div>
       )}
+
+      <ProblemDangerZone
+        code={problem.code}
+        title={problem.title}
+        isActive={problem.isActive}
+        usedByBatch={usedByBatch}
+      />
     </>
   );
 }

@@ -50,6 +50,17 @@ export async function setBatchStatusAction(id: string, status: BatchStatus) {
   revalidatePath('/admin/batches');
 }
 
+/**
+ * 회차 하드 삭제(목록 행) — admin 전역만. service가 "scheduled + 응시 0"을 선판정해 거부 사유를 돌려준다.
+ * 결과를 반환해 토스트로 표시(파괴 액션은 사용자에게 결과를 분명히).
+ */
+export async function deleteBatchAction(id: string): Promise<{ ok: boolean; message: string }> {
+  await requireGlobalRole('admin');
+  const r = await batchService.deleteBatch(id);
+  revalidatePath('/admin/batches');
+  return { ok: r.ok, message: r.ok ? '회차를 삭제했습니다.' : (r.error ?? '삭제에 실패했습니다.') };
+}
+
 export async function importRosterAction(batchId: string, csvText: string) {
   const session = await requireGlobalRole('admin');
 

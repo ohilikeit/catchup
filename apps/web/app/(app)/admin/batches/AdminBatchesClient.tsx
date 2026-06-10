@@ -8,7 +8,7 @@ import type { Organization } from '@/lib/db/repositories/organizations';
 import type { VersionOption } from '@/lib/db/repositories/problems';
 import { BatchStatusTag } from '../../_components/ui';
 import type { ImportSummary } from '@/lib/services/batchService';
-import { createBatchAction, setBatchStatusAction, importRosterAction, importRosterXlsxAction } from './actions';
+import { createBatchAction, setBatchStatusAction, importRosterAction, importRosterXlsxAction, deleteBatchAction } from './actions';
 
 function fmt(d: Date | null): string {
   return d ? new Date(d).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium' }) : '—';
@@ -63,6 +63,19 @@ export function AdminBatchesClient({
       } catch {
         toast({ kind: 'error', title: '상태 변경 실패', message: '잠시 후 다시 시도하세요.' });
       }
+    });
+  }
+
+  function handleDelete(batch: BatchListItem) {
+    // 파괴 액션 — 확인 후 진행. 서버가 "scheduled + 응시 0"을 최종 판정(클라 가드는 편의일 뿐).
+    if (!window.confirm(`회차 "${batch.name}"을(를) 삭제합니다. 이 작업은 되돌릴 수 없습니다. 계속할까요?`)) return;
+    startTransition(async () => {
+      const r = await deleteBatchAction(batch.id);
+      toast(
+        r.ok
+          ? { kind: 'success', title: '회차 삭제됨', message: r.message }
+          : { kind: 'error', title: '삭제할 수 없음', message: r.message },
+      );
     });
   }
 
@@ -140,6 +153,19 @@ export function AdminBatchesClient({
               }}
             >
               시작
+            </Button>
+          )}
+          {r.status === 'scheduled' && r.attemptCount === 0 && (
+            <Button
+              kind="ghost"
+              size="sm"
+              icon="trash"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(r);
+              }}
+            >
+              삭제
             </Button>
           )}
           {r.status === 'open' && (

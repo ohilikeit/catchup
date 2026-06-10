@@ -161,6 +161,41 @@ export interface VersionOption {
   version: number;
 }
 
+/**
+ * 이 문제(코드)의 어떤 버전이라도 회차에 쓰였는가 — 하드 삭제 가능 판정.
+ * batches.problem_version_id → problem_versions.problem_code 역참조. 쓰였으면 삭제 금지(비활성화만).
+ */
+export async function isUsedByBatch(code: string): Promise<boolean> {
+  const row = await queryOne<{ ok: number }>(
+    `SELECT 1 AS ok
+       FROM exam.batches b
+       JOIN exam.problem_versions v ON v.id = b.problem_version_id
+      WHERE v.problem_code = $1
+      LIMIT 1`,
+    [code],
+  );
+  return !!row;
+}
+
+/** 문제 활성/비활성 토글(소프트 — 0003 is_active). 비활성은 새 회차 개설 후보에서 빠진다. */
+export async function setActive(code: string, isActive: boolean): Promise<Problem | null> {
+  const row = await queryOne<ProblemRow>(
+    `UPDATE exam.problems SET is_active = $2 WHERE code = $1 RETURNING *`,
+    [code, isActive],
+  );
+  return row ? mapProblem(row) : null;
+}
+
+/**
+ * 문제 하드 삭제(트랜잭션) — 버전 먼저(batch 미참조여야 RESTRICT 안 걸림), 그다음 문제.
+ * ⚠️ service가 isUsedByBatch=false 를 선판정한 뒤에만 호출(이력 보존 불변식).
+ * MinIO 객체(scaffold/hidden) 정리는 service가 커밋 후 best-effort.
+ */
+export async function deleteProblemTx(client: PoolClient, code: string): Promise<void> {
+  await client.query(`DELETE FROM exam.problem_versions WHERE problem_code = $1`, [code]);
+  await client.query(`DELETE FROM exam.problems WHERE code = $1`, [code]);
+}
+
 export async function listVersionOptions(): Promise<VersionOption[]> {
   const rows = await query<{ version_id: string; problem_code: string; problem_title: string; version: number }>(
     `SELECT v.id AS version_id, v.problem_code, p.title AS problem_title, v.version

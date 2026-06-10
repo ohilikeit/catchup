@@ -19,6 +19,24 @@ export async function deactivateOrgAction(id: string) {
   revalidatePath('/admin/orgs');
 }
 
+/**
+ * 대학 하드 삭제 — 멤버·회차가 모두 0일 때만(이력 보존). 의존이 있으면 비활성화로 유도.
+ * service 없이 repo 가드(orgs deactivate 와 동형) — countDependents 로 선판정 후 삭제.
+ */
+export async function deleteOrgAction(id: string): Promise<{ ok: boolean; message: string }> {
+  await requireGlobalRole('admin');
+  const dep = await organizationsRepo.countDependents(id);
+  if (dep.members > 0 || dep.batches > 0) {
+    return {
+      ok: false,
+      message: `소속 인원 ${dep.members}명·회차 ${dep.batches}건이 있어 삭제할 수 없습니다. 비활성화로 내리세요.`,
+    };
+  }
+  await organizationsRepo.deleteOrg(id);
+  revalidatePath('/admin/orgs');
+  return { ok: true, message: '대학을 삭제했습니다.' };
+}
+
 /** 담당자(org_admin) 계정 발급. 결과(임시비번 1회 노출)를 클라에 반환. */
 export async function issueOrgAdminAction(formData: FormData): Promise<IssueOrgAdminResult> {
   await requireGlobalRole('admin');

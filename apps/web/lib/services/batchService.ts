@@ -75,6 +75,31 @@ export async function setBatchStatus(id: string, status: batchesRepo.BatchStatus
   return batch;
 }
 
+export interface DeleteResult {
+  ok: boolean;
+  error?: string;
+}
+
+/**
+ * 회차 하드 삭제 — ⭐ "scheduled + 응시 0"일 때만(이력 보존 불변식).
+ * 이력 있는 회차는 삭제 대신 취소(cancelled)로 내린다 — RESTRICT가 DB에서도 막지만, 여기서 먼저
+ * 우아하게 거부해 운영자에게 이유를 알린다. scheduled = provision 전이라 정리할 k8s 리소스도 없다.
+ * (slots·roster_imports·entry_queue는 CASCADE로 함께 삭제 — 다음 회차 운영의 잔재 없음.)
+ */
+export async function deleteBatch(batchId: string): Promise<DeleteResult> {
+  const detail = await batchesRepo.findDetailById(batchId);
+  if (!detail) return { ok: false, error: '회차를 찾을 수 없습니다.' };
+  if (detail.status !== 'scheduled') {
+    return { ok: false, error: '아직 시작하지 않은(scheduled) 회차만 삭제할 수 있습니다. 진행/종료된 회차는 "취소"로 내려주세요.' };
+  }
+  if (detail.attemptCount > 0) {
+    return { ok: false, error: `응시자 ${detail.attemptCount}명이 등록돼 삭제할 수 없습니다. 로스터를 비우거나 회차를 취소하세요.` };
+  }
+  await batchesRepo.deleteBatch(batchId);
+  await invalidateBatchLists();
+  return { ok: true };
+}
+
 /* ── 로스터 CSV import(멱등·재실행 가능, docs/1 §4) ─────────────────────── */
 
 export interface RosterRow {

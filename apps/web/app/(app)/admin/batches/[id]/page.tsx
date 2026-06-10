@@ -3,9 +3,12 @@ import { Breadcrumb, MetricGrid, MetricTile } from '@app/ui';
 import { requireGlobalRole } from '@/lib/auth/guard';
 import { usersRepo } from '@/lib/db';
 import { getBatchDetailForViewer } from '@/lib/services/batchService';
+import { batchOpsSnapshot } from '@/lib/services/examOpsService';
 import { PageHead, BatchStatusTag } from '../../../_components/ui';
 import { AdminBatchRosterClient } from './AdminBatchRosterClient';
 import { BatchEnvControls } from './BatchEnvControls';
+import { BatchOpsPanel } from './BatchOpsPanel';
+import { BatchDangerZone } from './BatchDangerZone';
 
 export default async function AdminBatchDetailPage({
   params,
@@ -19,6 +22,8 @@ export default async function AdminBatchDetailPage({
   const { detail, roster, canOperate } = data;
   // 학생 추가 모달의 "기존 사용자에서 선택" 후보(아이디·비번 그대로 — 이 회차 응시만 추가).
   const candidates = canOperate ? await usersRepo.listExamineeCandidates() : [];
+  // 실시간 관제(open 회차만): 슬롯 상태 분포 + LLM spend. 게이트웨이/슬롯 조회는 fail-soft.
+  const ops = canOperate && detail.status === 'open' ? await batchOpsSnapshot(detail.id) : null;
 
   const crumbs = [
     { label: '회차 운영', href: '/admin/batches' },
@@ -72,12 +77,23 @@ export default async function AdminBatchDetailPage({
         />
       </MetricGrid>
 
+      {ops && <BatchOpsPanel ops={ops} />}
+
       <AdminBatchRosterClient
         batchId={detail.id}
         roster={roster}
         candidates={candidates}
         canOperate={canOperate}
       />
+
+      {canOperate && (
+        <BatchDangerZone
+          batchId={detail.id}
+          status={detail.status}
+          name={detail.name}
+          attemptCount={detail.attemptCount}
+        />
+      )}
     </>
   );
 }
