@@ -16,6 +16,8 @@ export interface Batch {
   scheduledAt: Date | null;
   /** 회차 1인당 LLM 예산 상한(USD). 가상키 max_budget의 근거. NULL=상한 없음(0010). */
   llmBudgetUsd: number | null;
+  /** 미리(상시) 띄워둘 워밍 pod 수. NULL=capacity(일괄). 작으면 라이브 입장(0013, docs/6 Phase 3). */
+  warmCount: number | null;
   openedAt: Date | null;
   closedAt: Date | null;
   createdAt: Date;
@@ -31,6 +33,7 @@ interface BatchRow {
   status: BatchStatus;
   scheduled_at: Date | null;
   llm_budget_usd: string | null; // NUMERIC → pg는 문자열로 반환
+  warm_count: number | null;
   opened_at: Date | null;
   closed_at: Date | null;
   created_at: Date;
@@ -47,6 +50,7 @@ function mapRow(r: BatchRow): Batch {
     status: r.status,
     scheduledAt: r.scheduled_at,
     llmBudgetUsd: r.llm_budget_usd == null ? null : Number(r.llm_budget_usd),
+    warmCount: r.warm_count,
     openedAt: r.opened_at,
     closedAt: r.closed_at,
     createdAt: r.created_at,
@@ -164,10 +168,11 @@ export async function create(input: {
   capacity?: number;
   scheduledAt?: Date | null;
   llmBudgetUsd?: number | null;
+  warmCount?: number | null;
 }): Promise<Batch> {
   const row = await queryOne<BatchRow>(
-    `INSERT INTO exam.batches (org_id, name, problem_version_id, capacity, scheduled_at, llm_budget_usd)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    `INSERT INTO exam.batches (org_id, name, problem_version_id, capacity, scheduled_at, llm_budget_usd, warm_count)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
     [
       input.orgId,
       input.name,
@@ -175,6 +180,7 @@ export async function create(input: {
       input.capacity ?? 50,
       input.scheduledAt ?? null,
       input.llmBudgetUsd ?? null,
+      input.warmCount ?? null,
     ],
   );
   return mapRow(row!);

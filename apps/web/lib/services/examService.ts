@@ -1,8 +1,8 @@
 import 'server-only';
-import { attemptsRepo, slotsRepo, withTransaction } from '../db';
+import { attemptsRepo, entryQueueRepo, slotsRepo, withTransaction } from '../db';
 import type { AttemptRuntime } from '../db/repositories/attempts';
 import type { SlotState } from '../db/repositories/slots';
-import { packageAttempt } from './examOpsService';
+import { packageAttempt, reconcilePool } from './examOpsService';
 
 // examService — 시험 런타임 비즈니스 로직(소유권·시작·마감). docs/1 §4.
 // ⭐ 시각은 서버가 결정한다(클라 입력은 적대적, 대원칙 ⑤): deadline_at은 start 시점에 서버가 박는다.
@@ -43,6 +43,8 @@ export async function getRuntimeWithSlot(
 export interface StartResult {
   ok: boolean;
   deadlineAt?: Date;
+  /** true = ready 슬롯이 없어 입장 큐에 등록됨(워밍 풀) — 클라는 대기 화면에서 폴링. */
+  queued?: boolean;
   error?: string;
 }
 
@@ -65,25 +67,42 @@ export async function startExam(attemptId: string, examineeId: string): Promise<
   // 이미 deadline이 있으면 유지(재시작이 시간을 늘리지 못하게), 없으면 지금 + 기본시간.
   const deadlineAt = rt.deadlineAt ?? new Date(Date.now() + DEFAULT_DURATION_MIN * 60_000);
 
-  return withTransaction(async (client) => {
+  const result = await withTransaction<StartResult>(async (client) => {
     // 1. attempt 상태 전이(ready/running → running).
     const updated = await attemptsRepo.startRunningTx(client, attemptId, deadlineAt);
     if (!updated) return { ok: false, error: '시작에 실패했습니다.' };
 
-    // 2. 슬롯 배정(best-effort): ready 슬롯이 없으면 null이어도 진행.
+    // 2. 슬롯 배정(hot path).
     //    재시작 멱등: 이미 이 attempt에 배정된 슬롯이 있으면 그 슬롯을 그대로 쓴다 —
     //    없을 때만 새로 점유(없이 또 점유하면 attempt_id UNIQUE 위반, 실측 23505).
-    const assigned =
-      (await slotsRepo.findSlotByAttemptTx(client, attemptId)) ??
-      (await slotsRepo.assignReadySlotTx(client, rt.batchId, attemptId));
+    //    워밍 풀: 줄 서 있는 사람이 있으면 새치기 금지(FIFO) — 바로 큐로. ready가 없어도 큐로.
+    //    큐 배정·deadline 재산출·pod 보충은 reconcilePool(요청 유도형)이 처리한다.
+    const existing = await slotsRepo.findSlotByAttemptTx(client, attemptId);
+    let assigned = existing;
+    let queued = false;
+    if (!assigned) {
+      const waiting = await entryQueueRepo.countWaiting(rt.batchId);
+      assigned = waiting === 0 ? await slotsRepo.assignReadySlotTx(client, rt.batchId, attemptId) : null;
+      if (!assigned) {
+        await entryQueueRepo.enqueueTx(client, rt.batchId, attemptId);
+        queued = true;
+      }
+    }
 
     // 3. 감사 이벤트 기록.
     await attemptsRepo.addEventTx(client, attemptId, 'started', {
       slotNo: assigned?.slotNo ?? null,
+      queued,
     });
 
-    return { ok: true, deadlineAt: updated.deadlineAt ?? deadlineAt };
+    return { ok: true, deadlineAt: updated.deadlineAt ?? deadlineAt, queued };
   });
+
+  // 커밋 후 풀 보충을 즉시 트리거(fail-soft) — 첫 폴링(2초)을 기다리지 않게.
+  if (result.ok && result.queued) {
+    void reconcilePool(rt.batchId).catch(() => undefined);
+  }
+  return result;
 }
 
 export interface SubmitResult {

@@ -22,7 +22,7 @@ export function BatchEnvControls({
   const [phase, setPhase] = useState<'open' | 'close' | null>(null);
 
   function openEnv() {
-    if (!window.confirm(`시험 환경을 엽니다 — pod ${capacity}개 기동 + 가상키 발급.\n이전 회차의 워크스페이스(PVC)는 초기화됩니다. 계속할까요?`)) return;
+    if (!window.confirm(`시험 환경을 엽니다 — 정원 ${capacity} 기준 선준비(가상키·라우팅) + 워밍 pod 기동.\n이전 회차의 워크스페이스(PVC)는 초기화됩니다. 계속할까요?`)) return;
     setPhase('open');
     startTransition(async () => {
       const r = await openBatchEnvAction(batchId);

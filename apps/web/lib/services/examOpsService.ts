@@ -1,5 +1,6 @@
 import 'server-only';
-import { attemptsRepo, batchesRepo, problemsRepo, slotsRepo, withTransaction } from '../db';
+import { attemptsRepo, batchesRepo, entryQueueRepo, problemsRepo, slotsRepo, withTransaction, getPool } from '../db';
+import { DEFAULT_DURATION_MIN } from './examService';
 import { BUCKETS } from '../storage';
 import { generateVirtualKey, deleteVirtualKeys } from '../litellm/keys';
 import {
@@ -8,6 +9,7 @@ import {
   k8sRequest,
   applyObject,
   deleteObject,
+  getObject,
   scaleStatefulSet,
   listNamesByPrefix,
   waitFor,
@@ -41,17 +43,23 @@ function requireCluster(): string {
 }
 
 export interface ProvisionResult {
+  /** 풀 크기(선준비된 슬롯·키·라우팅 수) = capacity. */
   slots: number;
+  /** 시작 시 미리 띄운 pod 수(warm_count, NULL=전부). */
+  warm: number;
   problemCode: string;
   scaffoldRef: string;
   warnings: string[];
 }
 
 /**
- * 회차 환경 provision: 0→N. 멱등(재실행 시 PVC wipe 후 재시드 = 깨끗한 워크스페이스 보장).
- * 진행 중(assigned/submitting) 슬롯이 있으면 거부 — PVC wipe가 작업물을 파괴하지 않도록.
+ * 회차 환경 provision — 워밍 풀 모델(docs/6 Phase 3): **선준비는 capacity만큼, 기동은 warm만큼**.
+ * 가상키·슬롯별 Service/Ingress·슬롯 row는 슬롯 "번호"에 붙으므로 전부 선생성 가능 —
+ * 학생 초과 도착 시 cold 성장이 `scale +Δ` 한 줄이 된다(reconcilePool).
+ * 멱등(재실행 시 PVC wipe 후 재시드). 진행 중(assigned/submitting) 슬롯이 있으면 거부.
+ * @param warmOverride CLI 검증용 warm 덮어쓰기(exam-ops.sh provision N) — 기본은 batches.warm_count.
  */
-export async function provisionBatch(batchId: string, n?: number): Promise<ProvisionResult> {
+export async function provisionBatch(batchId: string, warmOverride?: number): Promise<ProvisionResult> {
   const ns = requireCluster();
   const warnings: string[] = [];
 
@@ -60,8 +68,9 @@ export async function provisionBatch(batchId: string, n?: number): Promise<Provi
   if (!batch) throw new Error('회차를 찾을 수 없습니다.');
   const version = await problemsRepo.findVersionById(batch.problemVersionId);
   if (!version) throw new Error('회차에 연결된 문제 버전을 찾을 수 없습니다.');
-  const slots = Math.min(n ?? batch.capacity, MAX_SLOTS);
+  const slots = Math.min(batch.capacity, MAX_SLOTS);
   if (slots < 1) throw new Error('슬롯 수는 1 이상이어야 합니다.');
+  const warm = Math.min(slots, Math.max(0, warmOverride ?? batch.warmCount ?? slots));
 
   // ── 2. 가드: 어떤 회차든 학생이 작업/제출 중이면 거부 (단일 StatefulSet 구조의 불변식) ──
   if (await slotsRepo.hasBusySlots()) {
@@ -108,13 +117,13 @@ export async function provisionBatch(batchId: string, n?: number): Promise<Provi
     );
   }
 
-  // ── 5. 회차 문제 ConfigMap + 가상키 Secret (seeder·기동 래퍼가 읽음) → scale N ──
+  // ── 5. 회차 문제 ConfigMap + 가상키 Secret (seeder·기동 래퍼가 읽음) → ⭐ replicas는 warm만 ──
   await applyObject(
     paths.configMap(ns, 'exam-batch'),
     examBatchConfigMap(ns, { batchId, scaffoldRef: version.publicScaffoldRef, problemCode: version.problemCode }),
   );
   await applyObject(paths.secret(ns, 'exam-virtual-keys'), virtualKeysSecret(ns, keys));
-  await scaleStatefulSet(ns, EXAM_STS, slots);
+  await scaleStatefulSet(ns, EXAM_STS, warm);
 
   // ── 6. 슬롯별 라우팅: Service(pod 고정) N개 + Ingress(/exam-ide/{i}) — per-student 격리의 실체 ──
   for (let i = 0; i < slots; i++) {
@@ -129,7 +138,8 @@ export async function provisionBatch(batchId: string, n?: number): Promise<Provi
   await deleteObject(paths.ingress(ns, 'exam-ide')).catch(() => undefined); // 구판 정적 Ingress
   await deleteObject(paths.service(ns, 'exam-direct')).catch(() => undefined); // 구판 라운드로빈 Service
 
-  // ── 7. 슬롯 register (DB) — endpoint + 가상키. 같은 프로세스이므로 HTTP 우회 없이 repo 직접 ──
+  // ── 7. 슬롯 register (DB) — capacity 전부, state='down'. pod이 실제 Ready가 되면
+  //      reconcilePool이 ready로 전이(거짓 ready 0 — pod 없는 슬롯에 배정되는 일 없음). ──
   await slotsRepo.resetBatchSlots(batchId);
   await withTransaction(async (client) => {
     for (let i = 0; i < slots; i++) {
@@ -138,12 +148,15 @@ export async function provisionBatch(batchId: string, n?: number): Promise<Provi
         slotNo: i,
         endpoint: slotEndpoint(ns, i),
         virtualKey: keys[i],
+        state: 'down',
       });
     }
   });
 
-  warnings.push('pod 기동·문제 시드에는 수십 초가 걸립니다 — 학생 입장 전 슬롯 상태를 확인하세요.');
-  return { slots, problemCode: version.problemCode, scaffoldRef: version.publicScaffoldRef, warnings };
+  warnings.push(
+    `워밍 ${warm}/${slots} pod 기동 중 — Ready가 되면 자동으로 배정 가능해집니다(학생 화면이 대기→자동 진입).`,
+  );
+  return { slots, warm, problemCode: version.problemCode, scaffoldRef: version.publicScaffoldRef, warnings };
 }
 
 export interface CloseResult {
@@ -176,8 +189,9 @@ export async function closeBatch(batchId: string): Promise<CloseResult> {
   const revokeError = await deleteVirtualKeys(keys);
   if (revokeError) warnings.push(`가상키 revoke 실패(만료는 duration이 보장): ${revokeError}`);
 
-  // 3. 슬롯 상태머신: 이 회차 슬롯 전부 down + 키 해제.
+  // 3. 슬롯 상태머신: 이 회차 슬롯 전부 down + 키 해제 + 입장 대기열 정리.
   await slotsRepo.markBatchDown(batchId);
+  await entryQueueRepo.clearBatch(batchId);
 
   return { revokedKeys: revokeError ? 0 : keys.length, warnings };
 }
@@ -236,4 +250,124 @@ export async function packageAttempt(attemptId: string): Promise<PackageResult> 
     return { ok: false, reason: `패키징 Job 생성 실패: ${msg}` };
   }
   return { ok: true, jobName, artifactRef, chatRef };
+}
+
+/* ── 워밍 풀 reconcile — 라이브 입장의 엔진(docs/6 Phase 3 워밍 풀 통합 모델) ──────
+ * 요청 유도형: 대기 화면의 상태 폴링(slot-status)·시작 직후에 호출된다. 별도 데몬 없음.
+ * advisory lock으로 동시 1개만 실행(폴링 stampede 무해화). 전부 멱등.
+ *   ① pod Ready ↔ 슬롯 상태 동기화   ② 입장 큐 head부터 FIFO 배정   ③ 부족분 scale +Δ
+ * ⭐ scale "down"은 여기서 절대 안 한다 — 회수는 close 소관(작업물 보존 불변식). */
+
+const RECONCILE_LOCK_KEY = 915013;
+
+interface ExamPod {
+  ordinal: number;
+  ready: boolean;
+}
+
+async function listExamPods(ns: string): Promise<ExamPod[]> {
+  const body = (await getObject(paths.pods(ns, 'app=exam'))) as {
+    items?: Array<{
+      metadata?: { name?: string };
+      status?: { conditions?: Array<{ type?: string; status?: string }> };
+    }>;
+  } | null;
+  if (!body?.items) return [];
+  return body.items
+    .map((p) => {
+      const name = p.metadata?.name ?? '';
+      const ordinal = Number(name.replace(`${EXAM_STS}-`, ''));
+      const ready = !!p.status?.conditions?.some((c) => c.type === 'Ready' && c.status === 'True');
+      return { ordinal, ready };
+    })
+    .filter((p) => Number.isInteger(p.ordinal));
+}
+
+async function getStsReplicas(ns: string): Promise<number> {
+  const body = (await getObject(`/apis/apps/v1/namespaces/${ns}/statefulsets/${EXAM_STS}`)) as {
+    spec?: { replicas?: number };
+  } | null;
+  return body?.spec?.replicas ?? 0;
+}
+
+/**
+ * 풀 상태를 실제와 일치시키고 대기열을 소진한다(fail-soft — 호출부 흐름을 막지 않음).
+ * 큐에서 배정되는 학생의 deadline은 "배정 시점"으로 재설정 — 줄 서서 기다린 시간이
+ * 제한시간을 깎지 않게(공정성).
+ */
+export async function reconcilePool(batchId: string): Promise<void> {
+  if (!inCluster()) return;
+  const client = await getPool().connect();
+  try {
+    const lock = await client.query<{ ok: boolean }>(
+      `SELECT pg_try_advisory_lock($1) AS ok`,
+      [RECONCILE_LOCK_KEY],
+    );
+    if (!lock.rows[0]?.ok) return; // 다른 요청이 reconcile 중 — 이번 폴링은 통과
+
+    const batch = await batchesRepo.findById(batchId);
+    if (!batch || batch.status !== 'open') return;
+    const ns = k8sNamespace();
+    const poolSize = Math.min(batch.capacity, MAX_SLOTS);
+
+    // ① pod 실상태 → 슬롯 상태 (Ready만 ready로 — 거짓 ready 차단)
+    const pods = await listExamPods(ns);
+    await slotsRepo.syncReadySlots(batchId, pods.filter((p) => p.ready).map((p) => p.ordinal));
+
+    // ② 입장 큐 FIFO 배정 — head부터, ready 슬롯이 있는 동안
+    for (;;) {
+      const assigned = await withTransaction(async (tx) => {
+        const head = await entryQueueRepo.lockHeadTx(tx, batchId);
+        if (!head) return false;
+        const slot = await slotsRepo.assignReadySlotTx(tx, batchId, head);
+        if (!slot) return false; // ready 없음 — 줄 유지(③이 보충)
+        await entryQueueRepo.removeTx(tx, head);
+        // 대기 시간이 제한시간을 깎지 않게 배정 시점 기준으로 재산출.
+        await attemptsRepo.extendDeadlineTx(tx, head, new Date(Date.now() + DEFAULT_DURATION_MIN * 60_000));
+        await attemptsRepo.addEventTx(tx, head, 'slot_assigned_from_queue', { slotNo: slot.slotNo });
+        return true;
+      });
+      if (!assigned) break;
+    }
+
+    // ③ 스케일 보충: 사용 중 + 대기 + 워밍 여유(warm_count, NULL=전부)만큼 떠 있게.
+    const { used } = await slotsRepo.countPoolUsage(batchId);
+    const waiting = await entryQueueRepo.countWaiting(batchId);
+    const warmSpare = batch.warmCount ?? poolSize;
+    const desired = Math.min(poolSize, used + waiting + warmSpare);
+    const current = await getStsReplicas(ns);
+    if (desired > current) await scaleStatefulSet(ns, EXAM_STS, desired);
+  } catch (e: unknown) {
+    console.error(`[exam-ops] reconcile 실패 batch=${batchId}:`, e instanceof Error ? e.message : e);
+  } finally {
+    await client.query(`SELECT pg_advisory_unlock($1)`, [RECONCILE_LOCK_KEY]).catch(() => undefined);
+    client.release();
+  }
+}
+
+export interface PoolSnapshot {
+  podsReady: number;
+  podsStarting: number;
+  replicas: number;
+  poolSize: number;
+}
+
+/** 대기 화면 표시용 풀 스냅샷(읽기 전용 — reconcile과 무관하게 항상 응답). */
+export async function poolSnapshot(batchId: string): Promise<PoolSnapshot | null> {
+  if (!inCluster()) return null;
+  try {
+    const batch = await batchesRepo.findById(batchId);
+    if (!batch) return null;
+    const ns = k8sNamespace();
+    const pods = await listExamPods(ns);
+    const replicas = await getStsReplicas(ns);
+    return {
+      podsReady: pods.filter((p) => p.ready).length,
+      podsStarting: pods.filter((p) => !p.ready).length + Math.max(0, replicas - pods.length),
+      replicas,
+      poolSize: Math.min(batch.capacity, MAX_SLOTS),
+    };
+  } catch {
+    return null;
+  }
 }

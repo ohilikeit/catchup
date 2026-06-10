@@ -32,11 +32,15 @@ export async function createBatchAction(formData: FormData) {
     llmBudgetUsd = n;
   }
 
+  // 워밍 pod 수 — 빈 값이면 null(정원 전체 = 일괄). 범위 검증은 service가 최종 판정.
+  const warmRaw = ((formData.get('warmCount') as string | null) ?? '').trim();
+  const warmCount = warmRaw === '' ? null : Number(warmRaw);
+
   if (!orgId || !name || !problemVersionId) {
     throw new Error('필수 항목을 모두 입력하세요.');
   }
 
-  await batchService.createBatch({ orgId, name, problemVersionId, capacity, scheduledAt, llmBudgetUsd });
+  await batchService.createBatch({ orgId, name, problemVersionId, capacity, scheduledAt, llmBudgetUsd, warmCount });
   revalidatePath('/admin/batches');
 }
 

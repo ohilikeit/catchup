@@ -5,6 +5,7 @@ import { Button, Tag, Icon } from '@app/ui';
 import { useToast } from '@app/core';
 import { Countdown } from '../../_components/Countdown';
 import { ComingSoon } from '../../_components/ExamChrome';
+import { WaitingForSlot } from './WaitingForSlot';
 
 // (exam) 진행 화면 런타임 — 전달방식은 hosted 단일(docs/1 §4·§5).
 // 부모(page.tsx 서버)가 status='running'만 통과시킨다.
@@ -101,14 +102,8 @@ export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"
         />
       ) : (
-        /* 슬롯 미배정: 환경 준비 중 안내. */
-        <div className="flex-1 flex items-center justify-center px-06">
-          <ComingSoon
-            icon="time"
-            title="호스팅 환경은 준비 중입니다"
-            message="브라우저 안에서 바로 풀 수 있는 호스팅 IDE를 준비하고 있습니다. 현재 회차는 담당자 안내를 따르세요."
-          />
-        </div>
+        /* 슬롯 미배정(워밍 풀 대기): 2초 폴링으로 단계 표시, 배정되면 자동 진입. */
+        <WaitingForSlot attemptId={runtime.attemptId} />
       )}
     </div>
   );

@@ -177,7 +177,7 @@ catchup-helm/
 - [x] **가상키 주입 경로**: provision이 슬롯당 `/key/generate`(예산=`llm_budget_usd`) → Secret `exam-virtual-keys` → pod 기동 래퍼가 ordinal 키 export. ⚠️ 계획의 pod self-register/heartbeat 방식(§3 경우 B) 대신 **provision 일괄 발급**으로 구현(동시 버스트 A에 충분; B 재활용 시 재검토)
 - [🟡] **자동 회차 트리거(0↔50) = cold path**: 대시보드 "시험 환경 열기" → [`examOpsService.provisionBatch`](../apps/web/lib/services/examOpsService.ts) → **로컬: k8s API 직접**(ConfigMap·Secret·scale 0→N·슬롯 라우팅·register, PVC wipe 포함). close = N→0+회수. ⬜ alpha부터는 같은 서비스의 k8s 호출부를 `catchup-helm/batches/current.yaml` 커밋(bitbucket API)으로 교체(§5.4). **풀 용량 사건만**(학생 배정 아님)
 - [x] **슬롯 할당 = hot path**: [시험 시작] → DB 트랜잭션(`UPDATE … FOR UPDATE SKIP LOCKED`)으로 ready 슬롯 원자 점유 → 슬롯별 IDE 경로. **git/ArgoCD/Helm 무관** — 5명 동시 클릭 동시성 안전 (docs/2 §6). 가상키는 슬롯에 선부착(provision)이라 배정 시 추가 동작 없음
-- [ ] **워밍 풀 통합 모델(A=B 단일 엔진) — 라이브 입장** (2026-06-10 설계 확정, docs/2 §5~§7·0007의 "A는 B의 특수 케이스" 원칙을 구현 계획으로 구체화):
+- [x] **워밍 풀 통합 모델(A=B 단일 엔진) — 라이브 입장** ✅ **구현·k3d e2e 검증(2026-06-10)**: warm_count=1 provision(풀 5 선준비·pod 1 기동) → 학생 시작 → 대기열 1번째 → 2초 폴링 후 자동 배정(slot 0) → reconcile이 버퍼 보충(replicas 1→2 실측). (설계 확정, docs/2 §5~§7·0007의 "A는 B의 특수 케이스" 원칙을 구현 계획으로 구체화):
   - **파라미터 1개로 통합**: `batches.warm_count`(0013 예정) = 미리 띄울 pod 수(고정값; "20%"는 관리자가 capacity×0.2를 입력). NULL=capacity ⇒ 지금의 일괄(A). 작게 주면 라이브 입장(B). **모드 분기 코드 없음 — 전부 데이터**.
   - **provision 변경(선준비 최대화)**: 가상키 capacity개 선발급·Secret/슬롯별 Service·Ingress/슬롯 row는 **capacity만큼 전부 선생성**(키는 슬롯 번호에 붙으므로 가능), **replicas만 warm_count로 시작**. cold 성장 = `scale +Δ` 한 줄(이미 있는 인프라 전부 재사용).
   - **슬롯 ready 전이 주체 = web 컨트롤러**(k8s pod Ready 폴링 → down/warming→ready). ⚠️ pod self-register는 배제 — 학생 pod은 적대적 클라이언트라 INTERNAL_API_SECRET을 줄 수 없다(대원칙 ⑤).

@@ -119,22 +119,60 @@ export async function markSubmittingTx(client: PoolClient, attemptId: string): P
  */
 export async function registerSlotTx(
   client: PoolClient,
-  input: { batchId: string; slotNo: number; endpoint: string; virtualKey?: string | null },
+  input: {
+    batchId: string;
+    slotNo: number;
+    endpoint: string;
+    virtualKey?: string | null;
+    /** 초기 상태(기본 ready). 워밍 풀 provision은 'down'으로 등록 — pod Ready 확인 후 reconcile이 ready 전이. */
+    state?: 'ready' | 'warming' | 'down';
+  },
 ): Promise<void> {
   await client.query(
     `INSERT INTO hosted.slots (batch_id, slot_no, state, endpoint, last_heartbeat_at, virtual_key)
-     VALUES ($1, $2, 'ready', $3, NOW(), $4)
+     VALUES ($1, $2, $5, $3, NOW(), $4)
      ON CONFLICT (batch_id, slot_no)
      DO UPDATE SET endpoint          = EXCLUDED.endpoint,
                    last_heartbeat_at = NOW(),
                    virtual_key       = COALESCE(EXCLUDED.virtual_key, hosted.slots.virtual_key),
                    state             = CASE
                      WHEN hosted.slots.state IN ('down','warming','ready')
-                     THEN 'ready'
+                     THEN EXCLUDED.state
                      ELSE hosted.slots.state
                    END`,
-    [input.batchId, input.slotNo, input.endpoint, input.virtualKey ?? null],
+    [input.batchId, input.slotNo, input.endpoint, input.virtualKey ?? null, input.state ?? 'ready'],
   );
+}
+
+/**
+ * pod 실상태 ↔ 슬롯 상태 동기화(reconcile ①). readySlotNos = 지금 k8s에서 Ready인 pod의 ordinal.
+ * 미배정 슬롯만 만진다 — assigned/submitting/recycling은 학생/패키징 소유라 보존.
+ */
+export async function syncReadySlots(batchId: string, readySlotNos: number[]): Promise<void> {
+  await getPool().query(
+    `UPDATE hosted.slots SET state='ready', last_heartbeat_at=NOW()
+      WHERE batch_id=$1 AND slot_no = ANY($2::int[]) AND state IN ('down','warming')`,
+    [batchId, readySlotNos],
+  );
+  // pod이 죽었거나 아직 안 뜬 슬롯이 ready로 남아 있으면 회수(미배정만) — 죽은 pod 배정 방지.
+  await getPool().query(
+    `UPDATE hosted.slots SET state='down'
+      WHERE batch_id=$1 AND NOT (slot_no = ANY($2::int[])) AND state='ready'`,
+    [batchId, readySlotNos],
+  );
+}
+
+/** 풀 사용량 집계(reconcile ③ 스케일 산정용). */
+export async function countPoolUsage(
+  batchId: string,
+): Promise<{ used: number; ready: number }> {
+  const row = await queryOne<{ used: string; ready: string }>(
+    `SELECT COUNT(*) FILTER (WHERE state IN ('assigned','submitting','recycling')) AS used,
+            COUNT(*) FILTER (WHERE state = 'ready')                                 AS ready
+       FROM hosted.slots WHERE batch_id=$1`,
+    [batchId],
+  );
+  return { used: Number(row?.used ?? 0), ready: Number(row?.ready ?? 0) };
 }
 
 /**

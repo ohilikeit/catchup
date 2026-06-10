@@ -247,6 +247,12 @@ function CreateBatchModal({
         <Field label="정원">
           <Input name="capacity" type="number" placeholder="50" min="1" max="500" />
         </Field>
+        <Field
+          label="워밍 pod 수 (선택)"
+          helper="시험 환경을 열 때 미리 띄워둘 환경 수. 비우면 정원 전체(일괄 기동). 작게 주면 초과 입장자는 대기열 → 자동 입장(라이브)."
+        >
+          <Input name="warmCount" type="number" min="0" max="500" placeholder="예: 1 (정원의 20%)" />
+        </Field>
         <Field label="예정 일시 (선택)" helper="회차 시작 예정 시각. 비우면 미정으로 둡니다.">
           <Input name="scheduledAt" type="datetime-local" />
         </Field>

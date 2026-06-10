@@ -54,7 +54,16 @@ export async function createBatch(input: {
   capacity?: number;
   scheduledAt?: Date | null;
   llmBudgetUsd?: number | null;
+  /** 워밍 풀: 미리 띄울 pod 수. NULL=정원 전체(일괄). docs/6 Phase 3. */
+  warmCount?: number | null;
 }) {
+  // 서버 검증(클라 입력은 적대적): 0 ≤ warm ≤ capacity 정수.
+  if (input.warmCount != null) {
+    const cap = input.capacity ?? 50;
+    if (!Number.isInteger(input.warmCount) || input.warmCount < 0 || input.warmCount > cap) {
+      throw new Error(`워밍 pod 수는 0~정원(${cap}) 사이의 정수여야 합니다.`);
+    }
+  }
   const batch = await batchesRepo.create(input);
   await invalidateBatchLists();
   return batch;
