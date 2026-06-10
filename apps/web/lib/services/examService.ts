@@ -126,7 +126,9 @@ export async function triggerPackaging(attemptId: string): Promise<void> {
         client,
         attemptId,
         pkg.ok ? 'packaging_started' : 'packaging_skipped',
-        pkg.ok ? { jobName: pkg.jobName, ref: pkg.ref } : { reason: pkg.reason },
+        pkg.ok
+          ? { jobName: pkg.jobName, artifactRef: pkg.artifactRef, chatRef: pkg.chatRef }
+          : { reason: pkg.reason },
       );
     });
   } catch (e: unknown) {

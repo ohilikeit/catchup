@@ -79,19 +79,19 @@ export async function upsertPackagedTx(client: PoolClient, attemptId: string): P
   return res.rows[0]!.id;
 }
 
-/** 패키징 산출물 파일 등록(같은 ref 재실행은 교체 — Job 재시도 멱등). */
-export async function addArtifactFileTx(
+/** 패키징 산출물 파일 등록(artifact=작업물 tar / chat_log=대화 JSONL tar). 같은 kind 재실행은 교체 — Job 재시도·재패키징 멱등. */
+export async function addPackagedFileTx(
   client: PoolClient,
-  input: { submissionId: string; ref: string; sha256: string; sizeBytes: number },
+  input: { submissionId: string; kind: 'artifact' | 'chat_log'; ref: string; sha256: string; sizeBytes: number },
 ): Promise<void> {
   await client.query(
-    `DELETE FROM exam.submission_files WHERE submission_id=$1 AND kind='artifact' AND ref=$2`,
-    [input.submissionId, input.ref],
+    `DELETE FROM exam.submission_files WHERE submission_id=$1 AND kind=$2`,
+    [input.submissionId, input.kind],
   );
   await client.query(
     `INSERT INTO exam.submission_files (submission_id, kind, ref, sha256, size_bytes, mime)
-     VALUES ($1, 'artifact', $2, $3, $4, 'application/gzip')`,
-    [input.submissionId, input.ref, input.sha256, input.sizeBytes],
+     VALUES ($1, $2, $3, $4, $5, 'application/gzip')`,
+    [input.submissionId, input.kind, input.ref, input.sha256, input.sizeBytes],
   );
 }
 

@@ -123,12 +123,14 @@ export function slotsIngress(ns: string, slotCount: number): Record<string, unkn
  * 패키징 Job — 제출(자가/강제) 시 그 슬롯의 PVC 를 readOnly 로 떠서 tar+sha256 → MinIO 업로드 →
  * web internal 콜백으로 DB 등록(submission_files). docs/5 §4 "서버측 패키징".
  * 단계는 initContainer 순차 실행: pack(busybox) → upload(mc) → report(main, busybox wget 콜백).
+ * ⭐ 이중 캡처: project/(작업물)→artifactRef, claude/(대화 JSONL)→chatRef(있을 때만).
+ *   ref 는 버킷 접두 포함 전체 키(`exam-artifacts/...`) — 사람이 읽는 경로는 호출부가 만든다.
  */
 export function packagingJob(
   ns: string,
-  input: { jobName: string; slotNo: number; attemptId: string; ref: string },
+  input: { jobName: string; slotNo: number; attemptId: string; artifactRef: string; chatRef: string },
 ): Record<string, unknown> {
-  const { jobName, slotNo, attemptId, ref } = input;
+  const { jobName, slotNo, attemptId, artifactRef, chatRef } = input;
   return {
     apiVersion: 'batch/v1',
     kind: 'Job',
@@ -148,12 +150,23 @@ export function packagingJob(
               command: [
                 'sh',
                 '-c',
-                // PVC(작업물)를 통째로 tar — 서버가 캡처하므로 trust=verified 의 근거(클라 업로드 아님).
+                // PVC를 서버가 직접 캡처 — trust=verified 의 근거(클라 업로드 아님).
+                // project/=작업물, claude/=대화 JSONL(있을 때만). 구버전 PVC(루트 직저장)도 호환.
                 'set -e\n' +
-                  'tar -czf /out/workspace.tgz -C /workspace .\n' +
+                  'SRC=/workspace/project\n' +
+                  '[ -d "$SRC" ] || SRC=/workspace\n' +
+                  'tar -czf /out/workspace.tgz -C "$SRC" .\n' +
                   'sha256sum /out/workspace.tgz | cut -d" " -f1 > /out/sha256\n' +
                   'wc -c < /out/workspace.tgz | tr -d " " > /out/size\n' +
-                  'echo "[pack] $(cat /out/sha256) $(cat /out/size)B"',
+                  'echo "[pack] ws $(cat /out/sha256) $(cat /out/size)B"\n' +
+                  'if [ -d /workspace/claude ] && [ -n "$(ls -A /workspace/claude 2>/dev/null)" ]; then\n' +
+                  '  tar -czf /out/chatlog.tgz -C /workspace/claude .\n' +
+                  '  sha256sum /out/chatlog.tgz | cut -d" " -f1 > /out/chat_sha256\n' +
+                  '  wc -c < /out/chatlog.tgz | tr -d " " > /out/chat_size\n' +
+                  '  echo "[pack] chat $(cat /out/chat_sha256) $(cat /out/chat_size)B"\n' +
+                  'else\n' +
+                  '  echo "[pack] 채팅 로그 없음(claude/ 비어있음)"\n' +
+                  'fi',
               ],
               volumeMounts: [
                 { name: 'workspace', mountPath: '/workspace', readOnly: true },
@@ -170,7 +183,8 @@ export function packagingJob(
                 '-c',
                 'set -e\n' +
                   'mc alias set m "http://${MINIO_ENDPOINT}:${MINIO_PORT}" "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY" >/dev/null\n' +
-                  `mc cp /out/workspace.tgz "m/exam-artifacts/${ref}"`,
+                  `mc cp /out/workspace.tgz "m/${artifactRef}"\n` +
+                  `if [ -f /out/chatlog.tgz ]; then mc cp /out/chatlog.tgz "m/${chatRef}"; fi`,
               ],
               volumeMounts: [{ name: 'out', mountPath: '/out' }],
             },
@@ -181,7 +195,8 @@ export function packagingJob(
               image: 'busybox:1.36',
               env: [
                 { name: 'ATTEMPT_ID', value: attemptId },
-                { name: 'REF', value: ref },
+                { name: 'REF', value: artifactRef },
+                { name: 'CHAT_REF', value: chatRef },
                 {
                   name: 'INTERNAL_API_SECRET',
                   valueFrom: { secretKeyRef: { name: 'app-secrets', key: 'INTERNAL_API_SECRET' } },
@@ -192,7 +207,11 @@ export function packagingJob(
                 '-c',
                 'set -e\n' +
                   'SHA=$(cat /out/sha256); SIZE=$(cat /out/size)\n' +
-                  'BODY="{\\"attemptId\\":\\"$ATTEMPT_ID\\",\\"ref\\":\\"$REF\\",\\"sha256\\":\\"$SHA\\",\\"sizeBytes\\":$SIZE}"\n' +
+                  'CHAT=null\n' +
+                  'if [ -f /out/chat_sha256 ]; then\n' +
+                  '  CHAT="{\\"ref\\":\\"$CHAT_REF\\",\\"sha256\\":\\"$(cat /out/chat_sha256)\\",\\"sizeBytes\\":$(cat /out/chat_size)}"\n' +
+                  'fi\n' +
+                  'BODY="{\\"attemptId\\":\\"$ATTEMPT_ID\\",\\"ref\\":\\"$REF\\",\\"sha256\\":\\"$SHA\\",\\"sizeBytes\\":$SIZE,\\"chat\\":$CHAT}"\n' +
                   'wget -q -O- --header "content-type: application/json" --header "x-internal-secret: $INTERNAL_API_SECRET" ' +
                   `--post-data "$BODY" "http://web.${ns}.svc.cluster.local:3000/api/internal/submissions/package"`,
               ],

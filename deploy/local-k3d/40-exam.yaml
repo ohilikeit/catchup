@@ -54,20 +54,25 @@ spec:
               mc cp "m/${SCAFFOLD_REF}" /stage/scaffold.tgz
           volumeMounts:
             - { name: stage, mountPath: /stage }
+        # ⭐ PVC 레이아웃: 루트에 project/(작업물)·claude/(대화 로그) 두 칸 — subPath로 각각 마운트.
+        # claude/ 를 PVC에 두는 이유: Claude Code 세션 JSONL(~/.claude)이 컨테이너 임시 디스크에
+        # 있으면 pod 재시작 한 번에 채팅 증빙이 소실되고, 패키징 Job 도 캡처할 수 없다(docs/5 §4).
+        # 디렉터리는 여기서 선생성 — kubelet 의 subPath 자동 생성은 root 소유라 uid 1000 이 못 쓴다.
         - name: extract-scaffold
           image: busybox:1.36
           command:
             - sh
             - -c
             - |
-              if [ -n "$(ls -A /home/coder/project 2>/dev/null)" ]; then
+              mkdir -p /ws/project /ws/claude
+              if [ -n "$(ls -A /ws/project 2>/dev/null)" ]; then
                 echo "[seed] 워크스페이스 비어있지 않음 → 스킵(작업물 보존)"; exit 0
               fi
-              tar -xzf /stage/scaffold.tgz -C /home/coder/project
-              echo "[seed] 시드 완료: $(ls -A /home/coder/project | tr '\n' ' ')"
+              tar -xzf /stage/scaffold.tgz -C /ws/project
+              echo "[seed] 시드 완료: $(ls -A /ws/project | tr '\n' ' ')"
           volumeMounts:
             - { name: stage, mountPath: /stage }
-            - { name: workspace, mountPath: /home/coder/project }
+            - { name: workspace, mountPath: /ws }
       containers:
         - name: exam
           image: catchup-exam:local
@@ -112,6 +117,11 @@ spec:
           volumeMounts:
             - name: workspace
               mountPath: /home/coder/project
+              subPath: project
+            # 대화 로그(~/.claude — 세션 JSONL)도 PVC 에 영속 → 재시작 보존 + 패키징 Job 이 캡처.
+            - name: workspace
+              mountPath: /home/coder/.claude
+              subPath: claude
             - name: virtual-keys
               mountPath: /var/run/exam-keys
               readOnly: true

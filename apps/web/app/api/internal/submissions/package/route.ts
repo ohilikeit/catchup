@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   } catch {
     return fail('invalid_body', '요청 본문을 JSON으로 파싱할 수 없습니다.');
   }
-  const { attemptId, ref, sha256, sizeBytes } = (body ?? {}) as Record<string, unknown>;
+  const { attemptId, ref, sha256, sizeBytes, chat } = (body ?? {}) as Record<string, unknown>;
   if (typeof attemptId !== 'string' || attemptId.trim() === '') {
     return fail('invalid_body', 'attemptId(string)가 필요합니다.');
   }
@@ -40,6 +40,23 @@ export async function POST(req: Request) {
     return fail('invalid_body', 'sizeBytes(int >= 0)가 필요합니다.');
   }
 
+  // 채팅 로그(선택) — pod 안에 대화가 없으면 Job이 null로 보낸다.
+  let chatFile: { ref: string; sha256: string; sizeBytes: number } | null = null;
+  if (chat != null) {
+    const c = chat as Record<string, unknown>;
+    if (
+      typeof c.ref !== 'string' ||
+      c.ref.trim() === '' ||
+      typeof c.sha256 !== 'string' ||
+      !SHA256_RE.test(c.sha256) ||
+      !Number.isInteger(c.sizeBytes) ||
+      (c.sizeBytes as number) < 0
+    ) {
+      return fail('invalid_body', 'chat은 {ref, sha256(hex64), sizeBytes(int>=0)} 형식이어야 합니다.');
+    }
+    chatFile = { ref: c.ref.trim(), sha256: c.sha256, sizeBytes: c.sizeBytes as number };
+  }
+
   const result = await withTransaction(async (client) => {
     const attempt = await attemptsRepo.lockForSubmitTx(client, attemptId.trim());
     if (!attempt) return { ok: false as const, error: '응시를 찾을 수 없습니다.' };
@@ -47,17 +64,22 @@ export async function POST(req: Request) {
       return { ok: false as const, error: `제출 상태가 아닌 응시(${attempt.status})는 패키징을 등록할 수 없습니다.` };
     }
     const submissionId = await submissionsRepo.upsertPackagedTx(client, attempt.id);
-    await submissionsRepo.addArtifactFileTx(client, {
+    await submissionsRepo.addPackagedFileTx(client, {
       submissionId,
+      kind: 'artifact',
       ref: ref.trim(),
       sha256,
       sizeBytes: sizeBytes as number,
     });
+    if (chatFile) {
+      await submissionsRepo.addPackagedFileTx(client, { submissionId, kind: 'chat_log', ...chatFile });
+    }
     await slotsRepo.markRecyclingTx(client, attempt.id);
     await attemptsRepo.addEventTx(client, attempt.id, 'artifact_packaged', {
       ref: ref.trim(),
       sha256,
       sizeBytes,
+      chat: chatFile,
     });
     return { ok: true as const, submissionId };
   });

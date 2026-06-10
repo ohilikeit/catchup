@@ -1,5 +1,6 @@
 import 'server-only';
-import { batchesRepo, problemsRepo, slotsRepo, withTransaction } from '../db';
+import { attemptsRepo, batchesRepo, problemsRepo, slotsRepo, withTransaction } from '../db';
+import { BUCKETS } from '../storage';
 import { generateVirtualKey, deleteVirtualKeys } from '../litellm/keys';
 import {
   inCluster,
@@ -182,12 +183,28 @@ export async function closeBatch(batchId: string): Promise<CloseResult> {
 }
 
 export type PackageResult =
-  | { ok: true; jobName: string; ref: string }
+  | { ok: true; jobName: string; artifactRef: string; chatRef: string }
   | { ok: false; reason: string };
 
 /**
+ * MinIO 객체 키용 슬러그 — 사람이 읽는 경로(한글 보존). 경로구분·공백 → '-',
+ * S3 키에서 문제되는 문자만 제거, 길이 상한. uuid 나열 대신 회차/학생이 보이게(운영 가독성).
+ */
+function keySlug(s: string, max = 60): string {
+  const cleaned = s
+    .normalize('NFC')
+    .replace(/[\u0000-\u001f"'<>#%{}|^~[\]`\\?*&=+;:,@$()!]/g, '')
+    .replace(/[/\s]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^[-.]+|[-.]+$/g, '');
+  return (cleaned || 'unknown').slice(0, max);
+}
+
+/**
  * 제출물 패키징 Job 생성(제출/강제제출 직후). fail-soft — 호출부는 실패해도 제출 자체를 막지 않는다.
- * Job: PVC(readOnly) tar+sha256 → MinIO(exam-artifacts/{attemptId}/workspace.tgz) → internal 콜백이 DB 등록.
+ * Job: PVC(readOnly)에서 project/(작업물)·claude/(대화 JSONL)를 각각 tar+sha256 → MinIO →
+ * internal 콜백이 submission_files(artifact·chat_log) 등록.
+ * 키 구조(사람이 읽는 경로): {버킷}/{회차명}/{학생명_이메일로컬-attempt8}/workspace.tgz|chatlog.tgz
  */
 export async function packageAttempt(attemptId: string): Promise<PackageResult> {
   if (!inCluster()) return { ok: false, reason: 'k8s 밖 실행(로컬 dev) — 패키징 Job 생략' };
@@ -196,13 +213,27 @@ export async function packageAttempt(attemptId: string): Promise<PackageResult> 
   const slot = await slotsRepo.findActiveSlotByAttempt(attemptId);
   if (!slot) return { ok: false, reason: '배정된 슬롯이 없는 응시 — 패키징할 작업물 없음' };
 
-  const ref = `${attemptId}/workspace.tgz`;
+  // 사람이 읽는 키: 회차명/학생명_이메일 — uuid 는 충돌 방지용 8자만 꼬리에.
+  const detail = await attemptsRepo.findDetailById(attemptId);
+  const batchSlug = keySlug(detail?.batchName ?? 'batch');
+  const emailLocal = detail?.examineeEmail?.split('@')[0] ?? '';
+  const studentSlug = keySlug(
+    [detail?.examineeName, emailLocal].filter(Boolean).join('_') || 'student',
+  );
+  const dir = `${batchSlug}/${studentSlug}-${attemptId.slice(0, 8)}`;
+  const artifactRef = `${BUCKETS.artifacts}/${dir}/workspace.tgz`;
+  const chatRef = `${BUCKETS.chatlogs}/${dir}/chatlog.tgz`;
+
   const jobName = `pkg-${slot.slotNo}-${attemptId.slice(0, 8)}-${Date.now().toString(36)}`;
-  const res = await k8sRequest('POST', paths.jobs(ns), packagingJob(ns, { jobName, slotNo: slot.slotNo, attemptId, ref }));
-  if (res.status === 409) return { ok: true, jobName, ref }; // 동일 Job 이미 존재(재시도 멱등)
+  const res = await k8sRequest(
+    'POST',
+    paths.jobs(ns),
+    packagingJob(ns, { jobName, slotNo: slot.slotNo, attemptId, artifactRef, chatRef }),
+  );
+  if (res.status === 409) return { ok: true, jobName, artifactRef, chatRef }; // 동일 Job 존재(재시도 멱등)
   if (res.status < 200 || res.status >= 300) {
     const msg = (res.body as { message?: string } | null)?.message ?? `HTTP ${res.status}`;
     return { ok: false, reason: `패키징 Job 생성 실패: ${msg}` };
   }
-  return { ok: true, jobName, ref };
+  return { ok: true, jobName, artifactRef, chatRef };
 }
