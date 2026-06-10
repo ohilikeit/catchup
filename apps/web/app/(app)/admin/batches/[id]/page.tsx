@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { Breadcrumb, MetricGrid, MetricTile } from '@app/ui';
 import { requireGlobalRole } from '@/lib/auth/guard';
+import { usersRepo } from '@/lib/db';
 import { getBatchDetailForViewer } from '@/lib/services/batchService';
 import { PageHead, BatchStatusTag } from '../../../_components/ui';
 import { AdminBatchRosterClient } from './AdminBatchRosterClient';
@@ -16,6 +17,8 @@ export default async function AdminBatchDetailPage({
   if (!data) notFound();
 
   const { detail, roster, canOperate } = data;
+  // 학생 추가 모달의 "기존 사용자에서 선택" 후보(아이디·비번 그대로 — 이 회차 응시만 추가).
+  const candidates = canOperate ? await usersRepo.listExamineeCandidates() : [];
 
   const crumbs = [
     { label: '회차 운영', href: '/admin/batches' },
@@ -72,6 +75,7 @@ export default async function AdminBatchDetailPage({
       <AdminBatchRosterClient
         batchId={detail.id}
         roster={roster}
+        candidates={candidates}
         canOperate={canOperate}
       />
     </>

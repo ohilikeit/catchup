@@ -3,6 +3,7 @@ import { useState, useTransition } from 'react';
 import { DataTable, Button, Modal, Field, Input, type Column } from '@app/ui';
 import { useToast } from '@app/core';
 import type { RosterItem } from '@/lib/db/repositories/attempts';
+import type { ExamineeCandidate } from '@/lib/db/repositories/users';
 import { AttemptStatusTag, SubmissionStatusTag } from '../../../_components/ui';
 import { extendDeadlineAction, voidAttemptAction, forceSubmitAction, addStudentAction } from './actions';
 
@@ -22,10 +23,13 @@ type RowAction =
 export function AdminBatchRosterClient({
   batchId,
   roster,
+  candidates,
   canOperate,
 }: {
   batchId: string;
   roster: RosterItem[];
+  /** "기존 사용자에서 선택" 후보(전체 사용자 + 회차 이력). 선택 시 계정·비번 유지, 이 회차 응시만 추가. */
+  candidates: ExamineeCandidate[];
   canOperate: boolean;
 }) {
   const { toast } = useToast();
@@ -187,7 +191,13 @@ export function AdminBatchRosterClient({
       />
 
       {showAdd && (
-        <AddStudentModal pending={pending} onClose={() => setShowAdd(false)} onSubmit={handleAddStudent} />
+        <AddStudentModal
+          pending={pending}
+          candidates={candidates}
+          rosterEmails={new Set(roster.map((r) => r.examineeEmail).filter((e): e is string => !!e))}
+          onClose={() => setShowAdd(false)}
+          onSubmit={handleAddStudent}
+        />
       )}
 
       {issued && <IssuedModal cred={issued} onClose={() => setIssued(null)} />}
@@ -355,16 +365,39 @@ function TempPasswordCell({ value }: { value: string | null }) {
 /* ── 학생 1명 추가 모달 ─────────────────────────────────────────────────────── */
 function AddStudentModal({
   pending,
+  candidates,
+  rosterEmails,
   onClose,
   onSubmit,
 }: {
   pending: boolean;
+  candidates: ExamineeCandidate[];
+  /** 이미 이 회차 로스터에 있는 이메일(중복 추가 방지 표시). */
+  rosterEmails: Set<string>;
   onClose: () => void;
   onSubmit: (input: { name: string; email: string; externalId: string }) => void;
 }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [externalId, setExternalId] = useState('');
+  const [query, setQuery] = useState('');
+
+  // 기존 사용자 검색(이름/이메일 부분일치, 상위 8명). 선택하면 아래 입력칸이 채워진다.
+  const q = query.trim().toLowerCase();
+  const matches =
+    q.length === 0
+      ? []
+      : candidates
+          .filter((c) => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q))
+          .slice(0, 8);
+
+  function pick(c: ExamineeCandidate) {
+    setName(c.name);
+    setEmail(c.email);
+    setExternalId(c.externalId ?? '');
+    setQuery('');
+  }
+
   return (
     <Modal
       title="학생 추가"
@@ -375,9 +408,46 @@ function AddStudentModal({
     >
       <p className="cds-body-01 text-text-secondary mb-05">
         이 회차에 학생 1명을 등록합니다. 신규 계정이면 <b>임시 비밀번호</b>가 발급됩니다(아이디=이메일).
-        기존 계정이면 이 회차 응시만 추가됩니다(비밀번호 유지).
+        기존 계정이면 이 회차 응시만 추가됩니다(아이디·비밀번호 그대로 — 다회차 누적).
       </p>
       <div className="flex flex-col gap-04">
+        <Field label="기존 사용자에서 선택" helper="이름 또는 이메일로 검색해 선택하면 아래 칸이 채워집니다.">
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="검색: 이름 또는 이메일" />
+        </Field>
+        {q.length > 0 && (
+          <ul className="border border-border-subtle-01 bg-layer-01 max-h-[220px] overflow-auto -mt-03">
+            {matches.map((c) => {
+              const already = rosterEmails.has(c.email);
+              return (
+                <li key={c.id} className="border-b border-border-subtle-01 last:border-b-0">
+                  <button
+                    type="button"
+                    disabled={already}
+                    onClick={() => pick(c)}
+                    className="w-full text-left px-04 py-03 flex items-center justify-between gap-04 hover:bg-layer-hover-01 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="min-w-0 truncate">
+                      <span className="cds-body-compact-01 text-text-primary">{c.name}</span>
+                      <span className="cds-helper-01 text-text-secondary ml-03">{c.email}</span>
+                    </span>
+                    <span className="shrink-0 cds-helper-01 text-text-secondary">
+                      {already
+                        ? '이미 이 회차에 등록됨'
+                        : c.batchNames.length > 0
+                          ? c.batchNames.join(' · ')
+                          : '응시 이력 없음'}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+            {matches.length === 0 && (
+              <li className="px-04 py-03 cds-helper-01 text-text-secondary">
+                일치하는 사용자가 없습니다 — 아래에 직접 입력하면 신규 계정이 생성됩니다.
+              </li>
+            )}
+          </ul>
+        )}
         <Field label="이름">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="홍길동" />
         </Field>

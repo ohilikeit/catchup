@@ -259,3 +259,45 @@ export async function addOrgAdminMembershipTx(
     [input.orgId, input.userId],
   );
 }
+
+/* ── 회차 학생 추가용 후보 목록(admin) ────────────────────────────────────── */
+
+export interface ExamineeCandidate {
+  id: string;
+  name: string;
+  email: string;
+  externalId: string | null;
+  /** 이미 응시(attempt)가 있는 회차 이름들(개설순) — "1회차 · 2회차" 표시용. */
+  batchNames: string[];
+}
+
+/**
+ * 회차 "학생 추가" 모달의 기존 사용자 선택 후보 — 이메일 있는 활성 사용자 전체(admin 스코프).
+ * 회차 이력을 같이 내려 다회차 누적(같은 계정·비번 유지) 여부를 한눈에 보이게 한다.
+ */
+export async function listExamineeCandidates(): Promise<ExamineeCandidate[]> {
+  const rows = await query<{
+    id: string;
+    full_name: string;
+    email: string;
+    external_id: string | null;
+    batch_names: string[];
+  }>(
+    `SELECT u.id, u.full_name, u.email, u.external_id,
+            COALESCE(array_agg(DISTINCT b.name) FILTER (WHERE b.id IS NOT NULL), '{}') AS batch_names
+       FROM auth.users u
+       LEFT JOIN exam.attempts a ON a.examinee_id = u.id
+       LEFT JOIN exam.batches  b ON b.id = a.batch_id
+      WHERE u.email IS NOT NULL AND u.is_active
+      GROUP BY u.id
+      ORDER BY u.full_name
+      LIMIT 500`,
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.full_name,
+    email: r.email,
+    externalId: r.external_id,
+    batchNames: r.batch_names,
+  }));
+}
