@@ -42,3 +42,6 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true
+      # ⭐ ignoreDifferences(exam replicas)를 "sync 적용 시"에도 존중 — 이게 없으면 diff 에선
+      # 무시해도 sync 가 sts 를 apply 하는 순간 git 의 replicas:0 이 덮어써서 회차가 꺼진다(실측).
+      - RespectIgnoreDifferences=true
