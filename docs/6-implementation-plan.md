@@ -9,6 +9,16 @@
 **S1(로컬 Docker)에서 핵심 루프는 검증 완료. 이제 ① 플랫폼 코어(DB·MinIO·앱 셸·대시보드) → ② S2 k8s 편입 →
 ③ exam-ops 자동화 → ④ 50 동시 리허설 순으로 쌓는다. 전달방식은 hosted 단일(BYOD는 폐기).**
 
+> 🟢 **갱신 (2026-06-10)** — **Phase 3 로컬판(exam-ops 자동화) 핵심 구현**:
+> ① **슬롯별 라우팅/격리**: provision이 `/exam-ide/{slotNo}` Ingress(exam-ide-slots) + pod 고정 Service(exam-slot-N, `statefulset.kubernetes.io/pod-name`)를 동적 생성, [exam-authz](../apps/web/app/api/internal/exam-authz/route.ts)가 **경로의 슬롯 번호 == 그 유저의 배정 슬롯**(X-Forwarded-Uri) 대조 — 학생 A→B pod 차단(구판 app=exam 라운드로빈 `exam-direct` 폐기).
+> ② **가상키 주입**: provision이 슬롯당 `/key/generate`(max_budget=`batches.llm_budget_usd`·duration 24h) → Secret `exam-virtual-keys` → pod 기동 래퍼가 자기 ordinal 키만 `ANTHROPIC_AUTH_TOKEN` export([`0012`](../db/migrations/0012_slot_virtual_key.sql) slots.virtual_key 보관 → close 시 revoke).
+> ③ **회차 트리거 web 이관**: 대시보드 "시험 환경 열기/회차 종료" 버튼 = [`examOpsService`](../apps/web/lib/services/examOpsService.ts)가 **k8s API 직접 호출**(web ServiceAccount RBAC, [`lib/k8s`](../apps/web/lib/k8s/client.ts)). provision = 가드(진행 중 슬롯 거부)→가상키→**PVC wipe**(작업물 누수 0)→ConfigMap/Secret→0→N→슬롯 라우팅→슬롯 register. GitOps 커밋 방식(§5.4)은 alpha부터 — k8s 호출부만 교체.
+> ④ **제출물 회수**: 제출/강제제출 → **패키징 Job**(PVC readOnly tar+sha256 → MinIO `exam-artifacts/{attemptId}/workspace.tgz` → internal 콜백이 submissions(accepted·trust=verified)+submission_files 등록, 슬롯 submitting→recycling). fail-soft — 패키징 실패가 제출을 막지 않음.
+> ⑤ **close 슬롯 상태머신**: close 시 슬롯 전부 down + 가상키 revoke + 슬롯별 라우팅 제거. ⑥ **ConfigMap 처리**: 회차 문제(SCAFFOLD_REF)를 provision이 DB에서 해석해 갱신. `exam-ops.sh`는 internal route(`/api/internal/exam-ops/*`) 얇은 래퍼로 전환.
+> 잔여(로컬): **재접속 복귀**(1c)·**spend 관제**(1d)·**마감 자동 스윕**(deadline 만료 일괄 회수)·비동기 창(B) 재활용·운영모드 플래그. ⚠️ 단일 StatefulSet+단일 ConfigMap 구조라 **동시 활성 회차 1개**(provision 가드가 강제).
+> ✅ **k3d 실검증 완료(2026-06-10)**: provision(가상키 2개 발급→pod별 `ANTHROPIC_AUTH_TOKEN` 주입 일치 확인→시드→슬롯별 Service/Ingress→슬롯 ready) → 비로그인 `/exam-ide/0/` 401 → 패키징 Job(tar+sha256→MinIO→콜백→submissions accepted·verified+artifact 행+`artifact_packaged` 이벤트+슬롯 recycling) → close(키 2개 revoke·라우팅/Secret 삭제·replicas 0·슬롯 down) 전 사슬 동작.
+> ⚠️ **ArgoCD 자동 sync(selfHeal) 일시 해제 상태** — 로컬 manifest 변경(30-web RBAC·40-exam 래퍼·55 미들웨어)이 exp 미푸시라 selfHeal이 되돌리는 문제로 검증 중 해제함. **exp push 후 복원**: `kubectl -n argocd patch application catchup-local --type merge -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'`
+>
 > 🟢 **갱신 (2026-06-09)** — **로컬 k3d 전 루프 e2e 검증 완료**. `./setup.sh` 한 번으로 k3s(k3d)+ArgoCD+MinIO+DB+LiteLLM+web 기동(단일 `.env.secret`),
 > 4개 ingress(`catchup`/`litellm`/`minio`/`argocd`.localhost). **hosted 시험 루프 실증**: 문제 업로드(`/api/internal/problems/upload`→MinIO, DB는 ref) →
 > exam pod seeder가 MinIO에서 scaffold pull(initContainer mc+tar) → exam-ops가 슬롯 register → 학생 로그인→시작→**슬롯 원자배정(SKIP LOCKED)**→
@@ -40,8 +50,8 @@
 | **litellm DB 흡수** | 가상키·spend 저장 (S1 별도 `litellm-db` → 메인 postgres) | 🟡 로컬 완결(메인 postgres 내 `litellm` 전용 DB·게이트웨이 compose profile) / prod 시크릿 배선은 Phase 2b | 3 §0·§7 |
 | **MinIO 버킷** | scaffold/hidden/artifacts/chatlogs | ✅ lib/storage·compose·setup.sh 부트스트랩 (전부 private) | 5 §2 |
 | **문제 업로드** | scaffold/hidden → MinIO + problem_versions | ✅ admin 폼·problemService(서버 sha256) | 5 §2 |
-| **제출 파이프라인** | 서버측 패키징 Job(hosted) + 마감 자동 회수 | ⬜ 패키징 Job 미구현 (MinIO·lib/storage는 준비됨) | 5 §4·§7 |
-| **exam-ops** | 가상키 발급·0↔50 스케일·마감 스윕 | ⬜ 구현 | 2 §6, 3 §5 |
+| **제출 파이프라인** | 서버측 패키징 Job(hosted) + 마감 자동 회수 | 🟡 패키징 Job 구현(제출/강제제출 트리거→MinIO→DB 등록) / 마감 스윕 ⬜ | 5 §4·§7 |
+| **exam-ops** | 가상키 발급·0↔50 스케일·마감 스윕 | 🟡 로컬판 구현(examOpsService: provision/close·가상키·슬롯별 라우팅·PVC wipe) / GitOps 트리거·마감 스윕 ⬜ | 2 §6, 3 §5 |
 | k8s 매니페스트 | web/litellm/exam/networkpolicy/argocd | ⬜ 작성 | 3 |
 | **catchup-helm 레포** | Helm chart + values + batch overlay (ArgoCD watch) | ⬜ 생성 | 3 §5.1 |
 | **자동 회차 트리거** | exam-ops가 catchup-helm 커밋 → ArgoCD sync | ⬜ 구현 | 3 §5.4 |
@@ -118,7 +128,7 @@ catchup-helm/
 - [x] 시험 페이지 골격: 상단바 + 서버 `deadline_at` 기준 카운트다운([`Countdown.tsx`](../apps/web/app/(exam)/_components/Countdown.tsx)) + hosted 런타임([`ExamRuntime.tsx`](../apps/web/app/(exam)/exam/[attemptId]/ExamRuntime.tsx)) + 마감 처리. 서버 라우트가 status로 intro/done 분기
 - [x] **hosted 런타임 구현·로컬 e2e + 브라우저 풀렌더 검증(2026-06-09)**: 학생 로그인→시작→**그 유저 슬롯 배정**→IDE→제출 전 사슬 동작. IDE 접근은 **ForwardAuth 인증 ingress**: `catchup.localhost/exam-ide` → traefik Middleware(forwardAuth=`/api/internal/exam-authz` 세션+running·assigned 슬롯 소유권 검사 → 그 유저만 통과 / stripPrefix) → **code-server 직결**. 같은 도메인이라 세션 쿠키 전달 + traefik→code-server 직결로 **HTML+전체 에셋(workbench.js 16.7MB)+WebSocket(101) 완전 동작**(folders·Claude Code 표시).
   - ⚠️ 채택 경위: `/exam/[id]/ide` web 역프록시(server.mjs WS·route HTTP)는 코드상 정상(pod 직접 101)이나 **k3d traefik↔Next 커스텀서버 WS 업그레이드가 502**(traefik "Peeking first byte i/o timeout") → ForwardAuth(인증 ingress→code-server 직결)로 우회. content-encoding 드롭·날짜 TZ(KST) 하이드레이션도 수정.
-  - ⚠️ 로컬 단일 pod 권한(그 유저가 진행 중 시험 보유). 운영 다중 pod per-student 격리 = 슬롯별 경로/서브도메인 라우팅(Phase 3).
+  - ~~⚠️ 로컬 단일 pod 권한(그 유저가 진행 중 시험 보유)~~ → ✅ **다중 pod per-student 격리 구현(2026-06-10)**: 슬롯별 경로(`/exam-ide/{slotNo}`) + pod 고정 Service + authz의 슬롯 번호 대조.
 - [ ] **재접속 복귀**: 재로그인 → 진행 중 attempt 조회 → 같은 슬롯 재연결(5 §5) — hosted 의존, 미구현
 
 ### 1d. 관리자 대시보드 — 레퍼런스 [2 §13, 4] — 🟡 **운영 골격 구현 / 일부 관제 대기**
@@ -126,7 +136,7 @@ catchup-helm/
 - [x] 준비: **문제 업로드(MinIO)** — admin 폼 → server action → [`problemService`](../apps/web/lib/services/problemService.ts)(서버 sha256·scaffold→exam-scaffold·hidden→exam-hidden) → `problem_versions`
 - [x] 준비: **일정·예산** — 회차 속성으로 구현(문제버전이 아님): 예정 일시(`batches.scheduled_at`, 회차 개설 폼)·1인당 LLM 예산(`batches.llm_budget_usd`, [`0010`](../db/migrations/0010_batch_llm_budget.sql)·서버검증; 가상키 `max_budget` 적용은 Phase 3 exam-ops). 상세 헤더에 표시
 - [ ] 관제: 슬롯 현황(`hosted.slots`)·학생 진행(`attempt_events`)·**spend(/key/info)** — spend는 LiteLLM 게이트웨이 연동 대기
-- [x] 액션 골격: 회차 상태전이·시간 연장(`deadline_at`)·무효·**강제 제출**(`canOperate`=admin). 강제 제출은 ready/running→submitted 상태 전이+감사 이벤트([`attemptService.forceSubmit`](../apps/web/lib/services/attemptService.ts)); ⚠️ 실제 산출물 패키징(hosted 캡처→MinIO)은 Phase 3 exam-ops 소관
+- [x] 액션 골격: 회차 상태전이·시간 연장(`deadline_at`)·무효·**강제 제출**(`canOperate`=admin). 강제 제출은 ready/running→submitted 상태 전이+감사 이벤트([`attemptService.forceSubmit`](../apps/web/lib/services/attemptService.ts)) — ✅ 2026-06-10부터 제출/강제제출 모두 패키징 Job(PVC 캡처→MinIO)을 fail-soft로 트리거
 
 **Phase 1 게이트**: 로컬에서 web 앱이 S1 exam 컨테이너를 iframe 프록시하고, 상단바 타이머·제출이 DB/MinIO에 저장되며, 대시보드로 회차를 만들 수 있다.
 > 현황: **대시보드 회차 생성·문제 업로드·MinIO 실물 저장 ✅** (로컬 완결분 완료). 게이트의 잔여 = **iframe 프록시**(로컬 불가, k8s 의존 → Phase 2) + **litellm DB 흡수**. BYOD 폐기로 *유일한 제출 경로가 hosted*라 Phase 2/3가 critical-path.
@@ -161,18 +171,18 @@ catchup-helm/
 ## Phase 3 — exam-ops 자동화 — 레퍼런스 [2 §6, 3 §3·§5, 5 §4]
 
 **의존: Phase 2.**
-> 현황: ⬜ **전무** (가상키 주입·0↔50 스케일·마감 스윕·패키징 Job 코드 없음). Phase 2 선행 필요.
+> 현황(2026-06-10): 🟡 **로컬판 핵심 구현** — 가상키 주입·회차 트리거(web→k8s API)·슬롯별 라우팅·패키징 Job·close 상태머신 동작(코드·typecheck·build 통과, k3d e2e 재검증 대기). 잔여 = GitOps 트리거(alpha)·마감 스윕·비동기 창(B).
 > 검증: 자동화 **로직은 로컬 k3d에서 소수로 확인**(회차 열기→provision→취합→scale-down) → **alpha에서 실 파이프라인**(catchup-helm 커밋→ArgoCD sync)으로 검증.
 
-- [ ] **가상키 주입 경로**: pod self-register/heartbeat → exam-ops가 `/key/generate` → pod에 가상키 attach(§3 경우 B 메커니즘)
-- [ ] **자동 회차 트리거(0↔50) = cold path**: 대시보드 "회차 열기" → exam-ops가 `catchup-helm/batches/current.yaml` 커밋(bitbucket API, 배포키) → ArgoCD auto-sync → 0→50. close 시 replicas:0 커밋 (§5.4 — 처음부터 자동, 수동 단계 생략). **풀 용량 사건만**(학생 배정 아님)
-- [ ] **슬롯 할당 = hot path**: [시험 시작] → DB 트랜잭션(`UPDATE … FOR UPDATE SKIP LOCKED`)으로 ready 슬롯 원자 점유 → 가상키 attach → iframe 프록시. **git/ArgoCD/Helm 무관** — 5명 동시 클릭 동시성 안전 (docs/2 §6)
+- [x] **가상키 주입 경로**: provision이 슬롯당 `/key/generate`(예산=`llm_budget_usd`) → Secret `exam-virtual-keys` → pod 기동 래퍼가 ordinal 키 export. ⚠️ 계획의 pod self-register/heartbeat 방식(§3 경우 B) 대신 **provision 일괄 발급**으로 구현(동시 버스트 A에 충분; B 재활용 시 재검토)
+- [🟡] **자동 회차 트리거(0↔50) = cold path**: 대시보드 "시험 환경 열기" → [`examOpsService.provisionBatch`](../apps/web/lib/services/examOpsService.ts) → **로컬: k8s API 직접**(ConfigMap·Secret·scale 0→N·슬롯 라우팅·register, PVC wipe 포함). close = N→0+회수. ⬜ alpha부터는 같은 서비스의 k8s 호출부를 `catchup-helm/batches/current.yaml` 커밋(bitbucket API)으로 교체(§5.4). **풀 용량 사건만**(학생 배정 아님)
+- [x] **슬롯 할당 = hot path**: [시험 시작] → DB 트랜잭션(`UPDATE … FOR UPDATE SKIP LOCKED`)으로 ready 슬롯 원자 점유 → 슬롯별 IDE 경로. **git/ArgoCD/Helm 무관** — 5명 동시 클릭 동시성 안전 (docs/2 §6). 가상키는 슬롯에 선부착(provision)이라 배정 시 추가 동작 없음
 - [ ] **운영 모델 플래그**: `batches`에 동시 버스트(A) / 비동기 창(B) 모드 — **B 엔진을 만들면 A는 설정으로 떨어짐**(풀=명부·공유 마감·재활용 생략). 효율 이득은 입장이 흩어질 때만 (docs/2 §5·§7)
 - [ ] **비동기 슬롯 재활용(B)**: attempt 단위 `down→warming→ready→assigned→submitting→recycling→ready` 상태머신(0004=…assigned; [`0008`](../db/migrations/0008_slot_window_states.sql)이 submitting·recycling 추가) + **재배정 전 PVC wipe+재시드**(작업물 누수 0) (docs/2 §6, docs/5 §3)
 - [ ] **B 운영 정책 확정**(구현 전): 입장 큐(순서·타임아웃·창밖 차단·admission)·idle reclaim(heartbeat 임계값)·워밍 버퍼 보충 주체·다일창 문제유출(변형 뱅크 필수)·0007 조건부 CHECK(`mode=window`시 window 필드 강제) (docs/2 §6)
-- [ ] **제출 파이프라인**: 제출 버튼/마감 → 패키징 Job(PVC readOnly→tar+sha256→MinIO, DB 등록)
+- [x] **제출 파이프라인**: 제출/강제제출 → 패키징 Job(PVC readOnly→tar+sha256→MinIO `exam-artifacts`→[internal 콜백](../apps/web/app/api/internal/submissions/package/route.ts)이 submissions·submission_files 등록, 슬롯 submitting→recycling). fail-soft(제출 자체는 트랜잭션으로 확정)
 - [ ] **마감 자동 회수**: deadline 스윕 → 미제출도 자동 패키징(누락 0)
-- [ ] **취합 순서 불변**: accepted 확정 → scale-down → PVC wipe·재시드
+- [x] **취합 순서 불변**: accepted 확정(패키징 콜백) → close(scale-down) → 다음 provision이 PVC wipe·재시드 — close는 PVC를 지우지 않아 누락분 재패키징 여지 보존
 - [ ] **장애 복구**: sync 실패/슬롯 부족 → 재배포·일정조정으로 회복(작업물은 PVC 보존, 마감은 서버 강제)
 
 **Phase 3 게이트**: 대시보드 "회차 열기" 한 번으로 프로비전→배정→캡처→취합→scale-down이 자동.
@@ -205,8 +215,9 @@ catchup-helm/
 ```
 Phase 0 (S1 ✅ 완료)
    └→ Phase 1 (DB✅ · 대시보드✅ · MinIO✅ · 문제업로드✅ · 앱셸+hosted IDE✅)   로컬 완결분 ✅
-        └→ Phase 2 (2a 로컬 k3d 검증 ✅ → 2b alpha 실 파이프라인 ⬜ 아티팩트만)  ← 현재 여기  ┐ local: 소수 검증
-             └→ Phase 3 (exam-ops 자동화 ⬜ — 자동 프로비전·패키징·재활용)        │ alpha: 실 GitOps
+        └→ Phase 2 (2a 로컬 k3d 검증 ✅ → 2b alpha 실 파이프라인 ⬜ 아티팩트만)               ┐ local: 소수 검증
+             └→ Phase 3 (exam-ops 자동화 🟡 로컬판 구현 — 트리거·가상키·슬롯라우팅·패키징 ✅ │ alpha: 실 GitOps
+                          / 마감 스윕·GitOps 트리거·재활용(B) ⬜)  ← 현재 여기                 │
                   └→ Phase 4 (50 동시 리허설 = S2 완료 ⬜)                        ┘ prod: 50 규모·실부하
 [환경] local(k3d, 2~5명 확인) → alpha(실 파이프라인·StatefulSet 0↔N) → prod(50 동시) — §0.5
 [이후] S3 동적 오케스트레이터 — 동시 batch가 50 초과로 실제 필요해질 때만(2 §5)
