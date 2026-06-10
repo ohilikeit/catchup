@@ -54,17 +54,18 @@ export async function createBatch(input: {
   capacity?: number;
   scheduledAt?: Date | null;
   llmBudgetUsd?: number | null;
-  /** 워밍 풀: 미리 띄울 pod 수. NULL=정원 전체(일괄). docs/6 Phase 3. */
+  /** 워밍 풀: 미리 띄울 pod 수. 미지정=정원의 20%(라이브 입장 기본). docs/6 Phase 3. */
   warmCount?: number | null;
 }) {
+  const cap = input.capacity ?? 50;
+  // 워밍 풀 기본 정책: warm 미지정(빈 칸)이면 정원의 20%만 미리 띄우고 나머지는 도착 시 보충(B).
+  // 명시값은 그대로 존중 — 0=전부 cold, cap=일괄(A). NULL을 "전부"로 두던 과거 기본을 뒤집는다.
+  const warmCount = input.warmCount ?? Math.max(1, Math.round(cap * 0.2));
   // 서버 검증(클라 입력은 적대적): 0 ≤ warm ≤ capacity 정수.
-  if (input.warmCount != null) {
-    const cap = input.capacity ?? 50;
-    if (!Number.isInteger(input.warmCount) || input.warmCount < 0 || input.warmCount > cap) {
-      throw new Error(`워밍 pod 수는 0~정원(${cap}) 사이의 정수여야 합니다.`);
-    }
+  if (!Number.isInteger(warmCount) || warmCount < 0 || warmCount > cap) {
+    throw new Error(`워밍 pod 수는 0~정원(${cap}) 사이의 정수여야 합니다.`);
   }
-  const batch = await batchesRepo.create(input);
+  const batch = await batchesRepo.create({ ...input, warmCount });
   await invalidateBatchLists();
   return batch;
 }
