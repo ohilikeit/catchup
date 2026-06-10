@@ -4,6 +4,7 @@ import 'server-only';
 export {
   putObject,
   getObjectBuffer,
+  removeObject,
   presignedGetUrl,
   pingStorage,
   sha256,

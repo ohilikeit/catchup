@@ -19,10 +19,17 @@ export function AdminProblemUpload() {
     const fd = new FormData(form);
     startTransition(async () => {
       try {
-        const { code, version } = await uploadProblemAction(fd);
+        const { code, version, normalize } = await uploadProblemAction(fd);
         setOpen(false);
         form.reset();
-        toast({ kind: 'success', title: '문제 버전이 업로드되었습니다.', message: `${code} v${version} 등록 완료.` });
+        const notes = [`파일 ${normalize.fileCount}개`];
+        if (normalize.flattened > 0) notes.push(`wrapping 폴더 ${normalize.flattened}겹 평탄화`);
+        if (normalize.droppedJunk > 0) notes.push(`불필요 항목 ${normalize.droppedJunk}개 제거`);
+        toast({
+          kind: 'success',
+          title: '문제 버전이 업로드되었습니다.',
+          message: `${code} v${version} 등록 — ${notes.join(' · ')}.`,
+        });
       } catch (e) {
         toast({ kind: 'error', title: '업로드 실패', message: String((e as Error).message) });
       }
@@ -57,10 +64,14 @@ export function AdminProblemUpload() {
             <Field label="문제 제목">
               <Input name="title" placeholder="예: 사용자 온보딩 플로우 설계" />
             </Field>
-            <Field label="스캐폴드 파일 (필수)" helper="학생 환경에 시드되는 공개 골격. exam-scaffold 버킷에 적재됩니다.">
+            <Field
+              label="스캐폴드 파일 (필수)"
+              helper="zip 또는 tgz(tar.gz). 서버가 정리·평탄화 후 표준 tgz로 저장합니다 — 폴더째 묶어도 됩니다."
+            >
               <input
                 type="file"
                 name="scaffold"
+                accept=".zip,.tgz,.tar.gz,application/zip,application/gzip"
                 className="block w-full cds-body-01 text-text-primary file:mr-04 file:border file:border-border-strong-01 file:bg-layer-01 file:px-04 file:py-02 file:cds-label-01 file:text-text-primary hover:file:bg-layer-02"
               />
             </Field>

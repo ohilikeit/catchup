@@ -84,6 +84,33 @@ export async function findVersionById(id: string): Promise<ProblemVersion | null
   return row ? mapVersion(row) : null;
 }
 
+/** 문제 단건(코드 PK). admin 상세 페이지용. */
+export async function findProblemByCode(code: string): Promise<Problem | null> {
+  const row = await queryOne<ProblemRow>('SELECT * FROM exam.problems WHERE code = $1', [code]);
+  return row ? mapProblem(row) : null;
+}
+
+/**
+ * 스캐폴드 교체(덮어쓰기): ref·sha256 갱신. ⚠️ 버전 불변 원칙(0003)의 예외 —
+ * 업로드 실수 교정 운영 도구로만, 호출부(problemService.overwriteScaffold)가 책임진다.
+ */
+export async function updateVersionScaffold(id: string, ref: string, sha256: string): Promise<boolean> {
+  const row = await queryOne<{ id: string }>(
+    `UPDATE exam.problem_versions SET public_scaffold_ref=$2, scaffold_sha256=$3 WHERE id=$1 RETURNING id`,
+    [id, ref, sha256],
+  );
+  return !!row;
+}
+
+/** 문제의 버전 전체(최신순). admin 상세 페이지의 버전 선택용. */
+export async function listVersionsByCode(code: string): Promise<ProblemVersion[]> {
+  const rows = await query<ProblemVersionRow>(
+    'SELECT * FROM exam.problem_versions WHERE problem_code = $1 ORDER BY version DESC',
+    [code],
+  );
+  return rows.map(mapVersion);
+}
+
 /* ── 트랜잭션(문제 업로드: upsert 문제 → 다음 버전 → 버전 INSERT) ──────── */
 
 /** 문제 upsert(코드 PK). 같은 코드면 제목/직무만 갱신. RETURNING code. */

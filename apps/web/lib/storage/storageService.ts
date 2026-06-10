@@ -38,6 +38,12 @@ export async function putObject(
   await getStorage().putObject(bucket, key, body, body.length, mime ? { 'Content-Type': mime } : undefined);
 }
 
+/** 객체 삭제(없으면 무시 — 멱등). 스캐폴드 교체 시 옛 키 정리용. */
+export async function removeObject(bucket: BucketName, key: string): Promise<void> {
+  await ensureBucket(bucket);
+  await getStorage().removeObject(bucket, key);
+}
+
 /** 서명 GET URL(기본 5분). artifacts/chatlogs는 비공개라 다운로드는 서명 URL로만. */
 export async function presignedGetUrl(bucket: BucketName, key: string, expirySeconds = 300): Promise<string> {
   return getStorage().presignedGetObject(bucket, key, expirySeconds);

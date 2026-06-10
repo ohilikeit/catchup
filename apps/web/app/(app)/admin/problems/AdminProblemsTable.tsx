@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { DataTable, Tag, type Column } from '@app/ui';
 import type { ProblemWithVersions } from '@/lib/db/repositories/problems';
 
@@ -15,7 +16,17 @@ function fmt(d: Date): string {
 export function AdminProblemsTable({ rows }: { rows: ProblemWithVersions[] }) {
   const columns: Array<Column<ProblemWithVersions>> = [
     { key: 'code', header: '코드', sortable: true },
-    { key: 'title', header: '제목', sortable: true },
+    {
+      key: 'title',
+      header: '제목',
+      sortable: true,
+      // 상세(스캐폴드 미리보기)로 진입 — 업로드 결과를 눈으로 검수하는 경로.
+      render: (r) => (
+        <Link href={`/admin/problems/${encodeURIComponent(r.code)}`} className="text-link-primary hover:underline">
+          {r.title}
+        </Link>
+      ),
+    },
     {
       key: 'roleTrack',
       header: '직무',
