@@ -1,9 +1,10 @@
 import 'server-only';
+import type { PoolClient } from 'pg';
 import { query, queryOne } from '../pool';
 
 // submissions repository — ⭐ 뼈대의 최종 산출물 = 평가 모듈의 단일 입구(docs/1 §3·§5).
 // 'accepted'만 평가 대상. trust는 서버가 어댑터 신원으로만 산출(클라 설정 불가).
-// 제출은 hosted 전달 경로(proxy 캡처)가 적재한다 — 이 repository는 읽기/목록 전용.
+// 적재 경로는 hosted 패키징(서버가 PVC 캡처 → MinIO → internal 콜백)뿐 — 학생 업로드 없음(docs/5 §4).
 
 export type SubmissionStatus = 'received' | 'validating' | 'accepted' | 'rejected';
 export type CapturedVia = 'proxy';
@@ -59,6 +60,39 @@ function mapRow(r: SubmissionRow): Submission {
 export async function findByAttempt(attemptId: string): Promise<Submission | null> {
   const row = await queryOne<SubmissionRow>('SELECT * FROM exam.submissions WHERE attempt_id = $1', [attemptId]);
   return row ? mapRow(row) : null;
+}
+
+/**
+ * 패키징 완료 적재(서버 캡처 → trust='verified'). attempt당 1행(UNIQUE) — 재패키징은 갱신.
+ * 서버(Job)가 PVC를 직접 떠서 sha256을 재산출했으므로 status='accepted'로 확정한다(대원칙 ⑤:
+ * 클라 입력이 아니라 서버 산출물). 반환: submission id.
+ */
+export async function upsertPackagedTx(client: PoolClient, attemptId: string): Promise<string> {
+  const res = await client.query<{ id: string }>(
+    `INSERT INTO exam.submissions (attempt_id, status, tool, captured_via, trust, accepted_at, submitted_at)
+     VALUES ($1, 'accepted', 'code-server', 'proxy', 'verified', NOW(), NOW())
+     ON CONFLICT (attempt_id)
+     DO UPDATE SET status='accepted', trust='verified', accepted_at=NOW(), updated_at=NOW()
+     RETURNING id`,
+    [attemptId],
+  );
+  return res.rows[0]!.id;
+}
+
+/** 패키징 산출물 파일 등록(같은 ref 재실행은 교체 — Job 재시도 멱등). */
+export async function addArtifactFileTx(
+  client: PoolClient,
+  input: { submissionId: string; ref: string; sha256: string; sizeBytes: number },
+): Promise<void> {
+  await client.query(
+    `DELETE FROM exam.submission_files WHERE submission_id=$1 AND kind='artifact' AND ref=$2`,
+    [input.submissionId, input.ref],
+  );
+  await client.query(
+    `INSERT INTO exam.submission_files (submission_id, kind, ref, sha256, size_bytes, mime)
+     VALUES ($1, 'artifact', $2, $3, $4, 'application/gzip')`,
+    [input.submissionId, input.ref, input.sha256, input.sizeBytes],
+  );
 }
 
 /** 제출 상세(응시·회차·대학·응시자 조인). admin 제출 검증 상세. */

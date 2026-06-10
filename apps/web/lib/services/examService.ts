@@ -2,6 +2,7 @@ import 'server-only';
 import { attemptsRepo, slotsRepo, withTransaction } from '../db';
 import type { AttemptRuntime } from '../db/repositories/attempts';
 import type { SlotState } from '../db/repositories/slots';
+import { packageAttempt } from './examOpsService';
 
 // examService — 시험 런타임 비즈니스 로직(소유권·시작·마감). docs/1 §4.
 // ⭐ 시각은 서버가 결정한다(클라 입력은 적대적, 대원칙 ⑤): deadline_at은 start 시점에 서버가 박는다.
@@ -89,11 +90,11 @@ export interface SubmitResult {
 
 /**
  * 학생 자가 제출: running → submitted. 소유권·상태를 트랜잭션 안에서 재검사(클라 신뢰 금지).
- * 슬롯은 submitting으로 전이(Phase 3 패키징 Job 토대).
- * ⚠️ 상태 전이만 — 실제 산출물 패키징(hosted 캡처→MinIO)은 Phase 3 exam-ops 소관(docs/6 Phase 3).
+ * 슬롯은 submitting으로 전이 후, 커밋 뒤 패키징 Job(PVC 캡처→MinIO)을 fail-soft로 생성한다.
+ * 패키징 실패가 제출 자체를 막지 않는다 — 작업물은 PVC에 보존되므로 재패키징으로 회수 가능(docs/5 §4).
  */
 export async function submitExam(attemptId: string, examineeId: string): Promise<SubmitResult> {
-  return withTransaction(async (client) => {
+  const result = await withTransaction<SubmitResult>(async (client) => {
     const attempt = await attemptsRepo.lockForSubmitTx(client, attemptId);
     if (!attempt) return { ok: false, error: '응시를 찾을 수 없습니다.' };
     if (attempt.examineeId !== examineeId) return { ok: false, error: '권한이 없습니다.' };
@@ -105,4 +106,28 @@ export async function submitExam(attemptId: string, examineeId: string): Promise
     await attemptsRepo.addEventTx(client, attemptId, 'submitted', { by: 'examinee' });
     return { ok: true };
   });
+
+  if (result.ok) await triggerPackaging(attemptId);
+  return result;
+}
+
+/**
+ * 제출 확정 후 패키징 Job 생성(fail-soft) + 감사 이벤트. 커밋 밖에서 호출해야 한다 —
+ * Job 콜백(/api/internal/submissions/package)이 submitted 상태를 읽을 수 있어야 하므로.
+ */
+export async function triggerPackaging(attemptId: string): Promise<void> {
+  try {
+    const pkg = await packageAttempt(attemptId);
+    await withTransaction(async (client) => {
+      await attemptsRepo.addEventTx(
+        client,
+        attemptId,
+        pkg.ok ? 'packaging_started' : 'packaging_skipped',
+        pkg.ok ? { jobName: pkg.jobName, ref: pkg.ref } : { reason: pkg.reason },
+      );
+    });
+  } catch (e: unknown) {
+    // 패키징은 제출을 막지 않는다. 로그만 남기고 통과 — 운영자가 재패키징으로 회수.
+    console.error(`[exam] 패키징 트리거 실패 attempt=${attemptId}:`, e instanceof Error ? e.message : e);
+  }
 }
