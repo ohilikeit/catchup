@@ -16,15 +16,16 @@ export interface ExamRuntimeData {
   batchName: string;
   publicScaffoldRef: string;
   scaffoldSha256: string;
-  /** 배정된 슬롯의 프록시 endpoint. null이면 슬롯 미배정(환경 준비 중 표시). */
-  slotEndpoint: string | null;
+  /** 배정된 슬롯 번호. null이면 슬롯 미배정(환경 준비 중 표시). IDE 경로(/exam-ide/{N})의 근거. */
+  slotNo: number | null;
 }
 
 /* ── hosted: 웹 IDE — code-server 풀사이즈 iframe + 새 창 열기 (인증 프록시 경유) ── */
 export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
-  // IDE 경로 — 같은 도메인 /exam-ide 를 traefik 이 ForwardAuth(세션+슬롯 소유권) 통과 시 code-server 에 직결.
-  // 같은 오리진이라 세션 쿠키 전달 + traefik→code-server 직결로 WS·에셋 완전 동작. 새 창/풀사이즈 동일 경로.
-  const IDE_URL = `/exam-ide/?folder=/home/coder/project`;
+  // IDE 경로 — 같은 도메인 /exam-ide/{슬롯번호} 를 traefik 이 ForwardAuth(세션+그 슬롯 소유권) 통과 시
+  // "그 슬롯의 pod"에만 직결(슬롯별 Service). 같은 오리진이라 세션 쿠키 전달 + WS·에셋 완전 동작.
+  // 슬롯 번호는 표시용일 뿐 권한이 아니다 — 서버(exam-authz)가 배정 슬롯과 대조해 재판단한다(대원칙 ⑤).
+  const IDE_URL = `/exam-ide/${runtime.slotNo}/?folder=/home/coder/project`;
   const router = useRouter();
   const [expired, setExpired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -64,7 +65,7 @@ export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
             <span className="text-icon-secondary"><Icon name="data" size={16} /></span>
             <span className="cds-helper-01 text-text-secondary">웹 IDE (code-server + Claude Code)</span>
           </span>
-          {!expired && runtime.slotEndpoint !== null && (
+          {!expired && runtime.slotNo !== null && (
             <Button kind="ghost" size="sm" icon="launch" onClick={() => window.open(IDE_URL, '_blank', 'noopener')}>
               새 창에서 전체화면으로 열기
             </Button>
@@ -80,7 +81,7 @@ export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
               message="더 이상 작업할 수 없습니다. 최종 제출물은 서버 기준으로 처리됩니다."
             />
           </div>
-        ) : runtime.slotEndpoint !== null ? (
+        ) : runtime.slotNo !== null ? (
           /* 슬롯 배정됨: code-server 를 풀사이즈 iframe 으로(WS·에셋 직접 동작). 새 창 버튼도 제공. */
           <iframe
             src={IDE_URL}

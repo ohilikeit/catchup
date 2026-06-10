@@ -26,7 +26,7 @@ export default async function ExamRuntimePage({ params }: { params: { attemptId:
     batchName: runtime.batchName,
     publicScaffoldRef: runtime.publicScaffoldRef,
     scaffoldSha256: runtime.scaffoldSha256,
-    slotEndpoint: slot?.endpoint ?? null,
+    slotNo: slot?.slotNo ?? null,
   };
 
   return (
