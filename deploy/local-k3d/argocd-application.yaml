@@ -15,7 +15,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/ohilikeit/catchup_platform.git
+    repoURL: https://github.com/ohilikeit/catchup.git
     targetRevision: exp
     path: deploy/local-k3d
     directory:

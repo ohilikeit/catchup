@@ -12,7 +12,7 @@ AI와 일한 **과정**과 실제 만들어낸 **결과물**을 함께 평가합
 ## 구조
 
 ```
-catchup_platform/
+catchup/
 ├── apps/
 │   └── web/              @app/web   Next.js App Router — 유일한 배포 대상 (3개 셸 + API + lib)
 ├── packages/
