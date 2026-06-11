@@ -8,9 +8,10 @@
 #   → 호스트 docker 엔 k3d 노드 컨테이너 3개만 보인다(정상).
 #
 # 사용:
-#   ./setup.sh                # 전체(도구·클러스터·이미지빌드·argocd·스택·마이그레이션·시드)
+#   ./setup.sh                # 전체(도구·클러스터·이미지빌드·argocd·스택·마이그레이션·시드·git훅)
 #   ./setup.sh --no-seed      # 데모 시드 건너뜀
 #   ./setup.sh --no-build     # 이미지 재빌드 건너뜀(이미 import 됨 — 빠른 재기동)
+#   ./setup.sh --no-hook      # exp 커밋→web 자동반영 post-commit 훅 설치 건너뜀
 set -euo pipefail
 cd "$(dirname "$0")"                 # 레포 루트
 export PATH="$HOME/.local/bin:$PATH" # up.sh 가 설치하는 kubectl/helm/k3d 경로
@@ -18,10 +19,12 @@ export PATH="$HOME/.local/bin:$PATH" # up.sh 가 설치하는 kubectl/helm/k3d �
 NS=catchup-local
 SEED=1
 BUILD_FLAG=""
+HOOK=1
 for a in "$@"; do
   case "$a" in
     --no-seed)  SEED=0 ;;
     --no-build) BUILD_FLAG="--no-build" ;;
+    --no-hook)  HOOK=0 ;;
   esac
 done
 
@@ -238,6 +241,46 @@ else
 fi
 cleanup_pf; trap - EXIT
 
+# ── 8. git post-commit 훅 (exp 커밋 → web 자동 재빌드+반영) ────────────────
+# 로컬은 "레지스트리 우회" 모델이라 git push 만으론 화면이 안 바뀐다(ArgoCD 는 매니페스트만 sync,
+# web 이미지는 catchup-web:local + imagePullPolicy: Never → 노드 containerd 에서 옴). 그래서 코드
+# 반영은 build→k3d import→rollout restart(=reload-web.sh)로 한다. 이 훅이 exp 커밋마다 그걸
+# 백그라운드로 대신 돌려준다(Bitbucket pipeline 느낌, 단 러너가 이 PC 라 Harbor 불필요).
+if (( HOOK )); then
+  step "git post-commit 훅 설치 (exp 커밋 시 web 자동 반영)"
+  HOOK_DIR="$(git rev-parse --git-path hooks 2>/dev/null || echo .git/hooks)"
+  HOOK_FILE="$HOOK_DIR/post-commit"
+  MARKER="# CATCHUP-AUTO-RELOAD"
+  if [[ -f "$HOOK_FILE" ]] && ! grep -q "$MARKER" "$HOOK_FILE" 2>/dev/null; then
+    cp "$HOOK_FILE" "$HOOK_FILE.bak.$(date +%s)" 2>/dev/null || true
+    err "기존 post-commit 훅을 .bak 으로 백업하고 교체합니다"
+  fi
+  mkdir -p "$HOOK_DIR"
+  cat > "$HOOK_FILE" <<'HOOK_EOF'
+#!/usr/bin/env bash
+# CATCHUP-AUTO-RELOAD — exp 커밋 시 web 이미지 자동 재빌드+반영 (setup.sh 가 설치).
+# git push 가 아니라 commit 직후 트리거. reload-web.sh 를 백그라운드로 돌려 커밋을 막지 않는다.
+# 끄려면: rm "$(git rev-parse --git-path hooks)/post-commit"  (또는 setup.sh --no-hook 로 재생성 방지)
+set -euo pipefail
+BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+[[ "$BRANCH" == "exp" ]] || exit 0
+ROOT="$(git rev-parse --show-toplevel)"
+# web 이미지에 영향 주는 파일을 건드린 커밋만(문서·배포 yaml 만 바뀌면 스킵 — 무의미한 재빌드 방지).
+if ! git diff-tree --no-commit-id --name-only -r HEAD \
+     | grep -qE '^(apps/|packages/|pnpm-lock\.yaml|package\.json|pnpm-workspace\.yaml)'; then
+  exit 0
+fi
+LOG="/tmp/catchup-reload-web.log"
+{ printf '\n[%s] post-commit reload (exp %s)\n' "$(date '+%F %T')" "$(git rev-parse --short HEAD)"; } >> "$LOG"
+nohup "$ROOT/deploy/local-k3d/reload-web.sh" >> "$LOG" 2>&1 &
+printf '  \033[1;34m▶ web 자동 재빌드 시작(백그라운드)\033[0m — 진행: tail -f %s\n' "$LOG"
+HOOK_EOF
+  chmod +x "$HOOK_FILE"
+  ok "post-commit 훅 설치 — exp 에 apps/·packages/ 변경 커밋 시 web 자동 reload(백그라운드, 로그: /tmp/catchup-reload-web.log)"
+else
+  ok "(--no-hook) git post-commit 훅 설치 건너뜀"
+fi
+
 # ── 완료 안내 ─────────────────────────────────────────────────────────────
 b ""
 b "✅ 셋업 완료! (k3s + ArgoCD + MinIO + DB + LiteLLM)"
@@ -262,5 +305,11 @@ cat <<EOF
     kubectl -n argocd get application catchup-local   GitOps sync 상태
     k3d cluster stop catchup / start catchup    클러스터 정지/기동
     ./setup.sh --no-build                       재기동(이미지 재빌드 없이)
+
+  web 코드 반영(로컬은 git push 가 아니라 build→import→restart):
+    git commit (exp 브랜치)                      apps/·packages/ 변경 시 자동 reload(post-commit 훅, 백그라운드)
+    tail -f /tmp/catchup-reload-web.log          그 자동 reload 진행 로그
+    ./deploy/local-k3d/reload-web.sh             수동 반영(워킹트리 그대로 — 커밋 전 변경도 OK)
+    ./setup.sh --no-hook                         위 자동 훅 설치 건너뜀
 
 EOF
