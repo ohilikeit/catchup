@@ -2,7 +2,7 @@ import 'server-only';
 import { attemptsRepo, batchesRepo, entryQueueRepo, problemsRepo, slotsRepo, withTransaction, getPool } from '../db';
 import { DEFAULT_DURATION_MIN, sweepDeadlines } from './examService';
 import { BUCKETS } from '../storage';
-import { generateVirtualKey, deleteVirtualKeys, getKeyInfo } from '../litellm/keys';
+import { generateVirtualKey, blockVirtualKeys, getKeyInfo } from '../litellm/keys';
 import type { SlotState } from '../db/repositories/slots';
 import {
   inCluster,
@@ -112,17 +112,15 @@ export async function provisionBatch(batchId: string, warmOverride?: number): Pr
     }
   }
 
-  // ── 4. 가상키 발급 (슬롯당 1키, 예산 = batches.llm_budget_usd) — 실패 가능 단계(PVC) 뒤로
-  //      미뤄 발급 키 누수를 방지. 게이트웨이 불통이면 여기서 실패(아직 아무것도 안 띄움). ──
-  const keys: string[] = [];
-  for (let i = 0; i < slots; i++) {
-    keys.push(
-      await generateVirtualKey({
-        alias: `catchup-${batchId.slice(0, 8)}-slot-${i}-${Date.now().toString(36)}`,
-        maxBudgetUsd: batch.llmBudgetUsd,
-      }),
-    );
-  }
+  // ── 4. 가상키 발급 (⭐ 회차당 1키 공유, 예산 = batches.llm_budget_usd = 회차 전체 cap) — 실패 가능
+  //      단계(PVC) 뒤로 미뤄 발급 키 누수를 방지. 게이트웨이 불통이면 여기서 실패(아직 아무것도 안 띄움).
+  //      alias=catchup-<batchId> 로 대시보드에서 회차가 한 줄로 식별·집계된다(슬롯별 개별 cap은 없음).
+  //      모든 슬롯이 같은 키를 쓰므로 keys[i] 는 동일 — Secret slot-i 파일·slots.virtual_key 에 그대로 주입. ──
+  const batchKey = await generateVirtualKey({
+    alias: `catchup-${batchId.slice(0, 8)}-${Date.now().toString(36)}`,
+    maxBudgetUsd: batch.llmBudgetUsd,
+  });
+  const keys: string[] = new Array(slots).fill(batchKey);
 
   // ── 5. 회차 문제 ConfigMap + 가상키 Secret (seeder·기동 래퍼가 읽음) → ⭐ replicas는 warm만 ──
   await applyObject(
@@ -193,9 +191,9 @@ export async function closeBatch(batchId: string): Promise<CloseResult> {
     warnings.push(`마감 자동 회수 일부 실패(close는 계속): ${e instanceof Error ? e.message : e}`);
   }
 
-  // 가상키 목록은 down(virtual_key=NULL) 전에 확보 — revoke 입력.
+  // 가상키 목록은 down(virtual_key=NULL) 전에 확보 — 차단 입력. 회차당 1키 공유라 중복 제거.
   const slots = await slotsRepo.listByBatch(batchId);
-  const keys = slots.map((s) => s.virtualKey).filter((k): k is string => !!k);
+  const keys = [...new Set(slots.map((s) => s.virtualKey).filter((k): k is string => !!k))];
 
   // 1. 풀 회수(0) + 슬롯별 라우팅 제거 — ⭐ best-effort. k8s 실패가 아래 DB 슬롯 down 을
   //    건너뛰게 두면 "closed 인데 busy 슬롯이 영구히 남아" 이후 모든 회차 provision 이 막힌다
@@ -213,9 +211,10 @@ export async function closeBatch(batchId: string): Promise<CloseResult> {
     );
   }
 
-  // 2. 가상키 revoke(게이트웨이) — best-effort. 키 자체도 duration으로 자연 만료된다.
-  const revokeError = await deleteVirtualKeys(keys);
-  if (revokeError) warnings.push(`가상키 revoke 실패(만료는 duration이 보장): ${revokeError}`);
+  // 2. 가상키 차단(게이트웨이) — ⭐ 삭제가 아니라 block. 키를 남겨 대시보드에 회차 비용을 보존하고
+  //    추가 사용만 막는다(키 자체는 duration으로 자연 만료). 회차당 1키 공유이므로 중복 제거.
+  const revokeError = await blockVirtualKeys(keys);
+  if (revokeError) warnings.push(`가상키 차단 실패(만료는 duration이 보장): ${revokeError}`);
 
   // 3. ⭐ 불변식: 슬롯 상태머신 — 이 회차 슬롯 전부 down + 키 해제 + 입장 대기열 정리.
   //    teardown 성공 여부와 무관하게 항상 실행되어야 busy 슬롯이 남지 않는다(provision 가드 해제).
@@ -390,17 +389,17 @@ export interface PoolSnapshot {
 export interface SlotOpsView {
   slotNo: number;
   state: SlotState;
-  /** 이 슬롯 가상키의 누적 사용액(USD). 키 없음/조회 실패 시 null. */
+  /** 회차당 1키 공유 모델에선 슬롯별 귀속 불가 → 항상 null(회차 합계는 totalSpendUsd). */
   spendUsd: number | null;
   /** 이 슬롯에 배정된 응시(있으면). */
   attemptId: string | null;
 }
 
 export interface BatchOpsSnapshot {
-  /** 회차 누적 LLM 사용액(USD) — 조회된 슬롯 합. */
+  /** 회차 누적 LLM 사용액(USD) — 회차 공유 키의 spend. */
   totalSpendUsd: number;
-  /** 1인당 예산 상한(USD). null=상한 없음. */
-  perKeyBudgetUsd: number | null;
+  /** 회차 예산 상한(USD) = 공유 키 max_budget. null=상한 없음. */
+  batchBudgetUsd: number | null;
   /** 게이트웨이 응답이 하나라도 있었는가(전부 실패면 false = 관제 불가 표시). */
   reachable: boolean;
   slots: SlotOpsView[];
@@ -416,20 +415,26 @@ export async function batchOpsSnapshot(batchId: string): Promise<BatchOpsSnapsho
     slots.map((s) => (s.virtualKey ? getKeyInfo(s.virtualKey) : Promise.resolve(null))),
   );
 
+  // ⭐ 회차당 1키 공유: 모든 슬롯이 같은 키를 가리키므로 spend 를 슬롯마다 더하면 N배가 된다.
+  //    키별로 한 번만 집계한다(고유 키 = 보통 1개 = 회차 전체 사용액). per-slot 귀속은 불가(공유) → null.
   let totalSpendUsd = 0;
-  let perKeyBudgetUsd: number | null = null;
+  let batchBudgetUsd: number | null = null;
   let reachable = false;
+  const seenKeys = new Set<string>();
   const views: SlotOpsView[] = slots.map((s, i) => {
     const info = infos[i];
     if (info) {
       reachable = true;
-      totalSpendUsd += info.spend;
-      if (info.maxBudget != null) perKeyBudgetUsd = info.maxBudget;
+      if (s.virtualKey && !seenKeys.has(s.virtualKey)) {
+        seenKeys.add(s.virtualKey);
+        totalSpendUsd += info.spend;
+        if (info.maxBudget != null) batchBudgetUsd = info.maxBudget;
+      }
     }
-    return { slotNo: s.slotNo, state: s.state, spendUsd: info ? info.spend : null, attemptId: s.attemptId };
+    return { slotNo: s.slotNo, state: s.state, spendUsd: null, attemptId: s.attemptId };
   });
 
-  return { totalSpendUsd, perKeyBudgetUsd, reachable, slots: views };
+  return { totalSpendUsd, batchBudgetUsd, reachable, slots: views };
 }
 
 /** 대기 화면 표시용 풀 스냅샷(읽기 전용 — reconcile과 무관하게 항상 응답). */

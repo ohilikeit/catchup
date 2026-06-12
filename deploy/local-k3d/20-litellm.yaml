@@ -5,8 +5,10 @@ metadata:
   namespace: catchup-local
 data:
   config.yaml: |
+    # ⭐ model_list 가 모델명의 단일 기준 — exam pod 의 ANTHROPIC_MODEL 과 정확히 일치시킨다.
+    # (와일드카드 "*" 는 요청 모델명을 그대로 흘려 대시보드 모델별 집계가 흐려지고 빈 model 행이 생김)
     model_list:
-      - model_name: "*"
+      - model_name: claude-sonnet-4-6
         litellm_params:
           model: anthropic/claude-sonnet-4-6
           api_key: os.environ/ANTHROPIC_API_KEY

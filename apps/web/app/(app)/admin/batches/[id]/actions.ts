@@ -73,7 +73,7 @@ export async function closeBatchEnvAction(batchId: string): Promise<EnvActionRes
     const r = await examOpsService.closeBatch(batchId);
     revalidatePath(`/admin/batches/${batchId}`);
     const warn = r.warnings.length > 0 ? ` ${r.warnings.join(' ')}` : '';
-    return { ok: true, message: `환경 회수 완료 (가상키 ${r.revokedKeys}개 revoke).${warn}` };
+    return { ok: true, message: `환경 회수 완료 (가상키 ${r.revokedKeys}개 차단 — 비용은 대시보드에 보존).${warn}` };
   } catch (e: unknown) {
     revalidatePath(`/admin/batches/${batchId}`);
     return {

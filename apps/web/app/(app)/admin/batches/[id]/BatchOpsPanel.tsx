@@ -22,14 +22,14 @@ export function BatchOpsPanel({ ops }: { ops: BatchOpsSnapshot }) {
     acc[s.state] = (acc[s.state] ?? 0) + 1;
     return acc;
   }, {});
-  const budgetLabel = ops.perKeyBudgetUsd == null ? '상한 없음' : `$${ops.perKeyBudgetUsd.toFixed(2)}/인`;
+  const budgetLabel = ops.batchBudgetUsd == null ? '상한 없음' : `$${ops.batchBudgetUsd.toFixed(2)}`;
 
   return (
     <section className="bg-layer-01 border border-border-subtle-01 p-05 mb-07">
       <div className="flex items-center justify-between gap-04 mb-04">
         <h2 className="cds-heading-compact-02 text-text-primary">실시간 관제</h2>
         <span className="cds-helper-01 text-text-secondary">
-          슬롯 {ops.slots.length}개 · 1인 예산 {budgetLabel}
+          슬롯 {ops.slots.length}개 · 회차 예산 {budgetLabel}
         </span>
       </div>
 

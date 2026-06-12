@@ -97,10 +97,11 @@ spec:
           env:
             - name: ANTHROPIC_BASE_URL
               value: "http://litellm:4000"
+            # ⭐ litellm model_list 의 model_name 과 일치(claude-sonnet-4-6) — 게이트웨이가 정확 매칭.
             - name: ANTHROPIC_MODEL
-              value: "claude-sonnet-4-5"
+              value: "claude-sonnet-4-6"
             - name: ANTHROPIC_SMALL_FAST_MODEL
-              value: "claude-sonnet-4-5"
+              value: "claude-sonnet-4-6"
           envFrom:
             # 회차 메타(BATCH_ID·PROBLEM_ID) — exam-ops provision 이 갱신(표시/추적용).
             - configMapRef: { name: exam-batch, optional: true }

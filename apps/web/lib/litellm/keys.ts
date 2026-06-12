@@ -65,7 +65,39 @@ export async function getKeyInfo(key: string): Promise<KeyInfo | null> {
   }
 }
 
-/** 가상키 일괄 삭제(회차 close). best-effort — 실패해도 던지지 않고 에러 메시지 반환(null=성공). */
+/**
+ * 가상키 일괄 차단(회차 close). 삭제(/key/delete)가 아니라 차단(/key/block)을 쓰는 이유:
+ * ⭐ 삭제하면 LiteLLM_VerificationToken 행이 사라져 대시보드의 키별 spend 집계에서 그 회차 비용이
+ *    통째로 증발한다(SpendLogs 에는 남지만 alias 없는 api_key 해시만 남아 회차 식별 불가). 차단은
+ *    키를 남긴 채 추가 사용만 막으므로(blocked=true), 비용이 대시보드에 회차별로 계속 보인다.
+ *    키 자체는 generate 시 준 duration(기본 24h)으로 자연 만료된다.
+ * best-effort — 실패해도 던지지 않고 에러 메시지 반환(null=성공). 키별 호출(블록 API는 단건).
+ */
+export async function blockVirtualKeys(keys: string[]): Promise<string | null> {
+  if (keys.length === 0) return null;
+  const errors: string[] = [];
+  for (const key of keys) {
+    try {
+      const res = await fetch(`${env.litellmBaseUrl}/key/block`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${env.litellmMasterKey}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ key }),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        errors.push(`${res.status}: ${text.slice(0, 120)}`);
+      }
+    } catch (e: unknown) {
+      errors.push(e instanceof Error ? e.message : String(e));
+    }
+  }
+  return errors.length > 0 ? `LiteLLM /key/block 일부 실패: ${errors.join(' · ')}` : null;
+}
+
+/** 가상키 일괄 하드 삭제(/key/delete). best-effort — null=성공. (현재 close 는 block 을 쓰며, 영구 정리용.) */
 export async function deleteVirtualKeys(keys: string[]): Promise<string | null> {
   if (keys.length === 0) return null;
   try {
