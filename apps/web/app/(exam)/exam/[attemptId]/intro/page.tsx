@@ -1,9 +1,29 @@
 import { notFound, redirect } from 'next/navigation';
-import { Icon } from '@app/ui';
+import { Button, Icon, Notification } from '@app/ui';
 import { requireSession } from '@/lib/auth/guard';
 import { getRuntime } from '@/lib/services/examService';
 import { ExamTopBar, MobileBlock, Card } from '../../../_components/ExamChrome';
 import { StartExamButton } from './StartExamButton';
+
+// 시작 불가 회차 상태 → 응시자에게 보여줄 사유. 시작은 batchStatus==='open' 에서만 유효하며,
+// 그 판정은 서버 startExam 과 동일하다(여기서 막는 건 UI 일관성용 — 권위는 트랜잭션).
+const NOT_STARTABLE: Record<string, { kind: 'info' | 'warning'; title: string; body: string }> = {
+  scheduled: {
+    kind: 'info',
+    title: '아직 열리지 않은 회차입니다',
+    body: '관리자가 회차를 열면 시작할 수 있습니다. 잠시 후 다시 확인하세요.',
+  },
+  closed: {
+    kind: 'warning',
+    title: '종료된 회차입니다',
+    body: '이 회차는 종료되어 더 이상 응시를 시작할 수 없습니다.',
+  },
+  cancelled: {
+    kind: 'warning',
+    title: '취소된 회차입니다',
+    body: '이 회차는 취소되어 응시를 시작할 수 없습니다.',
+  },
+};
 
 // (exam) intro — 시작 전 안내·규칙·환경 점검(docs/1 §1·§4). delivery·점수를 모름.
 // 서버: 세션 게이트 + 소유권 확인. 이미 제출됐으면 done, 진행 중이면 runtime으로(재접속 복귀).
@@ -29,6 +49,9 @@ export default async function ExamIntroPage({ params }: { params: { attemptId: s
   if (runtime.status === 'expired' || runtime.status === 'void') redirect(`/exam/${params.attemptId}/done`);
   // 재접속 복귀: 이미 진행 중이면 안내를 건너뛰고 바로 진행 화면(배정된 슬롯)으로.
   if (runtime.status === 'running') redirect(`/exam/${params.attemptId}`);
+
+  // 회차가 open 이 아니면 시작 버튼을 활성화하지 않는다(서버 startExam 과 동일 판정).
+  const blocked = runtime.batchStatus === 'open' ? null : NOT_STARTABLE[runtime.batchStatus] ?? NOT_STARTABLE.scheduled;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -73,7 +96,18 @@ export default async function ExamIntroPage({ params }: { params: { attemptId: s
             </ul>
           </Card>
 
-          <StartExamButton attemptId={params.attemptId} />
+          {blocked ? (
+            <div className="flex flex-col gap-04">
+              <Notification kind={blocked.kind} title={blocked.title}>
+                {blocked.body}
+              </Notification>
+              <Button kind="primary" icon="arrow-right" disabled>
+                시험 시작
+              </Button>
+            </div>
+          ) : (
+            <StartExamButton attemptId={params.attemptId} />
+          )}
         </div>
       </main>
     </div>

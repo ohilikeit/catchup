@@ -54,6 +54,7 @@ export async function findById(id: string): Promise<Attempt | null> {
 export interface MyExamItem {
   attemptId: string;
   batchName: string;
+  batchStatus: string;
   orgName: string;
   problemTitle: string;
   status: AttemptStatus;
@@ -66,6 +67,7 @@ export async function listByExaminee(examineeId: string): Promise<MyExamItem[]> 
   const rows = await query<{
     attempt_id: string;
     batch_name: string;
+    batch_status: string;
     org_name: string;
     problem_title: string;
     status: AttemptStatus;
@@ -73,7 +75,7 @@ export async function listByExaminee(examineeId: string): Promise<MyExamItem[]> 
     deadline_at: Date | null;
     submission_status: string | null;
   }>(
-    `SELECT a.id AS attempt_id, b.name AS batch_name, o.name AS org_name,
+    `SELECT a.id AS attempt_id, b.name AS batch_name, b.status AS batch_status, o.name AS org_name,
             p.title AS problem_title, a.status,
             a.starts_at, a.deadline_at, s.status AS submission_status
        FROM exam.attempts a
@@ -89,6 +91,7 @@ export async function listByExaminee(examineeId: string): Promise<MyExamItem[]> 
   return rows.map((r) => ({
     attemptId: r.attempt_id,
     batchName: r.batch_name,
+    batchStatus: r.batch_status,
     orgName: r.org_name,
     problemTitle: r.problem_title,
     status: r.status,

@@ -1,5 +1,5 @@
 import 'server-only';
-import { attemptsRepo, entryQueueRepo, slotsRepo, withTransaction } from '../db';
+import { attemptsRepo, batchesRepo, entryQueueRepo, slotsRepo, withTransaction } from '../db';
 import type { AttemptRuntime } from '../db/repositories/attempts';
 import type { SlotState } from '../db/repositories/slots';
 import { packageAttempt, reconcilePool } from './examOpsService';
@@ -81,6 +81,12 @@ export async function startExam(attemptId: string, examineeId: string): Promise<
   const deadlineAt = rt.deadlineAt ?? new Date(Date.now() + DEFAULT_DURATION_MIN * 60_000);
 
   const result = await withTransaction<StartResult>(async (client) => {
+    // 0. ⭐ 레이스 차단: 회차 행을 잠그고(FOR UPDATE) 상태를 재확인한다. 트랜잭션 밖 체크(line 78)와
+    //    이 트랜잭션 사이에 관리자가 close 하면 "닫힌 회차에 running 응시 + 슬롯 배정"이라는 stuck
+    //    상태가 생긴다(실측). close 의 setStatus 와 이 잠금이 직렬화되어 그 창을 닫는다.
+    const batchStatus = await batchesRepo.lockStatusTx(client, rt.batchId);
+    if (batchStatus !== 'open') return { ok: false, error: '아직 열리지 않은 회차입니다.' };
+
     // 1. attempt 상태 전이(ready/running → running).
     const updated = await attemptsRepo.startRunningTx(client, attemptId, deadlineAt);
     if (!updated) return { ok: false, error: '시작에 실패했습니다.' };

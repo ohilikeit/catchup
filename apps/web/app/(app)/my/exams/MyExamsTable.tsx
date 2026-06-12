@@ -30,9 +30,14 @@ export function MyExamsTable({ rows }: { rows: MyExamItem[] }) {
               <Link href={`/my/reports/${r.attemptId}`}>리포트</Link>
             </Button>
           ) : null}
-          {r.status === 'ready' || r.status === 'running' ? (
+          {/* 시작은 회차가 open 일 때만(서버 startExam 과 동일). running 은 이미 시작된 응시라 이어서 진입 허용. */}
+          {r.status === 'running' ? (
             <Button kind="primary" size="sm" asChild icon="arrow-right">
-              <Link href={`/exam/${r.attemptId}/intro`}>{r.status === 'running' ? '이어서' : '시작'}</Link>
+              <Link href={`/exam/${r.attemptId}/intro`}>이어서</Link>
+            </Button>
+          ) : r.status === 'ready' && r.batchStatus === 'open' ? (
+            <Button kind="primary" size="sm" asChild icon="arrow-right">
+              <Link href={`/exam/${r.attemptId}/intro`}>시작</Link>
             </Button>
           ) : null}
         </div>

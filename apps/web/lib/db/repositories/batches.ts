@@ -1,4 +1,5 @@
 import 'server-only';
+import type { PoolClient } from 'pg';
 import { query, queryOne, getPool } from '../pool';
 
 // batches repository — 회차(=동시 50명 한 창). 전달방식은 hosted 단일(docs/1 §5).
@@ -184,6 +185,20 @@ export async function create(input: {
     ],
   );
   return mapRow(row!);
+}
+
+/**
+ * 트랜잭션 내 회차 상태를 행 잠금(FOR UPDATE)으로 읽는다 — start↔close 직렬화용.
+ * 시작 트랜잭션이 이 행을 먼저 잠그면 close 의 setStatus(UPDATE)는 커밋까지 대기하고,
+ * close 가 먼저면 여기서 잠긴 행은 'closed' 로 보여 시작이 거부된다(닫힌 회차에 running 응시 방지).
+ * 없는 회차면 null.
+ */
+export async function lockStatusTx(client: PoolClient, id: string): Promise<BatchStatus | null> {
+  const res = await client.query<{ status: BatchStatus }>(
+    `SELECT status FROM exam.batches WHERE id = $1 FOR UPDATE`,
+    [id],
+  );
+  return res.rows[0]?.status ?? null;
 }
 
 export async function setStatus(id: string, status: BatchStatus): Promise<Batch | null> {
