@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# local-k3d/reload-web.sh — web 코드 변경을 로컬 k3d 에 즉시 반영하는 트리거.
+# reload-web.sh — web 코드 변경을 로컬 k3d 에 즉시 반영하는 트리거(레포 루트).
 #
 # 왜 필요한가: 로컬은 ArgoCD 가 deploy/local-k3d 의 *매니페스트만* sync 하고, web 이미지는
 # catchup-web:local + imagePullPolicy: Never 다. 그래서 코드를 고쳐 git push 해도 화면은
@@ -9,10 +9,10 @@
 # exam 이미지는 건드리지 않는다(web 전용). 전체 재빌드/부트스트랩은 setup.sh / up.sh.
 #
 # 사용:
-#   ./deploy/local-k3d/reload-web.sh             # 빌드 + import + 재배포 (코드 변경 후 평소 사용)
-#   ./deploy/local-k3d/reload-web.sh --no-build  # 빌드 생략 — 이미 빌드된 이미지로 재배포만
+#   ./reload-web.sh             # 빌드 + import + 재배포 (코드 변경 후 평소 사용)
+#   ./reload-web.sh --no-build  # 빌드 생략 — 이미 빌드된 이미지로 재배포만
 set -euo pipefail
-cd "$(dirname "$0")/../.."   # 레포 루트
+cd "$(dirname "$0")"   # 레포 루트
 
 CLUSTER=catchup
 NS=catchup-local

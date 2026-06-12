@@ -17,17 +17,17 @@ alpha/prod는 catchup-helm 사용. 이 디렉터리는 **로컬 전용**.
 | `40-exam.yaml` | exam StatefulSet(catchup-exam:local) + headless Service(8080) |
 | `50-ingress.yaml` | traefik Ingress — web(catchup.localhost) · minio 콘솔(minio.localhost) |
 | `argocd-application.yaml` | ArgoCD Application(로컬 GitOps) — origin/exp 의 이 디렉터리를 sync |
-| `reload-web.sh` | **web 코드 변경 반영 트리거** — build → k3d import → rollout restart(web 전용) |
+| `../../reload-web.sh` | **web 코드 변경 반영 트리거**(레포 루트) — build → k3d import → rollout restart(web 전용) |
 
-## web 코드 변경 반영 (reload-web.sh)
+## web 코드 변경 반영 (../../reload-web.sh)
 
 로컬은 ArgoCD 가 *매니페스트만* sync 하고 web 이미지는 `catchup-web:local` + `imagePullPolicy: Never`라,
 **코드를 고쳐 git push 해도 화면은 안 바뀐다**(매니페스트 불변 → ArgoCD no-op, 노드의 옛 이미지 그대로).
 코드 반영은 git push 가 아니라 이 트리거로 한다:
 
 ```bash
-./deploy/local-k3d/reload-web.sh             # 빌드 + import + 재배포 (코드 변경 후 평소 사용)
-./deploy/local-k3d/reload-web.sh --no-build  # 빌드 생략 — 이미 빌드된 이미지로 재배포만
+./reload-web.sh             # 빌드 + import + 재배포 (코드 변경 후 평소 사용)
+./reload-web.sh --no-build  # 빌드 생략 — 이미 빌드된 이미지로 재배포만
 ```
 
 exam 이미지는 건드리지 않는다(web 전용). 전체 재빌드/부트스트랩은 `setup.sh` / `up.sh`.

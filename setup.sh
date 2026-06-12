@@ -272,7 +272,7 @@ if ! git diff-tree --no-commit-id --name-only -r HEAD \
 fi
 LOG="/tmp/catchup-reload-web.log"
 { printf '\n[%s] post-commit reload (exp %s)\n' "$(date '+%F %T')" "$(git rev-parse --short HEAD)"; } >> "$LOG"
-nohup "$ROOT/deploy/local-k3d/reload-web.sh" >> "$LOG" 2>&1 &
+nohup "$ROOT/reload-web.sh" >> "$LOG" 2>&1 &
 printf '  \033[1;34m▶ web 자동 재빌드 시작(백그라운드)\033[0m — 진행: tail -f %s\n' "$LOG"
 HOOK_EOF
   chmod +x "$HOOK_FILE"
@@ -309,7 +309,7 @@ cat <<EOF
   web 코드 반영(로컬은 git push 가 아니라 build→import→restart):
     git commit (exp 브랜치)                      apps/·packages/ 변경 시 자동 reload(post-commit 훅, 백그라운드)
     tail -f /tmp/catchup-reload-web.log          그 자동 reload 진행 로그
-    ./deploy/local-k3d/reload-web.sh             수동 반영(워킹트리 그대로 — 커밋 전 변경도 OK)
+    ./reload-web.sh                              수동 반영(워킹트리 그대로 — 커밋 전 변경도 OK)
     ./setup.sh --no-hook                         위 자동 훅 설치 건너뜀
 
 EOF
