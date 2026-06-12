@@ -193,21 +193,32 @@ export async function closeBatch(batchId: string): Promise<CloseResult> {
     warnings.push(`마감 자동 회수 일부 실패(close는 계속): ${e instanceof Error ? e.message : e}`);
   }
 
-  // 1. 풀 회수(0) + 슬롯별 라우팅 제거.
-  await scaleStatefulSet(ns, EXAM_STS, 0); // ★GITOPS③ current.yaml replicas:0 커밋으로 교체(alpha+)
-  await deleteObject(paths.ingress(ns, 'exam-ide-slots')).catch(() => undefined);
-  for (const name of await listNamesByPrefix(paths.services(ns), 'exam-slot-')) {
-    await deleteObject(paths.service(ns, name));
-  }
-  await deleteObject(paths.secret(ns, 'exam-virtual-keys')).catch(() => undefined);
-
-  // 2. 가상키 revoke(게이트웨이) — best-effort. 키 자체도 duration으로 자연 만료된다.
+  // 가상키 목록은 down(virtual_key=NULL) 전에 확보 — revoke 입력.
   const slots = await slotsRepo.listByBatch(batchId);
   const keys = slots.map((s) => s.virtualKey).filter((k): k is string => !!k);
+
+  // 1. 풀 회수(0) + 슬롯별 라우팅 제거 — ⭐ best-effort. k8s 실패가 아래 DB 슬롯 down 을
+  //    건너뛰게 두면 "closed 인데 busy 슬롯이 영구히 남아" 이후 모든 회차 provision 이 막힌다
+  //    (hasBusySlots 는 전역 검사). 그래서 여기서 throw 하지 않고 경고로만 남기고 계속 진행한다.
+  try {
+    await scaleStatefulSet(ns, EXAM_STS, 0); // ★GITOPS③ current.yaml replicas:0 커밋으로 교체(alpha+)
+    await deleteObject(paths.ingress(ns, 'exam-ide-slots')).catch(() => undefined);
+    for (const name of await listNamesByPrefix(paths.services(ns), 'exam-slot-')) {
+      await deleteObject(paths.service(ns, name));
+    }
+    await deleteObject(paths.secret(ns, 'exam-virtual-keys')).catch(() => undefined);
+  } catch (e: unknown) {
+    warnings.push(
+      `환경 teardown 일부 실패(슬롯은 down 처리·재시도 가능): ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+
+  // 2. 가상키 revoke(게이트웨이) — best-effort. 키 자체도 duration으로 자연 만료된다.
   const revokeError = await deleteVirtualKeys(keys);
   if (revokeError) warnings.push(`가상키 revoke 실패(만료는 duration이 보장): ${revokeError}`);
 
-  // 3. 슬롯 상태머신: 이 회차 슬롯 전부 down + 키 해제 + 입장 대기열 정리.
+  // 3. ⭐ 불변식: 슬롯 상태머신 — 이 회차 슬롯 전부 down + 키 해제 + 입장 대기열 정리.
+  //    teardown 성공 여부와 무관하게 항상 실행되어야 busy 슬롯이 남지 않는다(provision 가드 해제).
   await slotsRepo.markBatchDown(batchId);
   await entryQueueRepo.clearBatch(batchId);
 
