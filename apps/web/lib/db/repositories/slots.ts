@@ -101,6 +101,18 @@ export async function findActiveSlotByAttempt(
 }
 
 /**
+ * 역방향 — (batchId, slotNo) → 그 슬롯에 현재 배정된 attemptId(없으면 null).
+ * transcript 워처가 자기 슬롯(batch+ordinal)만 알 때 attempt 를 해소하는 데 쓴다(docs/10 §4).
+ */
+export async function findAttemptBySlotNo(batchId: string, slotNo: number): Promise<string | null> {
+  const row = await queryOne<{ attempt_id: string | null }>(
+    `SELECT attempt_id FROM hosted.slots WHERE batch_id = $1 AND slot_no = $2`,
+    [batchId, slotNo],
+  );
+  return row?.attempt_id ?? null;
+}
+
+/**
  * 제출 시작 시 슬롯 state → submitting.
  * assigned 상태에서만 전이(이미 recycling/submitting이면 no-op).
  * Phase 3 패키징 Job 연동 토대.

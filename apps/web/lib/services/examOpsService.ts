@@ -24,6 +24,8 @@ import {
   slotService,
   slotsIngress,
   packagingJob,
+  snapshotJob,
+  slotWatcher,
 } from '../k8s/examResources';
 
 // examOpsService — 회차 풀 운영(cold path) 오케스트레이션. docs/6 Phase 3의 로컬판(k8s API 직접).
@@ -143,6 +145,22 @@ export async function provisionBatch(batchId: string, warmOverride?: number): Pr
   await deleteObject(paths.ingress(ns, 'exam-ide')).catch(() => undefined); // 구판 정적 Ingress
   await deleteObject(paths.service(ns, 'exam-direct')).catch(() => undefined); // 구판 라운드로빈 Service
 
+  // ── 6b. 슬롯별 transcript 워처(턴 감지 → /turn → 스냅샷). 부가기능이라 best-effort —
+  //        실패해도 provision 을 막지 않는다(스냅샷이 없을 뿐 시험 진행엔 영향 0). 정원 축소분은 정리. ──
+  for (let i = 0; i < slots; i++) {
+    try {
+      await applyObject(paths.deployment(ns, `exam-watcher-${i}`), slotWatcher(ns, { slotNo: i, batchId }));
+    } catch (e: unknown) {
+      warnings.push(`슬롯 ${i} 워처 생성 실패(스냅샷만 영향): ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  const staleWatchers = (await listNamesByPrefix(paths.deployments(ns), 'exam-watcher-')).filter(
+    (name) => Number(name.replace('exam-watcher-', '')) >= slots,
+  );
+  for (const name of staleWatchers) {
+    await deleteObject(`${paths.deployment(ns, name)}?propagationPolicy=Background`).catch(() => undefined);
+  }
+
   // ── 7. 슬롯 register (DB) — capacity 전부, state='down'. pod이 실제 Ready가 되면
   //      reconcilePool이 ready로 전이(거짓 ready 0 — pod 없는 슬롯에 배정되는 일 없음). ──
   await slotsRepo.resetBatchSlots(batchId);
@@ -203,6 +221,10 @@ export async function closeBatch(batchId: string): Promise<CloseResult> {
     await deleteObject(paths.ingress(ns, 'exam-ide-slots')).catch(() => undefined);
     for (const name of await listNamesByPrefix(paths.services(ns), 'exam-slot-')) {
       await deleteObject(paths.service(ns, name));
+    }
+    // transcript 워처 정리(슬롯 pod 과 함께 폐기 — PVC 가 죽으면 마운트도 불가).
+    for (const name of await listNamesByPrefix(paths.deployments(ns), 'exam-watcher-')) {
+      await deleteObject(`${paths.deployment(ns, name)}?propagationPolicy=Background`).catch(() => undefined);
     }
     await deleteObject(paths.secret(ns, 'exam-virtual-keys')).catch(() => undefined);
   } catch (e: unknown) {
@@ -278,6 +300,71 @@ export async function packageAttempt(attemptId: string): Promise<PackageResult> 
     return { ok: false, reason: `패키징 Job 생성 실패: ${msg}` };
   }
   return { ok: true, jobName, artifactRef, chatRef };
+}
+
+export type SnapshotResult =
+  | { ok: true; jobName: string; ref: string }
+  | { ok: false; reason: string };
+
+/**
+ * 과정 스냅샷 Job 생성(턴 콜백 직후). fail-soft — 호출부(turn route)는 실패해도 턴 기록을 막지 않는다.
+ * debounce(문제별 debounceSec) 통과 + 배정 슬롯 존재 시에만 snapshotJob 을 spawn.
+ * ⭐ 학생 pod 이 살아 있는 동안 PVC 를 readOnly 로 공동 마운트 — podAffinity 로 같은 노드 보장(snapshotJob).
+ * ref(타임스탬프 키)가 dedupe 키 · seq 는 콜백 수신 측이 부여. 근거: docs/10 §4·§7.
+ */
+export async function snapshotAttempt(
+  attemptId: string,
+  opts: { trigger?: string; turnIndex?: number } = {},
+): Promise<SnapshotResult> {
+  if (!inCluster()) return { ok: false, reason: 'k8s 밖 실행(로컬 dev) — 스냅샷 Job 생략' };
+
+  const config = await attemptsRepo.findSnapshotConfig(attemptId);
+  if (!config) return { ok: false, reason: '응시 없음' };
+  if (!config.enabled) return { ok: false, reason: '추적 비활성(snapshot_config.enabled=false)' };
+
+  // debounce: 마지막 스냅샷 이후 debounceSec 미만이면 생략(턴 폭주 → tar 폭주 방지).
+  const last = await attemptsRepo.lastSnapshotAt(attemptId);
+  if (last && Date.now() - last.getTime() < config.debounceSec * 1000) {
+    return { ok: false, reason: `debounced(${config.debounceSec}s 이내 최근 스냅샷 존재)` };
+  }
+
+  const slot = await slotsRepo.findActiveSlotByAttempt(attemptId);
+  if (!slot) return { ok: false, reason: '배정된 슬롯 없는 응시 — 진행 중 작업물 없음' };
+
+  const ns = k8sNamespace();
+  // 사람이 읽는 키: 회차명/학생명_이메일 — uuid 는 충돌방지용 8자 꼬리(packageAttempt 와 동일 규칙).
+  const detail = await attemptsRepo.findDetailById(attemptId);
+  const batchSlug = keySlug(detail?.batchName ?? 'batch');
+  const emailLocal = detail?.examineeEmail?.split('@')[0] ?? '';
+  const studentSlug = keySlug([detail?.examineeName, emailLocal].filter(Boolean).join('_') || 'student');
+  const ts = new Date().toISOString().replace(/[:.]/g, '-'); // 정렬가능·고유(ms) → ref dedupe 키
+  const dir = `${batchSlug}/${studentSlug}-${attemptId.slice(0, 8)}`;
+  const snapshotRef = `${BUCKETS.snapshots}/${dir}/${ts}.tgz`;
+
+  // 제외 패턴 → tar --exclude 인자. admin 신뢰 소스지만 방어적으로 작은따옴표 포함 패턴은 버린다(셸 주입 차단).
+  const excludeArgs = config.excludePatterns
+    .filter((p) => p && !p.includes("'"))
+    .map((p) => `--exclude='${p}'`)
+    .join(' ');
+
+  const trigger = opts.trigger ?? 'turn';
+  const turnField =
+    typeof opts.turnIndex === 'number' && Number.isInteger(opts.turnIndex)
+      ? `,\\"turnIndex\\":${opts.turnIndex}`
+      : '';
+
+  const jobName = `snap-${slot.slotNo}-${attemptId.slice(0, 8)}-${Date.now().toString(36)}`;
+  const res = await k8sRequest(
+    'POST',
+    paths.jobs(ns),
+    snapshotJob(ns, { jobName, slotNo: slot.slotNo, attemptId, snapshotRef, trigger, turnField, excludeArgs }),
+  );
+  if (res.status === 409) return { ok: true, jobName, ref: snapshotRef }; // 동일 Job 존재(멱등)
+  if (res.status < 200 || res.status >= 300) {
+    const msg = (res.body as { message?: string } | null)?.message ?? `HTTP ${res.status}`;
+    return { ok: false, reason: `스냅샷 Job 생성 실패: ${msg}` };
+  }
+  return { ok: true, jobName, ref: snapshotRef };
 }
 
 /* ── 워밍 풀 reconcile — 라이브 입장의 엔진(docs/6 Phase 3 워밍 풀 통합 모델) ──────

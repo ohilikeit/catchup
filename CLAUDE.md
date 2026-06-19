@@ -153,3 +153,40 @@ cd ~/.claude/skills/gstack && ./setup --team
 
 Skills like /qa, /ship, /review, /investigate, and /browse become available after install.
 Use /browse for all web browsing. Use ~/.claude/skills/gstack/... for gstack file paths.
+
+
+## 📚 도메인 지식 (OKF)
+
+이 레포의 도메인 지식은 `knowledge/` OKF 번들(YAML frontmatter를 가진 마크다운)에 있다.
+**작업 전 소비, 작업 후 생산** — 단, 무조건이 아니라 아래 게이트를 따른다.
+
+### 소비 — 작업 시작 전
+- 도메인 로직·스키마·계약·운영 절차·결정사항과 관련된 작업이면:
+  `knowledge/index.md` → 관련 하위 `index.md` → 개념 파일 순으로만 읽는다.
+  (점진적 공개 — 번들 전체를 한 번에 context에 올리지 말 것)
+- 개념 본문의 링크(join·의존 서비스·playbook 등)를 따라 관련 맥락을 확인한다.
+- 트리비얼 작업(포맷팅·오타·의존성 bump·로그·테스트 픽스)이면 번들을 읽지 않는다.
+
+### 생산 — 작업 직후 (코드와 같은 커밋/PR에)
+다음이 바뀐 경우에만 대응 `knowledge/**/*.md` 개념을 갱신한다:
+- 공개 계약/API · 데이터 스키마 · 도메인 동작 · 운영 절차 · 결정사항(거버넌스).
+다음은 스킵한다: 내부 리팩토링 · 변수명 · 동작이 같은 버그픽스 · 주석/로그/테스트.
+
+갱신 방법:
+- 새 개념은 `한 개념 = 한 파일`. frontmatter 필수 `type`, 권장 `title`·`description`·`resource`·`tags`·`timestamp`.
+- 바꾼 개념은 `timestamp`(ISO 8601)를 갱신한다 — 최신성 추적용.
+- cross-link는 번들 기준 절대경로 `[이름](/domain/concept.md)`로 건다 (파일 이동에 안정적).
+- 깨진 링크는 허용된다 — "아직 안 쓴 지식"을 뜻한다.
+
+### type 규칙 (분류 폭발 방지)
+- `type`은 "소비자(에이전트/뷰어/검색)가 다르게 다룰 종류"만 만든다. 기존 type으로 되면 새로 만들지 않는다.
+- cross-cutting 분류(주제·팀·상태 등)는 `type`이 아니라 `tags`로 표현한다.
+- 정말 새 종류면 `knowledge/_types.md`에 등록한 뒤 사용한다.
+
+### 하지 말 것
+- 모르는 값을 지어내지 않는다(특히 스키마·URL). 모르면 비우거나 사람에게 묻는다.
+- 인식 못 하는 frontmatter 필드를 지우지 않는다 — OKF는 확장을 허용한다.
+- 분류를 강요하지 않는다 — `type`은 자유 문자열이고, 소비자는 모르는 type도 허용한다.
+```
+
+> 이 블록 하나가 **소비 트리거 + 생산 트리거 + 분류 거버넌스**를 동시에 겁니다. 추가 도구는 선택입니다.

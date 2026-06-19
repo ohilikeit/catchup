@@ -1,6 +1,7 @@
 import 'server-only';
 import type { PoolClient } from 'pg';
 import { query, queryOne } from '../pool';
+import { DEFAULT_EXCLUDE_PATTERNS } from '../../tracking/excludes';
 
 // attempts repository — 응시. ⭐ 평가상태 없음(grading 모듈 소관, docs/1 §3).
 // 전달방식은 hosted 단일. deadline_at은 서버강제 마감의 근거.
@@ -443,4 +444,99 @@ export async function voidAttemptTx(client: PoolClient, attemptId: string): Prom
     [attemptId],
   );
   return (res.rowCount ?? 0) > 0;
+}
+
+/* ── 과정 추적(상호작용 스냅샷). 근거: docs/10. attempt_events(type='turn'|'snapshot')를 재사용. ── */
+
+/** 프록시 턴 이벤트(append-only) — "AI 응답 완료"의 근거. 워커가 이 신호로 스냅샷을 트리거한다.
+ *  detail: turnIndex(직전 대화 턴), model(게이트웨이가 강제한 모델). running 상태에서만 기록. */
+export async function recordTurnEvent(
+  attemptId: string,
+  detail: { turnIndex?: number; model?: string } = {},
+): Promise<boolean> {
+  const res = await queryOne<{ id: string }>(
+    `INSERT INTO exam.attempt_events (attempt_id, type, detail)
+     SELECT $1, 'turn', $2::jsonb
+      WHERE EXISTS (SELECT 1 FROM exam.attempts WHERE id = $1 AND status = 'running')
+     RETURNING id`,
+    [attemptId, JSON.stringify(detail)],
+  );
+  return res != null;
+}
+
+export interface SnapshotEventInput {
+  ref: string; // MinIO 키(고유): exam-snapshots/<dir>/<ts>.tgz — dedupe 키
+  sha256: string; // 서버 워커가 산출(봉인)
+  sizeBytes: number; // tgz 크기
+  trigger: string; // 'turn' (현재 유일) | 'change-tick'(옵션 B, 향후)
+  turnIndex?: number; // 직전 대화 턴
+  fileCount?: number; // 스냅샷에 담긴 파일 수
+}
+
+export interface SnapshotEventResult {
+  recorded: boolean; // false = 같은 ref가 이미 존재(워커 재시도/중복 콜백 멱등 통과)
+  seq: number | null; // 사람이 읽는 순번(insert 시 MAX+1로 부여). recorded=false면 null
+}
+
+/** 스냅샷 등록 이벤트(append-only). MinIO 실체의 포인터+메타.
+ *  순번 seq는 insert 시점에 기존 최대+1로 부여(앱이 미리 안 정함 → 사전배정 race 제거).
+ *  멱등: 같은 ref가 이미 있으면 기록 생략 — ref가 고유(타임스탬프 키)라 워커 재시도에 안전. */
+export async function recordSnapshotEvent(
+  attemptId: string,
+  input: SnapshotEventInput,
+): Promise<SnapshotEventResult> {
+  const res = await queryOne<{ seq: number }>(
+    `INSERT INTO exam.attempt_events (attempt_id, type, detail)
+     SELECT $1, 'snapshot',
+            jsonb_build_object(
+              'seq',
+              COALESCE((SELECT MAX((detail->>'seq')::int) FROM exam.attempt_events
+                         WHERE attempt_id = $1 AND type = 'snapshot'), 0) + 1
+            ) || $2::jsonb
+      WHERE NOT EXISTS (
+        SELECT 1 FROM exam.attempt_events
+         WHERE attempt_id = $1 AND type = 'snapshot' AND detail->>'ref' = $3)
+     RETURNING (detail->>'seq')::int AS seq`,
+    [attemptId, JSON.stringify(input), input.ref],
+  );
+  return { recorded: res != null, seq: res?.seq ?? null };
+}
+
+/** 워커 debounce 판단용: 마지막 스냅샷 시각(없으면 null). */
+export async function lastSnapshotAt(attemptId: string): Promise<Date | null> {
+  const row = await queryOne<{ created_at: Date }>(
+    `SELECT created_at FROM exam.attempt_events
+      WHERE attempt_id = $1 AND type = 'snapshot'
+      ORDER BY created_at DESC, id DESC LIMIT 1`,
+    [attemptId],
+  );
+  return row?.created_at ?? null;
+}
+
+export interface EffectiveSnapshotConfig {
+  enabled: boolean;
+  excludePatterns: string[]; // 기본 제외 + 문제별 제외(병합)
+  debounceSec: number;
+}
+
+/** 워커용: attempt의 유효 스냅샷 설정. problem_version.snapshot_config(불변)를 조인해
+ *  기본 제외 목록과 병합한다. attempt 없으면 null. */
+export async function findSnapshotConfig(attemptId: string): Promise<EffectiveSnapshotConfig | null> {
+  const r = await queryOne<{
+    snapshot_config: { enabled?: boolean; excludePatterns?: string[]; debounceSec?: number } | null;
+  }>(
+    `SELECT v.snapshot_config
+       FROM exam.attempts a
+       JOIN exam.batches b ON b.id = a.batch_id
+       JOIN exam.problem_versions v ON v.id = b.problem_version_id
+      WHERE a.id = $1`,
+    [attemptId],
+  );
+  if (!r) return null;
+  const cfg = r.snapshot_config ?? {};
+  return {
+    enabled: cfg.enabled ?? true,
+    excludePatterns: [...DEFAULT_EXCLUDE_PATTERNS, ...(cfg.excludePatterns ?? [])],
+    debounceSec: cfg.debounceSec ?? 30,
+  };
 }

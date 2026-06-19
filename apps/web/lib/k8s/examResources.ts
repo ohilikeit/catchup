@@ -20,6 +20,9 @@ export const paths = {
     `/apis/batch/v1/namespaces/${ns}/jobs/${name}?propagationPolicy=Background`,
   pvc: (ns: string, name: string) => `/api/v1/namespaces/${ns}/persistentvolumeclaims/${name}`,
   pvcs: (ns: string) => `/api/v1/namespaces/${ns}/persistentvolumeclaims`,
+  deployments: (ns: string) => `/apis/apps/v1/namespaces/${ns}/deployments`,
+  // 플레인 경로(apply 용). 삭제 시엔 호출부가 ?propagationPolicy=Background 를 붙여 ReplicaSet/pod 까지 정리.
+  deployment: (ns: string, name: string) => `/apis/apps/v1/namespaces/${ns}/deployments/${name}`,
   pods: (ns: string, labelSelector: string) =>
     `/api/v1/namespaces/${ns}/pods?labelSelector=${encodeURIComponent(labelSelector)}`,
 } as const;
@@ -214,6 +217,222 @@ export function packagingJob(
                   'BODY="{\\"attemptId\\":\\"$ATTEMPT_ID\\",\\"ref\\":\\"$REF\\",\\"sha256\\":\\"$SHA\\",\\"sizeBytes\\":$SIZE,\\"chat\\":$CHAT}"\n' +
                   'wget -q -O- --header "content-type: application/json" --header "x-internal-secret: $INTERNAL_API_SECRET" ' +
                   `--post-data "$BODY" "http://web.${ns}.svc.cluster.local:3000/api/internal/submissions/package"`,
+              ],
+              volumeMounts: [{ name: 'out', mountPath: '/out' }],
+            },
+          ],
+          volumes: [
+            {
+              name: 'workspace',
+              persistentVolumeClaim: { claimName: `workspace-${EXAM_STS}-${slotNo}`, readOnly: true },
+            },
+            { name: 'out', emptyDir: {} },
+          ],
+        },
+      },
+    },
+  };
+}
+
+/**
+ * transcript 워처(슬롯별 장수 Deployment) — 그 슬롯 PVC 의 claude/ 세션 JSONL 을 readOnly 로 보다가
+ * AI 가 한 턴을 끝내(사람에게 반환) 완료 횟수가 늘면 web `/api/internal/attempts/turn` 을 POST 한다. 근거: docs/10 §4.
+ * 턴 종료 판정 = assistant 메시지 stop_reason 이 tool_use 가 아닌 것(end_turn 등). assistant 라인 수가 아니다(한 응답에 여러 개).
+ * ⭐ 설계상 안전: ① MinIO 자격증명 없음(턴 신호만 — 실제 캡처는 snapshotJob) ② 학생 pod 밖 별도 워크로드
+ *   (INTERNAL_API_SECRET 이 학생 컨테이너에 안 들어감) ③ podAffinity 로 exam-N 과 같은 노드(RWO readOnly 공동 마운트).
+ * 식별: 가상키가 회차공유라 attempt 가 아니라 (batchId, slotNo)로 보낸다 → web 이 해소(턴 라우트). 폴링 5s — debounce 는 서버.
+ */
+export function slotWatcher(
+  ns: string,
+  input: { slotNo: number; batchId: string; pollSec?: number },
+): Record<string, unknown> {
+  const { slotNo, batchId, pollSec = 5 } = input;
+  const name = `exam-watcher-${slotNo}`;
+  // busybox sh 루프: "AI 가 사람에게 턴을 넘긴 완료 횟수"가 늘면 turn POST. LAST 로 새 턴만.
+  // ⭐ 경계 신호 = assistant 메시지의 stop_reason 이 tool_use 가 *아닌* 것(end_turn/stop_sequence/max_tokens).
+  //   Claude Code transcript 는 한 번의 응답에도 assistant 라인을 여러 개 쌓는다(텍스트+tool_use 블록마다).
+  //   tool_use = "도구 쓰고 계속"(턴 중간), 그 외 = "끝, 사람 차례"(턴 종료). 그래서 stop_reason!=tool_use 만 센다.
+  const loop =
+    'set -u\n' +
+    'LAST=0\n' +
+    'echo "[watcher] slot=' +
+    String(slotNo) +
+    ' batch=' +
+    batchId +
+    ' start"\n' +
+    'while true; do\n' +
+    '  CNT=$(grep -rho \'"stop_reason":"[a-zA-Z_]*"\' /workspace/claude/projects 2>/dev/null | grep -vc \'"stop_reason":"tool_use"\')\n' +
+    '  CNT=${CNT:-0}\n' +
+    '  if [ "$CNT" -gt "$LAST" ]; then\n' +
+    `    BODY="{\\"batchId\\":\\"${batchId}\\",\\"slotNo\\":${slotNo},\\"turnIndex\\":$CNT}"\n` +
+    '    wget -q -O- --header "content-type: application/json" --header "x-internal-secret: $INTERNAL_API_SECRET" ' +
+    `--post-data "$BODY" "http://web.${ns}.svc.cluster.local:3000/api/internal/attempts/turn" >/dev/null 2>&1 || true\n` +
+    '    echo "[watcher] turn fired (assistant=$CNT)"\n' +
+    '    LAST=$CNT\n' +
+    '  fi\n' +
+    `  sleep ${pollSec}\n` +
+    'done';
+  return {
+    apiVersion: 'apps/v1',
+    kind: 'Deployment',
+    metadata: {
+      name,
+      namespace: ns,
+      labels: { 'app.kubernetes.io/part-of': 'exam-watchers', app: 'exam-watcher', 'exam-slot': String(slotNo) },
+    },
+    spec: {
+      replicas: 1,
+      selector: { matchLabels: { app: 'exam-watcher', 'exam-slot': String(slotNo) } },
+      template: {
+        metadata: { labels: { app: 'exam-watcher', 'exam-slot': String(slotNo) } },
+        spec: {
+          securityContext: { runAsNonRoot: true, runAsUser: 1000, fsGroup: 1000 },
+          // exam-{slotNo} 와 같은 노드 — RWO PVC 를 학생 pod 과 동시에 readOnly 마운트.
+          affinity: {
+            podAffinity: {
+              requiredDuringSchedulingIgnoredDuringExecution: [
+                {
+                  labelSelector: {
+                    matchLabels: { 'statefulset.kubernetes.io/pod-name': `${EXAM_STS}-${slotNo}` },
+                  },
+                  topologyKey: 'kubernetes.io/hostname',
+                },
+              ],
+            },
+          },
+          containers: [
+            {
+              name: 'watcher',
+              image: 'busybox:1.36',
+              env: [
+                {
+                  name: 'INTERNAL_API_SECRET',
+                  valueFrom: { secretKeyRef: { name: 'app-secrets', key: 'INTERNAL_API_SECRET' } },
+                },
+              ],
+              command: ['sh', '-c', loop],
+              resources: {
+                requests: { cpu: '10m', memory: '32Mi' },
+                limits: { cpu: '100m', memory: '64Mi' },
+              },
+              volumeMounts: [{ name: 'workspace', mountPath: '/workspace', readOnly: true }],
+            },
+          ],
+          volumes: [
+            {
+              name: 'workspace',
+              persistentVolumeClaim: { claimName: `workspace-${EXAM_STS}-${slotNo}`, readOnly: true },
+            },
+          ],
+        },
+      },
+    },
+  };
+}
+
+/**
+ * 과정 스냅샷 Job — 시험 *진행 중* 그 슬롯의 PVC 를 readOnly 로 떠서 project/(작업물)만 tar+sha256 →
+ * MinIO(exam-snapshots) → web internal 콜백으로 attempt_events(type='snapshot') 등록. 근거: docs/10 §7.
+ * packagingJob 과 같은 패턴이되 차이: ① 대화(claude/)는 제외(별도 chatlog 파이프라인) ② 제외 패턴 적용
+ * ③ ⭐ 학생 pod(exam-N)이 살아서 PVC 를 RW 로 잡고 있으므로 같은 노드에 강제 배치(podAffinity)해야
+ *    RWO 를 readOnly 로 공동 마운트할 수 있다(제출 패키징은 pod 폐기 후라 불필요했다). ④ 짧은 TTL(스냅샷 多).
+ * seq 는 클라가 안 보낸다 — 콜백 수신 측(snapshot route)이 부여(사전배정 race 제거). ref(타임스탬프 키)가 dedupe 키.
+ */
+export function snapshotJob(
+  ns: string,
+  input: {
+    jobName: string;
+    slotNo: number;
+    attemptId: string;
+    snapshotRef: string; // exam-snapshots/<dir>/<ts>.tgz (버킷 접두 포함 전체 키)
+    trigger: string; // 'turn'
+    turnField: string; // ',"turnIndex":N' 또는 '' (snapshotAttempt 가 만든 JSON 조각)
+    excludeArgs: string; // "--exclude='node_modules/**' --exclude='.git/**' ..." (admin 신뢰 소스)
+  },
+): Record<string, unknown> {
+  const { jobName, slotNo, attemptId, snapshotRef, trigger, turnField, excludeArgs } = input;
+  return {
+    apiVersion: 'batch/v1',
+    kind: 'Job',
+    metadata: { name: jobName, namespace: ns, labels: { 'app.kubernetes.io/part-of': 'exam-snapshots' } },
+    spec: {
+      backoffLimit: 1, // 스냅샷은 자주 — 실패해도 다음 턴이 또 찍는다. 끈질긴 재시도 불필요.
+      ttlSecondsAfterFinished: 600, // 완료 후 빠르게 정리(누적 방지).
+      template: {
+        metadata: { labels: { app: 'exam-snapshotter' } },
+        spec: {
+          restartPolicy: 'Never',
+          securityContext: { runAsNonRoot: true, runAsUser: 1000, fsGroup: 1000 },
+          // ⭐ exam-{slotNo} 와 같은 노드에 강제 — RWO PVC 를 학생 pod 과 동시에(readOnly) 마운트하려면 동일 노드여야 한다.
+          affinity: {
+            podAffinity: {
+              requiredDuringSchedulingIgnoredDuringExecution: [
+                {
+                  labelSelector: {
+                    matchLabels: { 'statefulset.kubernetes.io/pod-name': `${EXAM_STS}-${slotNo}` },
+                  },
+                  topologyKey: 'kubernetes.io/hostname',
+                },
+              ],
+            },
+          },
+          initContainers: [
+            {
+              name: 'pack',
+              image: 'busybox:1.36',
+              command: [
+                'sh',
+                '-c',
+                'set -e\n' +
+                  'SRC=/workspace/project\n' +
+                  '[ -d "$SRC" ] || SRC=/workspace\n' +
+                  `tar -czf /out/snap.tgz ${excludeArgs} -C "$SRC" .\n` +
+                  'sha256sum /out/snap.tgz | cut -d" " -f1 > /out/sha256\n' +
+                  'wc -c < /out/snap.tgz | tr -d " " > /out/size\n' +
+                  'tar -tzf /out/snap.tgz | grep -vc "/$" > /out/fc 2>/dev/null || echo 0 > /out/fc\n' +
+                  'echo "[snap] $(cat /out/sha256) $(cat /out/size)B files=$(cat /out/fc)"',
+              ],
+              volumeMounts: [
+                { name: 'workspace', mountPath: '/workspace', readOnly: true },
+                { name: 'out', mountPath: '/out' },
+              ],
+            },
+            {
+              name: 'upload',
+              image: 'minio/mc:latest',
+              env: [{ name: 'HOME', value: '/tmp' }],
+              envFrom: [{ secretRef: { name: 'app-secrets' } }],
+              command: [
+                '/bin/sh',
+                '-c',
+                'set -e\n' +
+                  'mc alias set m "http://${MINIO_ENDPOINT}:${MINIO_PORT}" "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY" >/dev/null\n' +
+                  `mc cp /out/snap.tgz "m/${snapshotRef}"`,
+              ],
+              volumeMounts: [{ name: 'out', mountPath: '/out' }],
+            },
+          ],
+          containers: [
+            {
+              name: 'report',
+              image: 'busybox:1.36',
+              env: [
+                { name: 'ATTEMPT_ID', value: attemptId },
+                { name: 'REF', value: snapshotRef },
+                { name: 'TRIGGER', value: trigger },
+                {
+                  name: 'INTERNAL_API_SECRET',
+                  valueFrom: { secretKeyRef: { name: 'app-secrets', key: 'INTERNAL_API_SECRET' } },
+                },
+              ],
+              command: [
+                'sh',
+                '-c',
+                'set -e\n' +
+                  'SHA=$(cat /out/sha256); SIZE=$(cat /out/size); FC=$(cat /out/fc)\n' +
+                  `BODY="{\\"attemptId\\":\\"$ATTEMPT_ID\\",\\"ref\\":\\"$REF\\",\\"sha256\\":\\"$SHA\\",\\"sizeBytes\\":$SIZE,\\"trigger\\":\\"$TRIGGER\\",\\"fileCount\\":$FC${turnField}}"\n` +
+                  'wget -q -O- --header "content-type: application/json" --header "x-internal-secret: $INTERNAL_API_SECRET" ' +
+                  `--post-data "$BODY" "http://web.${ns}.svc.cluster.local:3000/api/internal/attempts/snapshot"`,
               ],
               volumeMounts: [{ name: 'out', mountPath: '/out' }],
             },
