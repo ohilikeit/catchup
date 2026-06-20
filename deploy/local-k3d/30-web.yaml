@@ -1,6 +1,6 @@
 # web 의 exam-ops 권한 — 회차 provision/close·패키징 Job 을 web 이 k8s API 로 직접 수행(docs/6 Phase 3 로컬판).
 # 최소권한: exam 동적 리소스(ConfigMap exam-batch·Secret exam-virtual-keys·exam-slot-* Service·
-# exam-ide-slots Ingress·pkg-* Job·workspace-exam-* PVC)와 exam StatefulSet scale 에 한정된 namespace Role.
+# exam-ide-slots Ingress·pkg-* Job·workspace-exam-* PVC·exam-watcher-* Deployment)와 exam StatefulSet scale 에 한정된 namespace Role.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -28,6 +28,10 @@ rules:
   - apiGroups: ["apps"]
     resources: ["statefulsets/scale"]
     verbs: ["get", "patch", "update"]
+  # exam-watcher-* Deployment(슬롯별 transcript 워처, docs/10) — provision 이 create/list/patch, close 가 delete.
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "create", "update", "patch", "delete"]
   - apiGroups: ["networking.k8s.io"]
     resources: ["ingresses"]
     verbs: ["get", "list", "create", "update", "patch", "delete"]
