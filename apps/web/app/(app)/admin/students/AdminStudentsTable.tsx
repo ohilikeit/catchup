@@ -67,7 +67,7 @@ export function AdminStudentsTable({ rows }: { rows: UserWithOrgs[] }) {
           <Tag color="gray">비활성</Tag>
         ),
     },
-    { key: 'createdAt', header: '등록일', sortable: true, render: (r) => fmt(r.createdAt) },
+    { key: 'createdAt', header: '등록일', sortable: true, className: 'tabular-nums', render: (r) => fmt(r.createdAt) },
     {
       key: 'actions',
       header: '',

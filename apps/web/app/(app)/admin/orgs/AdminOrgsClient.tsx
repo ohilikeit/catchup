@@ -79,9 +79,9 @@ export function AdminOrgsClient({ orgs }: { orgs: OrgWithCounts[] }) {
   const columns: Array<Column<OrgWithCounts>> = [
     { key: 'name', header: '기관명', sortable: true },
     { key: 'code', header: '코드', render: (r) => r.code ?? '—' },
-    { key: 'staffCount', header: '담당자', sortable: true, render: (r) => String(r.staffCount) },
-    { key: 'studentCount', header: '학생', sortable: true, render: (r) => String(r.studentCount) },
-    { key: 'batchCount', header: '회차', sortable: true, render: (r) => String(r.batchCount) },
+    { key: 'staffCount', header: '담당자', sortable: true, className: 'tabular-nums', render: (r) => String(r.staffCount) },
+    { key: 'studentCount', header: '학생', sortable: true, className: 'tabular-nums', render: (r) => String(r.studentCount) },
+    { key: 'batchCount', header: '회차', sortable: true, className: 'tabular-nums', render: (r) => String(r.batchCount) },
     {
       key: 'isActive',
       header: '상태',
@@ -93,7 +93,7 @@ export function AdminOrgsClient({ orgs }: { orgs: OrgWithCounts[] }) {
           <Tag color="gray">비활성</Tag>
         ),
     },
-    { key: 'createdAt', header: '등록일', render: (r) => fmt(r.createdAt) },
+    { key: 'createdAt', header: '등록일', className: 'tabular-nums', render: (r) => fmt(r.createdAt) },
     {
       key: 'actions',
       header: '',

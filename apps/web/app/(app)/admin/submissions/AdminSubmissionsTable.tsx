@@ -49,11 +49,13 @@ export function AdminSubmissionsTable({ rows }: { rows: SubmissionListItem[] }) 
     {
       key: 'fileCount',
       header: '파일',
+      className: 'tabular-nums',
       render: (r) => String(r.fileCount),
     },
     {
       key: 'submittedAt',
       header: '제출일시',
+      className: 'tabular-nums',
       sortValue: (r) => (r.submittedAt ? new Date(r.submittedAt).getTime() : 0),
       render: (r) => fmt(r.submittedAt),
     },

@@ -1,8 +1,11 @@
+import type { Metadata } from 'next';
 import { requireGlobalRole } from '@/lib/auth/guard';
 import { listForViewer } from '@/lib/services/batchService';
 import { organizationsRepo, problemsRepo } from '@/lib/db';
 import { PageHead } from '../../_components/ui';
 import { AdminBatchesClient } from './AdminBatchesClient';
+
+export const metadata: Metadata = { title: '회차 관리' };
 
 // admin/batches — 사내 admin 전용. 전체 회차 목록 + 개설/상태변경/로스터 import.
 

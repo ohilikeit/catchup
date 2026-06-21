@@ -1,7 +1,10 @@
+import type { Metadata } from 'next';
 import { requireGlobalRole } from '@/lib/auth/guard';
 import { submissionsRepo } from '@/lib/db';
 import { PageHead, EmptyState } from '../../_components/ui';
 import { AdminSubmissionsTable } from './AdminSubmissionsTable';
+
+export const metadata: Metadata = { title: '제출 현황' };
 
 // admin/submissions — 사내 admin 전용. 전체 제출 검증 현황.
 // 점수는 평가 모듈 소관. 검증(accepted/rejected) 현황까지만.

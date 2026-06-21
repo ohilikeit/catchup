@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { requireSession } from '@/lib/auth/guard';
 import { getReportForExaminee } from '@/lib/services/attemptService';
@@ -9,6 +10,8 @@ import {
   AttemptStatusTag,
   SubmissionStatusTag,
 } from '../../../_components/ui';
+
+export const metadata: Metadata = { title: '응시 리포트' };
 
 // my/reports/[id] — 학생 본인 응시 리포트. 소유권은 service가 강제.
 // 평가·상세 리포트는 평가 모듈 소관(docs/1 §6) → ComingSoon.

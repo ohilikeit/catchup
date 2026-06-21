@@ -1,7 +1,10 @@
+import type { Metadata } from 'next';
 import { requireAudience } from '@/lib/auth/guard';
 import { getDashboard } from '@/lib/services/dashboardService';
 import { MetricGrid, MetricTile, Notification } from '@app/ui';
 import { PageHead, EmptyState, AttemptStatusTag, SubmissionStatusTag, TrustTag } from '../../_components/ui';
+
+export const metadata: Metadata = { title: '대시보드' };
 
 // org/dashboard — 학교담당자 홈. ⭐ 자기 대학 응시·제출 현황만(org 스코프, dashboardService가 강제).
 // 점수 집계는 평가 모듈 이후(docs/1 §1). 여기선 진행·제출 현황까지.

@@ -18,7 +18,7 @@ export function MyExamsTable({ rows }: { rows: MyExamItem[] }) {
     { key: 'batchName', header: '회차' },
     { key: 'status', header: '상태', sortable: true, render: (r) => <AttemptStatusTag status={r.status} /> },
     { key: 'submissionStatus', header: '제출', render: (r) => <SubmissionStatusTag status={r.submissionStatus} /> },
-    { key: 'deadlineAt', header: '마감', sortValue: (r) => (r.deadlineAt ? new Date(r.deadlineAt).getTime() : 0), render: (r) => fmt(r.deadlineAt) },
+    { key: 'deadlineAt', header: '마감', className: 'tabular-nums', sortValue: (r) => (r.deadlineAt ? new Date(r.deadlineAt).getTime() : 0), render: (r) => fmt(r.deadlineAt) },
     {
       key: 'action',
       header: '',

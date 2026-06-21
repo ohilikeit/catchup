@@ -17,7 +17,7 @@ function ReportPreview() {
   ];
   return (
     <Link href="/sample-report" className="block no-underline group">
-      <div className="bg-layer-02 border border-border-subtle-01 p-06">
+      <div className="bg-layer-02 border border-border-subtle-01 p-06 transition-colors duration-fast-02 ease-productive group-hover:border-border-strong-01">
         <div className="flex items-start justify-between">
           <div>
             <div className="cds-label-01 text-text-secondary">평가 리포트</div>
@@ -26,7 +26,7 @@ function ReportPreview() {
           <span className="cds-helper-01 text-text-secondary border border-border-subtle-01 rounded-pill px-03 py-[2px]">예시</span>
         </div>
         <div className="mt-05 flex items-end gap-02">
-          <span className="text-[2.5rem] leading-none font-light text-text-primary">87.77</span>
+          <span className="text-[2.5rem] leading-none font-light text-text-primary tabular-nums">87.77</span>
           <span className="cds-body-01 text-text-secondary mb-[4px]">/ 100점</span>
         </div>
         <div className="mt-05 flex flex-col gap-04">
@@ -34,7 +34,7 @@ function ReportPreview() {
             <div key={r.label}>
               <div className="flex justify-between cds-label-01 mb-01">
                 <span className="text-text-primary">{r.label}</span>
-                <span className="text-text-secondary">{r.value} / {r.max}</span>
+                <span className="text-text-secondary tabular-nums">{r.value} / {r.max}</span>
               </div>
               <div className="h-1.5 bg-border-subtle-01 rounded-sm overflow-hidden">
                 <span className="block h-full bg-interactive rounded-sm" style={{ width: `${r.pct}%` }} />
@@ -44,7 +44,9 @@ function ReportPreview() {
         </div>
         <div className="mt-05 pt-04 border-t border-border-subtle-01 flex items-center justify-between cds-body-01 text-link-primary">
           <span>샘플 리포트 전체 보기</span>
-          <Icon name="arrow-right" size={16} />
+          <span className="transition-transform duration-fast-02 ease-productive group-hover:translate-x-1">
+            <Icon name="arrow-right" size={16} />
+          </span>
         </div>
       </div>
     </Link>
@@ -62,7 +64,7 @@ export default function LandingPage() {
               <p className="cds-label-01 text-text-secondary mb-04 uppercase tracking-widest">
                 실무형 AI 활용 역량 평가
               </p>
-              <h1 className="cds-heading-07 text-text-primary">
+              <h1 className="cds-heading-07 text-text-primary text-balance">
                 AI를 쓰는 것과<br />
                 <b className="font-semibold">AI로 일하는 것</b>은 다릅니다.
               </h1>
@@ -97,7 +99,7 @@ export default function LandingPage() {
       {/* 차별점 — 챗봇/샌드박스가 아니라 실무 도구 그대로(자유도) */}
       <section className="bg-background border-b border-border-subtle-01 py-11">
         <MarketingContainer>
-          <h2 className="cds-heading-05 text-text-primary mb-02">챗봇 테스트가 아닙니다</h2>
+          <h2 className="cds-heading-05 text-text-primary mb-02 text-balance">챗봇 테스트가 아닙니다</h2>
           <p className="cds-body-01 text-text-secondary mb-07 max-w-[620px]">
             정해진 보기를 고르거나 제약된 샌드박스에서 코딩하는 시험이 아닙니다.
             실무에서 실제로 쓰는 도구를 그대로 허용합니다. 높은 자유도가 진짜 실력을 드러냅니다.
@@ -121,7 +123,7 @@ export default function LandingPage() {
       {/* 두 가지를 함께 봅니다 — 과정과 결과 */}
       <section className="py-11 bg-background">
         <MarketingContainer>
-          <h2 className="cds-heading-05 text-text-primary mb-02">두 가지를 함께 봅니다</h2>
+          <h2 className="cds-heading-05 text-text-primary mb-02 text-balance">두 가지를 함께 봅니다</h2>
           <p className="cds-body-01 text-text-secondary mb-07">
             결과만 보면 누가 AI와 잘 협업했는지 알 수 없습니다. 과정과 결과를 같이 평가합니다.
           </p>
@@ -153,7 +155,7 @@ export default function LandingPage() {
       {/* 누구에게 좋은가 — 응시자 / 운영 기관(대시보드 어필) */}
       <section className="py-11 bg-layer-01 border-t border-border-subtle-01">
         <MarketingContainer>
-          <h2 className="cds-heading-05 text-text-primary mb-02">누구에게 좋은가</h2>
+          <h2 className="cds-heading-05 text-text-primary mb-02 text-balance">누구에게 좋은가</h2>
           <p className="cds-body-01 text-text-secondary mb-07">배우는 사람과, 키우는 기관 모두에게.</p>
           <div className="grid md:grid-cols-2 gap-05">
             {/* 응시자 */}
@@ -202,7 +204,7 @@ export default function LandingPage() {
       {/* 어떻게 진행되나요 — 3단계 */}
       <section className="py-11 bg-background border-t border-border-subtle-01">
         <MarketingContainer>
-          <h2 className="cds-heading-05 text-text-primary mb-02">어떻게 진행되나요</h2>
+          <h2 className="cds-heading-05 text-text-primary mb-02 text-balance">어떻게 진행되나요</h2>
           <p className="cds-body-01 text-text-secondary mb-07">준비물 없이 당일에 끝납니다.</p>
           <div className="grid md:grid-cols-3 gap-05">
             {[
@@ -227,7 +229,7 @@ export default function LandingPage() {
       <section className="py-11 bg-layer-01 border-t border-border-subtle-01">
         <MarketingContainer>
           <div className="max-w-[600px]">
-            <h2 className="cds-heading-04 text-text-primary mb-03">
+            <h2 className="cds-heading-04 text-text-primary mb-03 text-balance">
               AI를 정말 잘 쓰는지, 숫자로 확인하세요.
             </h2>
             <p className="cds-body-01 text-text-secondary mb-06">

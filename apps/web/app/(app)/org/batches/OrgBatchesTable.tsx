@@ -27,16 +27,19 @@ export function OrgBatchesTable({ rows }: { rows: BatchListItem[] }) {
     {
       key: 'attemptCount',
       header: '응시',
+      className: 'tabular-nums',
       render: (r) => `${r.attemptCount} / ${r.capacity}`,
     },
     {
       key: 'submittedCount',
       header: '제출',
+      className: 'tabular-nums',
       render: (r) => String(r.submittedCount),
     },
     {
       key: 'scheduledAt',
       header: '예정일',
+      className: 'tabular-nums',
       sortValue: (r) => (r.scheduledAt ? new Date(r.scheduledAt).getTime() : 0),
       render: (r) => fmt(r.scheduledAt),
     },

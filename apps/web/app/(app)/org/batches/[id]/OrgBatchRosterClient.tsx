@@ -25,6 +25,7 @@ export function OrgBatchRosterClient({ roster }: { roster: RosterItem[] }) {
     {
       key: 'submittedAt',
       header: '제출 시각',
+      className: 'tabular-nums',
       render: (r) => fmt(r.submittedAt),
     },
   ];

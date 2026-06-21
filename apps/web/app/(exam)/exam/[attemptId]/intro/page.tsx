@@ -1,9 +1,12 @@
+import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { Button, Icon, Notification } from '@app/ui';
 import { requireSession } from '@/lib/auth/guard';
 import { getRuntime } from '@/lib/services/examService';
 import { ExamTopBar, MobileBlock, Card } from '../../../_components/ExamChrome';
 import { StartExamButton } from './StartExamButton';
+
+export const metadata: Metadata = { title: '시험 안내' };
 
 // 시작 불가 회차 상태 → 응시자에게 보여줄 사유. 시작은 batchStatus==='open' 에서만 유효하며,
 // 그 판정은 서버 startExam 과 동일하다(여기서 막는 건 UI 일관성용 — 권위는 트랜잭션).
@@ -54,7 +57,7 @@ export default async function ExamIntroPage({ params }: { params: { attemptId: s
   const blocked = runtime.batchStatus === 'open' ? null : NOT_STARTABLE[runtime.batchStatus] ?? NOT_STARTABLE.scheduled;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-dvh flex flex-col">
       <ExamTopBar title={runtime.problemTitle} sub={runtime.batchName} />
 
       <MobileBlock />

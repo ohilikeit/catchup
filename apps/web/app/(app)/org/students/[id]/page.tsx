@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { requireAudience } from '@/lib/auth/guard';
 import * as attemptService from '@/lib/services/attemptService';
@@ -10,6 +11,8 @@ import {
   AttemptStatusTag,
   SubmissionStatusTag,
 } from '../../../_components/ui';
+
+export const metadata: Metadata = { title: '학생 상세' };
 
 // org/students/[id] — 학생 상세(실데이터). org_admin이 자기 org 소속 학생만 조회 가능.
 // 점수·리포트는 평가 모듈 소관 → ComingSoon.

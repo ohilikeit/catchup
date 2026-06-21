@@ -1,9 +1,12 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Breadcrumb, MetricGrid, MetricTile } from '@app/ui';
 import { requireAudience } from '@/lib/auth/guard';
 import { getBatchDetailForViewer } from '@/lib/services/batchService';
 import { PageHead, BatchStatusTag } from '../../../_components/ui';
 import { OrgBatchRosterClient } from './OrgBatchRosterClient';
+
+export const metadata: Metadata = { title: '회차 상세' };
 
 export default async function OrgBatchDetailPage({
   params,

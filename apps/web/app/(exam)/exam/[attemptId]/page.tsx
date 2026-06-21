@@ -1,8 +1,11 @@
+import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { requireSession } from '@/lib/auth/guard';
 import { getRuntimeWithSlot, noteReconnect } from '@/lib/services/examService';
 import { MobileBlock } from '../../_components/ExamChrome';
 import { ExamRuntime, type ExamRuntimeData } from './ExamRuntime';
+
+export const metadata: Metadata = { title: '시험 진행' };
 
 // (exam) 진행 화면 — 전달방식은 hosted 단일(docs/1 §1·§4).
 // 서버: 세션 게이트 + 소유권 + 상태 분기. ready=미시작→intro, submitted→done, running만 진행.

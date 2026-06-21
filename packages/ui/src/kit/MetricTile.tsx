@@ -19,7 +19,7 @@ export function MetricTile({ label, value, icon, delta, trend }: MetricTileProps
         {icon ? <Icon name={icon} size={14} /> : null}
         {label}
       </div>
-      <div className="mt-[10px] font-sans text-[2rem] font-light leading-10 text-text-primary">
+      <div className="mt-[10px] font-sans text-[2rem] font-light leading-10 text-text-primary tabular-nums">
         {value}
       </div>
       {delta ? (

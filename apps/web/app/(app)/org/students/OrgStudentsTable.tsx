@@ -25,7 +25,7 @@ export function OrgStudentsTable({ rows }: { rows: StudentRow[] }) {
       ),
     },
     { key: 'email', header: '이메일', sortable: true, render: (r) => r.email ?? '—' },
-    { key: 'externalId', header: '학번', render: (r) => r.externalId ?? '—' },
+    { key: 'externalId', header: '학번', className: 'tabular-nums', render: (r) => r.externalId ?? '—' },
     {
       key: 'orgName',
       header: '소속',

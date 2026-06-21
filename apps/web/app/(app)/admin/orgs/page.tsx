@@ -1,7 +1,10 @@
+import type { Metadata } from 'next';
 import { requireGlobalRole } from '@/lib/auth/guard';
 import { organizationsRepo } from '@/lib/db';
 import { PageHead } from '../../_components/ui';
 import { AdminOrgsClient } from './AdminOrgsClient';
+
+export const metadata: Metadata = { title: '기관 관리' };
 
 // admin/orgs — 사내 admin 전용. 대학 목록·추가·비활성화.
 

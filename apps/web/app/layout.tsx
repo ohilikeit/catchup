@@ -3,9 +3,22 @@ import { ThemeProvider, ToastProvider } from '@app/core';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'CatchUP Design System',
+  // 페이지별 title은 "%s · CatchUP"로 합성, 미지정 시 default 사용.
+  title: {
+    default: 'CatchUP — 실무형 AI 활용 역량 평가',
+    template: '%s · CatchUP',
+  },
   description:
-    'CatchUP — a productive, enterprise design system built on IBM Carbon foundations.',
+    'Claude Code·Codex 같은 실무 코딩 에이전트를 직접 다루며 AI 활용 역량을 기르고, 과정과 결과로 객관적으로 증명하는 평가 플랫폼.',
+  applicationName: 'CatchUP',
+  openGraph: {
+    type: 'website',
+    siteName: 'CatchUP',
+    title: 'CatchUP — 실무형 AI 활용 역량 평가',
+    description:
+      'AI를 쓰는 것과 AI로 일하는 것은 다릅니다. 실무 코딩 에이전트로 역량을 기르고 증명하세요.',
+    locale: 'ko_KR',
+  },
 };
 
 /**
@@ -16,7 +29,7 @@ export const metadata: Metadata = {
  */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="ko" suppressHydrationWarning>
       <body>
         <ThemeProvider>
           <ToastProvider>{children}</ToastProvider>

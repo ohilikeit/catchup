@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import NextLink from 'next/link';
 import { notFound } from 'next/navigation';
 import { Breadcrumb, Button, Icon, Notification, Tag } from '@app/ui';
@@ -7,6 +8,8 @@ import { listScaffoldFiles, previewScaffoldFile } from '@/lib/services/problemSe
 import { PageHead, EmptyState } from '../../../_components/ui';
 import { ScaffoldReplace } from './ScaffoldReplace';
 import { ProblemDangerZone } from './ProblemDangerZone';
+
+export const metadata: Metadata = { title: '문제 상세' };
 
 // admin/problems/[code] — 업로드된 문제(스캐폴드)를 눈으로 검수하는 상세 페이지.
 // 서버 컴포넌트만으로 동작: 버전 선택(?v=)·파일 선택(?file=)을 쿼리로 받아 MinIO 아카이브를

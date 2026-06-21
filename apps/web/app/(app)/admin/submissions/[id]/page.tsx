@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { requireGlobalRole } from '@/lib/auth/guard';
 import { getDetail } from '@/lib/services/submissionService';
@@ -9,6 +10,8 @@ import {
   SubmissionStatusTag,
   TrustTag,
 } from '../../../_components/ui';
+
+export const metadata: Metadata = { title: '제출 상세' };
 
 // admin/submissions/[id] — 제출 검증 상세. admin 전용.
 // 평가 결과는 평가 모듈 소관(docs/1 §6) → ComingSoon.

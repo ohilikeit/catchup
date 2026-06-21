@@ -1,4 +1,4 @@
-import { Icon, Tag } from '@app/ui';
+import { Icon, Tag, Skeleton } from '@app/ui';
 import type { IconName } from '@app/ui';
 
 // (app) 셸 페이지 공용 표현 부품. 디자인 시스템 토큰만 사용(raw 색상·임의 radius 금지).
@@ -61,6 +61,56 @@ export function ComingSoon({ title, message }: { title: string; message: string 
 /** 간단한 카드(보더 + layer 배경). 그림자 없음(떠있는 레이어가 아니므로). */
 export function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return <div className={`bg-layer-02 border border-border-subtle-01 p-06 ${className}`}>{children}</div>;
+}
+
+/* ── 로딩 상태(로딩/에러/빈 — 모든 상태 화면의 한 축) ─────────────────── */
+
+/** PageHead + 표 모양 스켈레톤. 리스트 라우트의 loading.tsx에서 사용. */
+export function TableSkeleton({ rows = 6 }: { rows?: number }) {
+  return (
+    <div aria-busy="true">
+      {/* PageHead 자리 */}
+      <div className="mb-07">
+        <Skeleton className="h-07 w-40" />
+        <Skeleton className="h-04 w-64 mt-03" />
+      </div>
+      {/* 표 자리: 헤더 + 행, 1px 보더로 구조 */}
+      <div className="border border-border-subtle-01 bg-layer-02">
+        <div className="h-12 border-b border-border-subtle-01 px-05 flex items-center">
+          <Skeleton className="h-04 w-24" />
+        </div>
+        {Array.from({ length: rows }).map((_, i) => (
+          <div
+            key={i}
+            className="h-12 border-b border-border-subtle-01 last:border-0 px-05 flex items-center gap-05"
+          >
+            <Skeleton className="h-04 w-1/4" />
+            <Skeleton className="h-04 w-1/3" />
+            <Skeleton className="h-04 w-1/6" />
+          </div>
+        ))}
+      </div>
+      <span className="sr-only">불러오는 중</span>
+    </div>
+  );
+}
+
+/** 메트릭 그리드 자리표시(대시보드 loading.tsx). MetricGrid와 같은 1px 헤어라인 구조. */
+export function MetricGridSkeleton({ columns = 4 }: { columns?: number }) {
+  return (
+    <div
+      className="grid gap-px bg-border-subtle-01 border border-border-subtle-01 mb-07"
+      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      aria-hidden="true"
+    >
+      {Array.from({ length: columns }).map((_, i) => (
+        <div key={i} className="bg-layer-02 p-05">
+          <Skeleton className="h-04 w-16" />
+          <Skeleton className="h-08 w-20 mt-03" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /* ── 도메인 상태 배지(고정 매핑 — 여러 페이지 공유) ───────────────────── */

@@ -1,6 +1,9 @@
+import type { Metadata } from 'next';
 import { requireSession } from '@/lib/auth/guard';
 import { PageHead } from '../_components/ui';
 import { ChangePasswordForm } from './ChangePasswordForm';
+
+export const metadata: Metadata = { title: '비밀번호 변경' };
 
 // 비밀번호 변경 화면. 첫 로그인(임시비번) 변경 + 일반 변경 겸용. 모든 로그인 사용자 접근.
 

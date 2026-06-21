@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Breadcrumb, MetricGrid, MetricTile } from '@app/ui';
 import { requireGlobalRole } from '@/lib/auth/guard';
@@ -9,6 +10,8 @@ import { AdminBatchRosterClient } from './AdminBatchRosterClient';
 import { BatchEnvControls } from './BatchEnvControls';
 import { BatchOpsPanel } from './BatchOpsPanel';
 import { BatchDangerZone } from './BatchDangerZone';
+
+export const metadata: Metadata = { title: '회차 운영' };
 
 export default async function AdminBatchDetailPage({
   params,

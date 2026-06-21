@@ -1,7 +1,10 @@
+import type { Metadata } from 'next';
 import { requireAudience, myOrgAdminIds } from '@/lib/auth/guard';
 import { usersRepo } from '@/lib/db';
 import { PageHead, EmptyState } from '../../_components/ui';
 import { OrgStudentsTable } from './OrgStudentsTable';
+
+export const metadata: Metadata = { title: '학생 관리' };
 
 // org/students — org_admin 전용. 자기 대학 학생(examinee) 목록.
 // 여러 org를 관리하는 경우 합쳐서 보여주되 org명 표기.

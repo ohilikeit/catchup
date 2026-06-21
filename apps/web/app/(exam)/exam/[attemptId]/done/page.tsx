@@ -1,9 +1,12 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Icon } from '@app/ui';
 import { requireSession } from '@/lib/auth/guard';
 import { getRuntime } from '@/lib/services/examService';
 import { ExamTopBar, ComingSoon, Card } from '../../../_components/ExamChrome';
+
+export const metadata: Metadata = { title: '제출 완료' };
 
 // (exam) done — 제출 완료 안내(docs/1 §1·§4). 점수·리포트는 평가 모듈 소관 → placeholder.
 // done은 모바일 차단 대상 아님(읽기 전용 안내) — 좁은 화면에서도 그대로 노출.
@@ -14,7 +17,7 @@ export default async function ExamDonePage({ params }: { params: { attemptId: st
   if (!runtime) notFound();
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-dvh flex flex-col">
       <ExamTopBar title={runtime.problemTitle} sub={runtime.batchName} />
 
       <main className="flex-1">

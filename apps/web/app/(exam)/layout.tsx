@@ -2,5 +2,5 @@
 // 배경만 깔고 children을 그대로 — 각 페이지가 자기 레이아웃을 책임진다.
 
 export default function ExamLayout({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-screen bg-background">{children}</div>;
+  return <div className="min-h-dvh bg-background">{children}</div>;
 }

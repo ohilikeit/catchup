@@ -1,6 +1,12 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button, Icon, Notification } from '@app/ui';
 import { MarketingContainer } from '../_components/MarketingContainer';
+
+export const metadata: Metadata = {
+  title: '커리큘럼',
+  description: '평가 전 필수 수강하는 2~3시간 바이브코딩 강의 — AI 툴 사용법과 직무 과제 유형.',
+};
 
 export default function CurriculumPage() {
   return (
@@ -9,7 +15,7 @@ export default function CurriculumPage() {
         <p className="cds-label-01 text-text-secondary mb-03 uppercase tracking-widest">
           커리큘럼
         </p>
-        <h1 className="cds-heading-06 text-text-primary mb-04">
+        <h1 className="cds-heading-06 text-text-primary mb-04 text-balance">
           바이브코딩 강의 소개
         </h1>
         <p className="cds-body-02 text-text-secondary max-w-[520px]">

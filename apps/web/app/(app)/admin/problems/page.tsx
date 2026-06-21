@@ -1,8 +1,11 @@
+import type { Metadata } from 'next';
 import { requireGlobalRole } from '@/lib/auth/guard';
 import { problemsRepo } from '@/lib/db';
 import { PageHead, EmptyState } from '../../_components/ui';
 import { AdminProblemsTable } from './AdminProblemsTable';
 import { AdminProblemUpload } from './AdminProblemUpload';
+
+export const metadata: Metadata = { title: '문제 관리' };
 
 // admin/problems — 사내 admin 전용. 문제 목록(읽기) + 버전 업로드(MinIO 적재).
 

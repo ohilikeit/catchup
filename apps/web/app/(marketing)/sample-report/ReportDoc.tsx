@@ -388,7 +388,7 @@ const CSS = `
   --ink:#23201f; --muted:#6f6a68; --line:#e7e3e1; --bg:#ededec; --card:#ffffff;
   background:var(--bg); padding:32px 16px; display:flex; justify-content:center;
   font-family:'IBM Plex Sans KR','Pretendard',system-ui,sans-serif; color:var(--ink); }
-.rp-doc{ width:100%; max-width:880px; display:flex; flex-direction:column; gap:16px; }
+.rp-doc{ width:100%; max-width:880px; display:flex; flex-direction:column; gap:16px; font-variant-numeric:tabular-nums; }
 .rp-topmeta{ display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--muted); padding:0 4px; }
 .rp-sample{ background:#fff4e6; color:#b65a14; border:1px solid #f0d3ad; border-radius:999px; padding:2px 10px; font-weight:600; }
 .rp-header{ background:linear-gradient(120deg,var(--maroon) 0%,var(--maroon2) 55%,var(--orange) 130%); color:#fff;

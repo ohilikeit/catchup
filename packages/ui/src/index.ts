@@ -28,6 +28,12 @@ export {
   type NotificationProps,
 } from './components/Notification';
 export { Tile, type TileProps } from './components/Tile';
+export {
+  Skeleton,
+  SkeletonText,
+  type SkeletonProps,
+  type SkeletonTextProps,
+} from './components/Skeleton';
 export { Menu, type MenuProps, type MenuItem } from './components/Menu';
 export { Link, type LinkProps } from './components/Link';
 

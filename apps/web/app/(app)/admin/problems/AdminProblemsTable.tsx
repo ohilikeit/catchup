@@ -39,11 +39,13 @@ export function AdminProblemsTable({ rows }: { rows: ProblemWithVersions[] }) {
       key: 'versionCount',
       header: '버전수',
       sortable: true,
+      className: 'tabular-nums',
       render: (r) => String(r.versionCount),
     },
     {
       key: 'latestVersion',
       header: '최신버전',
+      className: 'tabular-nums',
       render: (r) =>
         r.latestVersion != null ? `v${r.latestVersion}` : '—',
     },
@@ -58,7 +60,7 @@ export function AdminProblemsTable({ rows }: { rows: ProblemWithVersions[] }) {
           <Tag color="gray">비활성</Tag>
         ),
     },
-    { key: 'createdAt', header: '등록일', render: (r) => fmt(r.createdAt) },
+    { key: 'createdAt', header: '등록일', className: 'tabular-nums', render: (r) => fmt(r.createdAt) },
   ];
 
   return (

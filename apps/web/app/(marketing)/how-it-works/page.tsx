@@ -1,6 +1,12 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button, Icon } from '@app/ui';
 import { MarketingContainer } from '../_components/MarketingContainer';
+
+export const metadata: Metadata = {
+  title: '진행 방식',
+  description: '로그인부터 리포트 수령까지, 평가 전 과정이 하루 안에 완결되는 6단계 안내.',
+};
 
 const STEPS = [
   {
@@ -48,7 +54,7 @@ export default function HowItWorksPage() {
         <p className="cds-label-01 text-text-secondary mb-03 uppercase tracking-widest">
           시험 진행 방식
         </p>
-        <h1 className="cds-heading-06 text-text-primary mb-04">
+        <h1 className="cds-heading-06 text-text-primary mb-04 text-balance">
           로그인부터 리포트까지 6단계
         </h1>
         <p className="cds-body-02 text-text-secondary max-w-[520px]">

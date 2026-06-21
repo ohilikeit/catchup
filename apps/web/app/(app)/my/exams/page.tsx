@@ -1,7 +1,10 @@
+import type { Metadata } from 'next';
 import { requireAudience } from '@/lib/auth/guard';
 import { attemptsRepo } from '@/lib/db';
 import { PageHead, EmptyState } from '../../_components/ui';
 import { MyExamsTable } from './MyExamsTable';
+
+export const metadata: Metadata = { title: '내 시험' };
 
 // my/exams — examinee 홈. 내 응시 목록(예정/진행/완료). 점수·리포트는 모름(평가 모듈 소관, docs/1 §1).
 // 서버: 인증 게이트 + 데이터 fetch. 표(상호작용)는 클라 컴포넌트로 분리(함수 prop 경계).

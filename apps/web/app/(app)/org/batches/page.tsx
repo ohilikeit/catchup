@@ -1,8 +1,11 @@
+import type { Metadata } from 'next';
 import { requireAudience } from '@/lib/auth/guard';
 import { listForViewer } from '@/lib/services/batchService';
 import { Notification } from '@app/ui';
 import { PageHead, EmptyState } from '../../_components/ui';
 import { OrgBatchesTable } from './OrgBatchesTable';
+
+export const metadata: Metadata = { title: '회차 현황' };
 
 // org/batches — org_admin 전용. 자기 대학 회차 목록(읽기 전용).
 // 회차 개설은 admin 소관. 현황 파악용.
