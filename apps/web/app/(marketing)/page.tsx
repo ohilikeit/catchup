@@ -56,31 +56,31 @@ function ReportPreview() {
 export default function LandingPage() {
   return (
     <div className="flex flex-col">
-      {/* Hero — 에이전트 자유도 캐치프라이즈 + 허용 도구 + 제품 미리보기 */}
-      <section className="bg-layer-01 border-b border-border-subtle-01 py-13">
+      {/* Hero — 다크 셸 앵커(헤더와 연속). 캐치프라이즈 + 허용 도구 + 제품 미리보기 */}
+      <section className="bg-shell text-shell-text border-b border-shell-border py-13">
         <MarketingContainer>
           <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-09 items-center">
             <div>
-              <p className="cds-label-01 text-text-secondary mb-04 uppercase tracking-widest">
+              <p className="cds-label-01 text-shell-text-secondary mb-04 uppercase tracking-widest">
                 실무형 AI 활용 역량 평가
               </p>
-              <h1 className="cds-heading-07 text-text-primary text-balance">
+              <h1 className="cds-heading-07 text-shell-text text-balance">
                 AI를 쓰는 것과<br />
-                <b className="font-semibold">AI로 일하는 것</b>은 다릅니다.
+                <b className="font-semibold text-shell-accent-text">AI로 일하는 것</b>은 다릅니다.
               </h1>
-              <p className="cds-body-02 text-text-secondary mt-05 max-w-[480px]">
-                <b className="text-text-primary">Claude Code·Codex 같은 실무 코딩 에이전트</b>를 직접 다루며
+              <p className="cds-body-02 text-shell-text-secondary mt-05 max-w-[480px]">
+                <b className="text-shell-text">Claude Code·Codex 같은 실무 코딩 에이전트</b>를 직접 다루며
                 실무에서 통하는 활용 역량을 기르고, AI와 일한 과정과 결과로 객관적으로 증명하세요.
               </p>
-              {/* 허용 도구 칩 — 자유도의 시각적 증거 */}
+              {/* 허용 도구 칩 — 자유도의 시각적 증거(다크 네이티브) */}
               <div className="mt-05 flex flex-wrap items-center gap-02">
-                <span className="cds-label-01 text-text-secondary mr-01">시험에서 허용:</span>
+                <span className="cds-label-01 text-shell-text-secondary mr-01">시험에서 허용:</span>
                 {ALLOWED_TOOLS.map((t) => (
-                  <span key={t} className="cds-helper-01 text-text-primary bg-layer-02 border border-border-subtle-01 rounded-pill px-03 py-[2px]">
+                  <span key={t} className="cds-helper-01 text-shell-text bg-shell-hover border border-shell-border rounded-pill px-03 py-[2px]">
                     {t}
                   </span>
                 ))}
-                <span className="cds-helper-01 text-text-secondary">등</span>
+                <span className="cds-helper-01 text-shell-text-secondary">등</span>
               </div>
               <div className="flex flex-wrap gap-04 mt-07">
                 <Button kind="primary" icon="arrow-right" asChild>
@@ -104,13 +104,13 @@ export default function LandingPage() {
             정해진 보기를 고르거나 제약된 샌드박스에서 코딩하는 시험이 아닙니다.
             실무에서 실제로 쓰는 도구를 그대로 허용합니다. 높은 자유도가 진짜 실력을 드러냅니다.
           </p>
-          <div className="grid md:grid-cols-3 gap-05">
+          <div className="grid md:grid-cols-3 gap-px bg-border-subtle-01 border border-border-subtle-01">
             {[
               { icon: 'launch' as const, t: '상용 코딩 에이전트 허용', d: 'Claude Code·Codex 같은 실무 에이전트를 시험에서 그대로 사용합니다. 장난감 환경이 아닙니다.' },
               { icon: 'settings' as const, t: '높은 자유도', d: '도구와 접근 방식을 스스로 선택합니다. 정해진 답이 아니라 문제를 푸는 과정을 봅니다.' },
               { icon: 'document' as const, t: '실무형 과제', d: '실제 업무를 본뜬 과제로, 배운 AI 활용법을 곧바로 적용해 결과를 만듭니다.' },
             ].map((v) => (
-              <div key={v.t} className="bg-layer-01 border border-border-subtle-01 p-06">
+              <div key={v.t} className="bg-layer-01 p-06">
                 <span className="text-icon-primary mb-04 block"><Icon name={v.icon} size={24} /></span>
                 <div className="cds-heading-compact-02 text-text-primary mb-02">{v.t}</div>
                 <p className="cds-body-01 text-text-secondary">{v.d}</p>
@@ -128,7 +128,7 @@ export default function LandingPage() {
             결과만 보면 누가 AI와 잘 협업했는지 알 수 없습니다. 과정과 결과를 같이 평가합니다.
           </p>
           <div className="grid md:grid-cols-2 gap-05">
-            <div className="bg-layer-01 border border-border-subtle-01 p-06">
+            <div className="bg-layer-01 border border-border-subtle-01 border-l-2 border-l-interactive p-06">
               <div className="flex items-center gap-03 mb-04">
                 <span className="text-icon-primary"><Icon name="chat" size={24} /></span>
                 <span className="cds-heading-compact-02 text-text-primary">AI와 일하는 과정</span>
@@ -138,7 +138,7 @@ export default function LandingPage() {
                 좋은 협업은 답을 받는 게 아니라 이끌어내는 것입니다.
               </p>
             </div>
-            <div className="bg-layer-01 border border-border-subtle-01 p-06">
+            <div className="bg-layer-01 border border-border-subtle-01 border-l-2 border-l-interactive p-06">
               <div className="flex items-center gap-03 mb-04">
                 <span className="text-icon-primary"><Icon name="document" size={24} /></span>
                 <span className="cds-heading-compact-02 text-text-primary">실제 만들어낸 결과물</span>
@@ -206,15 +206,15 @@ export default function LandingPage() {
         <MarketingContainer>
           <h2 className="cds-heading-05 text-text-primary mb-02 text-balance">어떻게 진행되나요</h2>
           <p className="cds-body-01 text-text-secondary mb-07">준비물 없이 당일에 끝납니다.</p>
-          <div className="grid md:grid-cols-3 gap-05">
+          <div className="grid md:grid-cols-3 gap-px bg-border-subtle-01 border border-border-subtle-01">
             {[
               { n: '01', icon: 'view' as const, t: '사전 강의 듣기', d: 'AI 에이전트를 실무에 활용하는 법을 배웁니다. 코딩 경험은 필요 없습니다.' },
               { n: '02', icon: 'chat' as const, t: '에이전트로 과제 풀기', d: '허용된 코딩 에이전트로 직무 과제를 해결합니다. 대화와 결과물이 자동 기록됩니다.' },
               { n: '03', icon: 'document' as const, t: '리포트 받기', d: '과정과 결과를 평가한 리포트를 받습니다. 점수와 함께 이유·피드백이 담깁니다.' },
             ].map((s) => (
-              <div key={s.n} className="bg-layer-02 border border-border-subtle-01 p-06">
+              <div key={s.n} className="bg-layer-02 p-06">
                 <div className="flex items-center justify-between mb-04">
-                  <span className="font-mono text-sm font-semibold text-text-secondary">{s.n}</span>
+                  <span className="font-mono text-lg font-semibold text-text-secondary tabular-nums">{s.n}</span>
                   <span className="text-icon-secondary"><Icon name={s.icon} size={20} /></span>
                 </div>
                 <div className="cds-heading-compact-01 text-text-primary mb-02">{s.t}</div>
@@ -225,14 +225,14 @@ export default function LandingPage() {
         </MarketingContainer>
       </section>
 
-      {/* 마무리 CTA */}
-      <section className="py-11 bg-layer-01 border-t border-border-subtle-01">
+      {/* 마무리 CTA — 다크 셸 bookend(히어로와 대칭) */}
+      <section className="py-11 bg-shell text-shell-text border-t border-shell-border">
         <MarketingContainer>
           <div className="max-w-[600px]">
-            <h2 className="cds-heading-04 text-text-primary mb-03 text-balance">
+            <h2 className="cds-heading-04 text-shell-text mb-03 text-balance">
               AI를 정말 잘 쓰는지, 숫자로 확인하세요.
             </h2>
-            <p className="cds-body-01 text-text-secondary mb-06">
+            <p className="cds-body-01 text-shell-text-secondary mb-06">
               응시자도, 운영 기관도 — 계정으로 로그인하면 시험·리포트와 관리 화면으로 이동합니다.
             </p>
             <div className="flex flex-wrap gap-04">
