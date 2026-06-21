@@ -58,7 +58,7 @@ export default async function AdminProblemDetailPage({
         sub={`${problem.code} · ${ROLE_TRACK_LABEL[problem.roleTrack] ?? problem.roleTrack} · 버전 ${versions.length}개`}
         action={
           selected ? (
-            <div className="flex items-center gap-03">
+            <div className="flex flex-wrap items-center gap-03">
               <ScaffoldReplace versionId={selected.id} version={selected.version} problemCode={code} />
               <Button kind="secondary" size="field" icon="download" asChild>
                 <a href={`/api/admin/problems/${encodeURIComponent(code)}/${selected.version}/download`}>

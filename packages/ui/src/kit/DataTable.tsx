@@ -12,6 +12,18 @@ export interface Column<T> {
   /** Value used for sorting when different from the rendered cell. */
   sortValue?: (row: T) => string | number;
   className?: string;
+  /**
+   * Clip long content to this max width (any CSS length, e.g. '16rem') with an
+   * ellipsis + native title tooltip. Use for free-text columns (names, titles,
+   * emails) so one long value can't blow out the row. table-layout:auto ignores
+   * td max-width, so the cell content is wrapped in a truncating block.
+   */
+  truncate?: string;
+  /** Tooltip text shown on a truncated cell (defaults to String(value)). */
+  titleValue?: (row: T) => string;
+  /** Allow this cell to wrap (overrides the default no-wrap). Pair with a
+   *  max-width in `className` for multi-value cells like tag lists. */
+  wrap?: boolean;
 }
 
 export interface DataTableProps<T> {
@@ -70,15 +82,15 @@ export function DataTable<T>({
   return (
     <div className={cn('bg-layer-02 border border-border-subtle-01', className)}>
       {(title || toolbar) && (
-        <div className="h-12 flex items-center justify-between pl-05 pr-03 border-b border-border-subtle-01">
+        <div className="min-h-12 flex flex-wrap items-center justify-between gap-x-04 gap-y-02 py-02 pl-05 pr-03 border-b border-border-subtle-01">
           {title ? (
-            <div className="font-sans text-base font-semibold leading-[1.375rem] text-text-primary">
+            <div className="min-w-0 truncate font-sans text-base font-semibold leading-[1.375rem] text-text-primary">
               {title}
             </div>
           ) : (
             <span />
           )}
-          {toolbar ? <div className="flex items-center gap-[2px]">{toolbar}</div> : null}
+          {toolbar ? <div className="flex items-center gap-[2px] flex-shrink-0">{toolbar}</div> : null}
         </div>
       )}
       <div className="overflow-x-auto">
@@ -120,20 +132,41 @@ export function DataTable<T>({
                   selected ? 'bg-blue-10' : 'hover:bg-layer-01',
                 )}
               >
-                {columns.map((col) => (
-                  <td
-                    key={col.key}
-                    className={cn(
-                      'h-control-lg border-b border-border-subtle-01 px-05',
-                      'font-sans text-sm leading-[18px] text-text-primary',
-                      col.className,
-                    )}
-                  >
-                    {col.render
-                      ? col.render(row)
-                      : String((row as Record<string, unknown>)[col.key] ?? '')}
-                  </td>
-                ))}
+                {columns.map((col) => {
+                  const content = col.render
+                    ? col.render(row)
+                    : String((row as Record<string, unknown>)[col.key] ?? '');
+                  return (
+                    <td
+                      key={col.key}
+                      className={cn(
+                        'h-control-lg border-b border-border-subtle-01 px-05',
+                        'font-sans text-sm leading-[18px] text-text-primary',
+                        // 기본 no-wrap → 행 높이 균일·짓눌림 방지. 넘치면 컨테이너가 가로 스크롤.
+                        col.wrap ? 'whitespace-normal align-top py-03' : 'whitespace-nowrap align-middle',
+                        col.className,
+                      )}
+                    >
+                      {col.truncate ? (
+                        <span
+                          className="block truncate"
+                          style={{ maxWidth: col.truncate }}
+                          title={
+                            col.titleValue
+                              ? col.titleValue(row)
+                              : typeof content === 'string'
+                                ? content
+                                : undefined
+                          }
+                        >
+                          {content}
+                        </span>
+                      ) : (
+                        content
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             );
           })}

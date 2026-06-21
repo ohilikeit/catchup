@@ -77,7 +77,7 @@ export function AdminOrgsClient({ orgs }: { orgs: OrgWithCounts[] }) {
   }
 
   const columns: Array<Column<OrgWithCounts>> = [
-    { key: 'name', header: '기관명', sortable: true },
+    { key: 'name', header: '기관명', sortable: true, truncate: '18rem', titleValue: (r) => r.name },
     { key: 'code', header: '코드', render: (r) => r.code ?? '—' },
     { key: 'staffCount', header: '담당자', sortable: true, className: 'tabular-nums', render: (r) => String(r.staffCount) },
     { key: 'studentCount', header: '학생', sortable: true, className: 'tabular-nums', render: (r) => String(r.studentCount) },
@@ -97,7 +97,7 @@ export function AdminOrgsClient({ orgs }: { orgs: OrgWithCounts[] }) {
     {
       key: 'actions',
       header: '',
-      className: 'w-44 text-right',
+      className: 'text-right',
       render: (r) => (
         <span className="flex items-center gap-02 justify-end">
           {r.isActive && (

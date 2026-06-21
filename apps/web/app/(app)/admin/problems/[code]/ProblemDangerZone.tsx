@@ -56,8 +56,8 @@ export function ProblemDangerZone({
         <Tag color={isActive ? 'green' : 'gray'}>{isActive ? '활성' : '비활성'}</Tag>
       </div>
 
-      <div className="flex items-center justify-between gap-05 mt-04">
-        <p className="cds-body-compact-01 text-text-secondary">
+      <div className="flex flex-wrap items-center justify-between gap-05 mt-04">
+        <p className="cds-body-compact-01 text-text-secondary min-w-0 break-words">
           {usedByBatch
             ? '회차에 사용된 문제입니다. 재현·이력 보존을 위해 삭제할 수 없고, 비활성화로 새 회차 후보에서만 내릴 수 있습니다.'
             : '아직 어떤 회차에도 쓰이지 않았습니다. 버전·파일까지 완전히 삭제할 수 있습니다.'}

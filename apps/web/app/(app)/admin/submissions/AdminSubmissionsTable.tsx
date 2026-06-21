@@ -18,14 +18,16 @@ export function AdminSubmissionsTable({ rows }: { rows: SubmissionListItem[] }) 
       key: 'examineeName',
       header: '응시자',
       sortable: true,
+      truncate: '12rem',
+      titleValue: (r) => r.examineeName,
       render: (r) => (
         <Link href={`/admin/submissions/${r.id}`} className="text-link-primary hover:underline">
           {r.examineeName}
         </Link>
       ),
     },
-    { key: 'orgName', header: '대학', sortable: true },
-    { key: 'batchName', header: '회차', sortable: true },
+    { key: 'orgName', header: '대학', sortable: true, truncate: '12rem', titleValue: (r) => r.orgName },
+    { key: 'batchName', header: '회차', sortable: true, truncate: '14rem', titleValue: (r) => r.batchName },
     {
       key: 'capturedVia',
       header: '수집 경로',

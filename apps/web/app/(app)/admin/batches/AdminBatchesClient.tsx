@@ -103,11 +103,13 @@ export function AdminBatchesClient({
   }
 
   const columns: Array<Column<BatchListItem>> = [
-    { key: 'name', header: '회차명', sortable: true },
-    { key: 'orgName', header: '대학', sortable: true },
+    { key: 'name', header: '회차명', sortable: true, truncate: '14rem', titleValue: (r) => r.name },
+    { key: 'orgName', header: '대학', sortable: true, truncate: '12rem', titleValue: (r) => r.orgName },
     {
       key: 'problemTitle',
       header: '문제',
+      truncate: '16rem',
+      titleValue: (r) => `${r.problemTitle} v${r.problemVersion}`,
       render: (r) => `${r.problemTitle} v${r.problemVersion}`,
     },
     {
@@ -132,7 +134,7 @@ export function AdminBatchesClient({
     {
       key: 'actions',
       header: '',
-      className: 'w-44 text-right',
+      className: 'text-right',
       render: (r) => (
         <span className="flex items-center gap-02 justify-end">
           <Button

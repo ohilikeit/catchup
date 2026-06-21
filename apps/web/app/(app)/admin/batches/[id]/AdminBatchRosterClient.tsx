@@ -474,8 +474,8 @@ function IssuedModal({ cred, onClose }: { cred: IssuedCred; onClose: () => void 
         (임시 비밀번호는 로스터 표에서 언제든 다시 볼 수 있습니다.)
       </p>
       <div className="bg-layer-02 border border-border-subtle-01 p-05 flex flex-col gap-02">
-        <div className="flex justify-between"><span className="text-text-secondary">아이디</span><span className="cds-code-01">{cred.email}</span></div>
-        <div className="flex justify-between"><span className="text-text-secondary">임시 비밀번호</span><span className="cds-code-01">{cred.tempPassword}</span></div>
+        <div className="flex justify-between gap-04"><span className="text-text-secondary shrink-0">아이디</span><span className="cds-code-01 min-w-0 break-all text-right">{cred.email}</span></div>
+        <div className="flex justify-between gap-04"><span className="text-text-secondary shrink-0">임시 비밀번호</span><span className="cds-code-01 min-w-0 break-all text-right">{cred.tempPassword}</span></div>
       </div>
       <div className="flex justify-end mt-04">
         <Button kind="ghost" size="sm" icon="copy" onClick={() => { navigator.clipboard?.writeText(text); toast({ kind: 'success', title: '복사됨', message: '계정 정보를 복사했습니다.' }); }}>

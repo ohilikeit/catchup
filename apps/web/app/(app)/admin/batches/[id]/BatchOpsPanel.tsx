@@ -26,9 +26,9 @@ export function BatchOpsPanel({ ops }: { ops: BatchOpsSnapshot }) {
 
   return (
     <section className="bg-layer-01 border border-border-subtle-01 p-05 mb-07">
-      <div className="flex items-center justify-between gap-04 mb-04">
-        <h2 className="cds-heading-compact-02 text-text-primary">실시간 관제</h2>
-        <span className="cds-helper-01 text-text-secondary">
+      <div className="flex flex-wrap items-center justify-between gap-04 mb-04">
+        <h2 className="cds-heading-compact-02 text-text-primary min-w-0">실시간 관제</h2>
+        <span className="cds-helper-01 text-text-secondary shrink-0">
           슬롯 {ops.slots.length}개 · 회차 예산 {budgetLabel}
         </span>
       </div>

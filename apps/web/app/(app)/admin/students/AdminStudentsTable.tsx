@@ -38,11 +38,13 @@ export function AdminStudentsTable({ rows }: { rows: UserWithOrgs[] }) {
   }
 
   const columns: Array<Column<UserWithOrgs>> = [
-    { key: 'fullName', header: '이름', sortable: true },
-    { key: 'email', header: '이메일', sortable: true, render: (r) => r.email ?? '—' },
+    { key: 'fullName', header: '이름', sortable: true, truncate: '12rem', titleValue: (r) => r.fullName },
+    { key: 'email', header: '이메일', sortable: true, truncate: '16rem', titleValue: (r) => r.email ?? '—', render: (r) => r.email ?? '—' },
     {
       key: 'orgs',
       header: '소속',
+      wrap: true,
+      className: 'max-w-[24rem]',
       render: (r) =>
         r.orgs.length === 0 ? (
           <span className="text-text-secondary cds-helper-01">소속 없음</span>
@@ -71,7 +73,7 @@ export function AdminStudentsTable({ rows }: { rows: UserWithOrgs[] }) {
     {
       key: 'actions',
       header: '',
-      className: 'w-48 text-right',
+      className: 'text-right',
       render: (r) => (
         <span className="flex items-center gap-02 justify-end">
           <Button kind="ghost" size="sm" disabled={pending} onClick={() => toggleActive(r)}>

@@ -72,19 +72,19 @@ export function BatchDangerZone({
   return (
     <section className="border border-support-error p-05 mt-07">
       <h2 className="cds-heading-compact-02 text-support-error">위험 구역</h2>
-      <div className="flex items-center justify-between gap-05 mt-04">
-        <p className="cds-body-compact-01 text-text-secondary">
+      <div className="flex flex-wrap items-center justify-between gap-05 mt-04">
+        <p className="cds-body-compact-01 text-text-secondary min-w-0 break-words">
           {canHardDelete
             ? '아직 시작하지 않았고 응시자가 없는 회차입니다. 완전히 삭제할 수 있습니다.'
             : '응시 이력이 있어 삭제할 수 없습니다. 회차를 취소(소프트)하여 내릴 수 있습니다.'}
         </p>
         {canHardDelete && (
-          <Button kind="danger" size="field" icon="trash" disabled={pending} onClick={onDelete}>
+          <Button kind="danger" size="field" icon="trash" className="shrink-0" disabled={pending} onClick={onDelete}>
             {pending ? '삭제 중…' : '회차 삭제'}
           </Button>
         )}
         {canCancel && (
-          <Button kind="danger" size="field" disabled={pending} onClick={onCancel}>
+          <Button kind="danger" size="field" className="shrink-0" disabled={pending} onClick={onCancel}>
             {pending ? '취소 중…' : '회차 취소'}
           </Button>
         )}

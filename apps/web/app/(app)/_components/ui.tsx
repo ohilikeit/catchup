@@ -14,12 +14,12 @@ export function PageHead({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-04 mb-07">
-      <div>
-        <h1 className="cds-heading-05 text-text-primary">{title}</h1>
-        {sub ? <p className="cds-body-01 text-text-secondary mt-02">{sub}</p> : null}
+    <div className="flex flex-wrap items-start justify-between gap-04 mb-07">
+      <div className="min-w-0">
+        <h1 className="cds-heading-05 text-text-primary break-words">{title}</h1>
+        {sub ? <p className="cds-body-01 text-text-secondary mt-02 break-words">{sub}</p> : null}
       </div>
-      {action}
+      {action ? <div className="flex-shrink-0">{action}</div> : null}
     </div>
   );
 }

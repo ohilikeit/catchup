@@ -62,25 +62,25 @@ export default async function SubmissionDetailPage({ params }: { params: { id: s
         <h2 className="cds-heading-compact-02 text-text-primary mb-05">제출 정보</h2>
         <dl className="grid grid-cols-[max-content_1fr] gap-x-07 gap-y-03">
           <dt className="cds-label-01 text-text-secondary">상태</dt>
-          <dd><SubmissionStatusTag status={detail.status} /></dd>
+          <dd className="min-w-0"><SubmissionStatusTag status={detail.status} /></dd>
 
           <dt className="cds-label-01 text-text-secondary">신뢰</dt>
-          <dd><TrustTag trust={detail.trust} /></dd>
+          <dd className="min-w-0"><TrustTag trust={detail.trust} /></dd>
 
           <dt className="cds-label-01 text-text-secondary">수집 경로</dt>
-          <dd className="cds-body-01 text-text-primary">{CAPTURED_VIA_LABEL[detail.capturedVia] ?? detail.capturedVia}</dd>
+          <dd className="cds-body-01 text-text-primary min-w-0 break-words">{CAPTURED_VIA_LABEL[detail.capturedVia] ?? detail.capturedVia}</dd>
 
           <dt className="cds-label-01 text-text-secondary">도구</dt>
-          <dd className="cds-body-01 text-text-primary">{detail.tool ?? '—'}</dd>
+          <dd className="cds-body-01 text-text-primary min-w-0 break-words">{detail.tool ?? '—'}</dd>
 
           <dt className="cds-label-01 text-text-secondary">포맷 버전</dt>
-          <dd className="cds-body-01 text-text-primary">{detail.chatFormatVersion}</dd>
+          <dd className="cds-body-01 text-text-primary min-w-0 break-words">{detail.chatFormatVersion}</dd>
 
           <dt className="cds-label-01 text-text-secondary">제출 시각</dt>
-          <dd className="cds-body-01 text-text-primary">{fmtDate(detail.submittedAt)}</dd>
+          <dd className="cds-body-01 text-text-primary min-w-0">{fmtDate(detail.submittedAt)}</dd>
 
           <dt className="cds-label-01 text-text-secondary">승인 시각</dt>
-          <dd className="cds-body-01 text-text-primary">{fmtDate(detail.acceptedAt)}</dd>
+          <dd className="cds-body-01 text-text-primary min-w-0">{fmtDate(detail.acceptedAt)}</dd>
         </dl>
 
         {detail.validationError ? (
