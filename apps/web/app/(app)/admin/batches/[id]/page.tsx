@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Breadcrumb, MetricGrid, MetricTile, Tag } from '@app/ui';
 import { requireGlobalRole } from '@/lib/auth/guard';
-import { usersRepo } from '@/lib/db';
+import { usersRepo, attemptsRepo } from '@/lib/db';
 import { getBatchDetailForViewer } from '@/lib/services/batchService';
 import { batchOpsSnapshot } from '@/lib/services/examOpsService';
 import { listAllowedModels } from '@/lib/litellm/models';
@@ -26,6 +26,14 @@ export default async function AdminBatchDetailPage({
   const { detail, roster, canOperate } = data;
   // 학생 추가 모달의 "기존 사용자에서 선택" 후보(아이디·비번 그대로 — 이 회차 응시만 추가).
   const candidates = canOperate ? await usersRepo.listExamineeCandidates() : [];
+  // 응시별 쿼터 사용량(회차당 슬롯 수 ≤ MAX_SLOTS=50이므로 병렬 개별 조회 허용).
+  const quotaUsedEntries = await Promise.all(
+    roster.map(async (r) => {
+      const used = await attemptsRepo.countTurnsSinceReset(r.attemptId).catch(() => 0);
+      return [r.attemptId, used] as [string, number];
+    }),
+  );
+  const quotaUsedByAttempt = Object.fromEntries(quotaUsedEntries);
   // 실시간 관제(open 회차만): 슬롯 상태 분포 + LLM spend. 게이트웨이/슬롯 조회는 fail-soft.
   const ops = canOperate && detail.status === 'open' ? await batchOpsSnapshot(detail.id) : null;
   // 환경 열기 재확인용 모델 선택지 — 게이트웨이 불통 시 현재 모델 단일로 폴백(페이지는 렌더).
@@ -45,7 +53,7 @@ export default async function AdminBatchDetailPage({
     ? new Date(detail.scheduledAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' })
     : '미정';
   const budgetLabel = detail.llmBudgetUsd == null ? '상한 없음' : `$${detail.llmBudgetUsd.toFixed(2)}/인`;
-  const subLine = `${detail.orgName} · ${detail.problemTitle} v${detail.problemVersion} · 정원 ${detail.capacity}명 · 예정 ${scheduledLabel} · LLM 예산 ${budgetLabel}`;
+  const subLine = `${detail.orgName} · ${detail.problemTitle} v${detail.problemVersion} · 정원 ${detail.capacity}명 · 예정 ${scheduledLabel} · LLM 예산 ${budgetLabel} · 프롬프트 ${detail.promptQuota}회`;
 
   return (
     <>
@@ -56,6 +64,7 @@ export default async function AdminBatchDetailPage({
         action={
           <div className="flex items-center gap-03">
             <Tag color="blue">{detail.model}</Tag>
+            <Tag>프롬프트 {detail.promptQuota}회</Tag>
             <BatchStatusTag status={detail.status} />
             {canOperate && (
               <BatchEnvControls
@@ -102,6 +111,8 @@ export default async function AdminBatchDetailPage({
         roster={roster}
         candidates={candidates}
         canOperate={canOperate}
+        promptQuota={detail.promptQuota}
+        quotaUsedByAttempt={quotaUsedByAttempt}
       />
 
       {canOperate && (

@@ -18,8 +18,48 @@ data:
     {
       "model": "claude-haiku-4-5",
       "availableModels": ["claude-haiku-4-5"],
-      "enforceAvailableModels": true
+      "enforceAvailableModels": true,
+      "hooks": {
+        "UserPromptSubmit": [
+          { "hooks": [ { "type": "command", "command": "sh /etc/claude-code/quota-hook.sh", "timeout": 5 } ] }
+        ]
+      }
     }
+  # T6: UserPromptSubmit 훅 — 매 프롬프트 제출 시 litellm 경유로 쿼터 조회. blocked=true 면 차단(사전).
+  #   jq 없음 → python3 파싱. curl --max-time 3. 차단 시만 stdout 출력, 그 외 모든 분기 fail-open(빈 출력 + exit 0).
+  quota-hook.sh: |
+    #!/bin/sh
+    ORD="${HOSTNAME##*-}"
+    BATCH_ID="${BATCH_ID:-}"
+    KEY="$(cat /var/run/exam-keys/slot-${ORD} 2>/dev/null)"
+
+    QUOTA_RESP="$(curl -s --max-time 3 -X POST http://litellm:4000/quota \
+      -H "Authorization: Bearer $KEY" \
+      -H 'content-type: application/json' \
+      -d "{\"batchId\":\"$BATCH_ID\",\"slotNo\":$ORD}" 2>/dev/null)"
+
+    export QUOTA_RESP
+
+    python3 - <<'PYEOF'
+    import sys, os, json
+    resp = os.environ.get('QUOTA_RESP', '')
+    try:
+        d = json.loads(resp)
+        data = d.get('data', {})
+        blocked = data.get('blocked', False)
+        limit = data.get('limit', '')
+        if blocked:
+            msg = (
+                f"이 시험에서 사용할 수 있는 AI 대화 횟수({limit}회)를 모두 사용했습니다. 관리자에게 문의하세요."
+                if limit != ''
+                else "AI 대화 횟수 한도를 초과했습니다. 관리자에게 문의하세요."
+            )
+            print(json.dumps({"decision": "block", "reason": msg}))
+    except Exception:
+        pass
+    sys.exit(0)
+    PYEOF
+    exit 0
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -144,6 +184,11 @@ spec:
             - name: claude-managed
               mountPath: /etc/claude-code/managed-settings.json
               subPath: managed-settings.json
+              readOnly: true
+            # T6: 쿼터 차단 훅 스크립트(같은 ConfigMap). sh 로 호출하므로 +x 불필요.
+            - name: claude-managed
+              mountPath: /etc/claude-code/quota-hook.sh
+              subPath: quota-hook.sh
               readOnly: true
       volumes:
         - name: stage

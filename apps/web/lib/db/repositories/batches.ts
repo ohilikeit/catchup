@@ -21,6 +21,8 @@ export interface Batch {
   llmBudgetUsd: number | null;
   /** 미리(상시) 띄워둘 워밍 pod 수. NULL=capacity(일괄). 작으면 라이브 입장(0013, docs/6 Phase 3). */
   warmCount: number | null;
+  /** 이 회차 학생당 허용 프롬프트(turn) 수. 카운트=마지막 quota_reset 이후 turn 수(0017). */
+  promptQuota: number;
   openedAt: Date | null;
   closedAt: Date | null;
   createdAt: Date;
@@ -38,6 +40,7 @@ interface BatchRow {
   model: string;
   llm_budget_usd: string | null; // NUMERIC → pg는 문자열로 반환
   warm_count: number | null;
+  prompt_quota: number;
   opened_at: Date | null;
   closed_at: Date | null;
   created_at: Date;
@@ -56,6 +59,7 @@ function mapRow(r: BatchRow): Batch {
     model: r.model,
     llmBudgetUsd: r.llm_budget_usd == null ? null : Number(r.llm_budget_usd),
     warmCount: r.warm_count,
+    promptQuota: r.prompt_quota,
     openedAt: r.opened_at,
     closedAt: r.closed_at,
     createdAt: r.created_at,
@@ -76,6 +80,8 @@ export interface BatchListItem {
   scheduledAt: Date | null;
   model: string;
   llmBudgetUsd: number | null;
+  /** 이 회차 학생당 허용 프롬프트(turn) 수(0017). */
+  promptQuota: number;
   attemptCount: number;
   submittedCount: number;
   acceptedCount: number;
@@ -88,6 +94,7 @@ interface BatchListRow extends BatchRow {
   attempt_count: string;
   submitted_count: string;
   accepted_count: string;
+  // prompt_quota is inherited from BatchRow
 }
 
 const LIST_SELECT = `
@@ -119,6 +126,7 @@ function mapListRow(r: BatchListRow): BatchListItem {
     scheduledAt: r.scheduled_at,
     model: r.model,
     llmBudgetUsd: r.llm_budget_usd == null ? null : Number(r.llm_budget_usd),
+    promptQuota: r.prompt_quota,
     attemptCount: Number(r.attempt_count),
     submittedCount: Number(r.submitted_count),
     acceptedCount: Number(r.accepted_count),
@@ -177,10 +185,11 @@ export async function create(input: {
   model: string;
   llmBudgetUsd?: number | null;
   warmCount?: number | null;
+  promptQuota?: number;
 }): Promise<Batch> {
   const row = await queryOne<BatchRow>(
-    `INSERT INTO exam.batches (org_id, name, problem_version_id, capacity, scheduled_at, model, llm_budget_usd, warm_count)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    `INSERT INTO exam.batches (org_id, name, problem_version_id, capacity, scheduled_at, model, llm_budget_usd, warm_count, prompt_quota)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
     [
       input.orgId,
       input.name,
@@ -190,6 +199,7 @@ export async function create(input: {
       input.model,
       input.llmBudgetUsd ?? null,
       input.warmCount ?? null,
+      input.promptQuota ?? 30,
     ],
   );
   return mapRow(row!);
@@ -198,6 +208,11 @@ export async function create(input: {
 /** 회차 모델 변경(provision 재확인 시 영속). allowlist 검증은 service 가 선행한다. */
 export async function updateModel(id: string, model: string): Promise<void> {
   await getPool().query(`UPDATE exam.batches SET model = $2 WHERE id = $1`, [id, model]);
+}
+
+/** 회차 프롬프트 쿼터 변경. 음수 방어는 service 가 선행한다(DB CHECK prompt_quota >= 0). */
+export async function updatePromptQuota(id: string, quota: number): Promise<void> {
+  await getPool().query(`UPDATE exam.batches SET prompt_quota = $2 WHERE id = $1`, [id, quota]);
 }
 
 /**

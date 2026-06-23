@@ -287,6 +287,9 @@ function CreateBatchModal({
         <Field label="AI 모델" helper="이 회차 학생이 사용할 AI 모델. 시험 환경을 열 때 재확인·변경할 수 있습니다.">
           <Select name="model" defaultValue={allowedModels[0]} options={allowedModels} />
         </Field>
+        <Field label="프롬프트 횟수 제한" helper="학생 1인당 허용 AI 대화 턴 수. 초과 시 추가 전송이 차단됩니다. 기본값 30.">
+          <Input name="promptQuota" type="number" min="0" defaultValue="30" />
+        </Field>
         <Field label="정원">
           <Input name="capacity" type="number" placeholder="50" min="1" max="500" />
         </Field>

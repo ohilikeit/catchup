@@ -513,6 +513,45 @@ export async function lastSnapshotAt(attemptId: string): Promise<Date | null> {
   return row?.created_at ?? null;
 }
 
+/* ── 프롬프트 쿼터(0017) ──────────────────────────────────────────────────── */
+
+/**
+ * 마지막 quota_reset 이후 turn 이벤트 수(= 현재 소진 횟수).
+ * 리셋이 없으면 전체 turn 수. 단일 SQL로 서브쿼리 없이 처리.
+ */
+export async function countTurnsSinceReset(attemptId: string): Promise<number> {
+  const row = await queryOne<{ used: number }>(
+    `SELECT COUNT(*) FILTER (
+       WHERE e.type = 'turn'
+         AND e.created_at > COALESCE(
+           (SELECT MAX(created_at) FROM exam.attempt_events
+             WHERE attempt_id = $1 AND type = 'quota_reset'),
+           '-infinity'::timestamptz)
+     )::int AS used
+     FROM exam.attempt_events e
+     WHERE e.attempt_id = $1`,
+    [attemptId],
+  );
+  return row?.used ?? 0;
+}
+
+/**
+ * 쿼터 리셋 마커 append(append-only 감사이력). detail에 actor/reason/at 기록.
+ * recordTurnEvent 패턴 복제 — running 상태 제한 없음(관리자가 임의 시점에 리셋).
+ */
+export async function recordQuotaReset(
+  attemptId: string,
+  actor: string,
+  reason: string,
+): Promise<void> {
+  await queryOne<{ id: string }>(
+    `INSERT INTO exam.attempt_events (attempt_id, type, detail)
+     VALUES ($1, 'quota_reset', $2::jsonb)
+     RETURNING id`,
+    [attemptId, JSON.stringify({ actor, reason, at: new Date().toISOString() })],
+  );
+}
+
 export interface EffectiveSnapshotConfig {
   enabled: boolean;
   excludePatterns: string[]; // 기본 제외 + 문제별 제외(병합)

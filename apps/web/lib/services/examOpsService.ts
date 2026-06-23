@@ -566,3 +566,51 @@ export async function poolSnapshot(batchId: string): Promise<PoolSnapshot | null
     return null;
   }
 }
+
+/* ── 프롬프트 쿼터(0017) ──────────────────────────────────────────────────── */
+
+export interface QuotaStatus {
+  used: number;
+  limit: number;
+  remaining: number;
+  /** used >= limit 이면 true — 다음 프롬프트를 사전 차단한다. */
+  blocked: boolean;
+}
+
+/**
+ * 슬롯 번호로 응시를 찾아 현재 쿼터 상태를 반환.
+ * - attempt 미배정 슬롯: fail-open 친화적으로 used=0, blocked=false 반환.
+ * - batch 없음: 명확한 에러(호출자가 404 처리).
+ */
+export async function getQuotaStatusBySlot(batchId: string, slotNo: number): Promise<QuotaStatus> {
+  const batch = await batchesRepo.findById(batchId);
+  if (!batch) throw new Error(`batch not found: ${batchId}`);
+  const limit = batch.promptQuota;
+
+  const attemptId = await slotsRepo.findAttemptBySlotNo(batchId, slotNo);
+  // 슬롯에 응시가 배정되지 않았으면 fail-open(워밍 중 등) — 차단하지 않는다.
+  if (!attemptId) {
+    return { used: 0, limit, remaining: limit, blocked: false };
+  }
+
+  const used = await attemptsRepo.countTurnsSinceReset(attemptId);
+  const remaining = Math.max(0, limit - used);
+  return { used, limit, remaining, blocked: used >= limit };
+}
+
+/**
+ * 슬롯 번호로 응시를 찾아 쿼터 리셋 마커를 append.
+ * attempt 미배정이면 명확한 에러(관리자 리셋 대상이 없는 상태).
+ */
+export async function resetQuotaBySlot(
+  batchId: string,
+  slotNo: number,
+  actor: string,
+  reason: string,
+): Promise<void> {
+  const attemptId = await slotsRepo.findAttemptBySlotNo(batchId, slotNo);
+  if (!attemptId) {
+    throw new Error(`슬롯 ${slotNo}에 배정된 응시가 없습니다(batchId: ${batchId}).`);
+  }
+  await attemptsRepo.recordQuotaReset(attemptId, actor, reason);
+}

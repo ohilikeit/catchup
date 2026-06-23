@@ -1,11 +1,11 @@
 'use client';
 import { useState, useTransition } from 'react';
-import { DataTable, Button, Modal, Field, Input, type Column } from '@app/ui';
+import { DataTable, Button, Modal, Field, Input, Tag, type Column } from '@app/ui';
 import { useToast } from '@app/core';
 import type { RosterItem } from '@/lib/db/repositories/attempts';
 import type { ExamineeCandidate } from '@/lib/db/repositories/users';
 import { AttemptStatusTag, SubmissionStatusTag } from '../../../_components/ui';
-import { extendDeadlineAction, voidAttemptAction, forceSubmitAction, addStudentAction } from './actions';
+import { extendDeadlineAction, voidAttemptAction, forceSubmitAction, addStudentAction, resetAttemptQuotaAction } from './actions';
 
 interface IssuedCred { name: string; email: string; tempPassword: string }
 
@@ -25,12 +25,18 @@ export function AdminBatchRosterClient({
   roster,
   candidates,
   canOperate,
+  promptQuota,
+  quotaUsedByAttempt,
 }: {
   batchId: string;
   roster: RosterItem[];
   /** "기존 사용자에서 선택" 후보(전체 사용자 + 회차 이력). 선택 시 계정·비번 유지, 이 회차 응시만 추가. */
   candidates: ExamineeCandidate[];
   canOperate: boolean;
+  /** 회차 프롬프트 횟수 제한 */
+  promptQuota: number;
+  /** attemptId → 현재 사용 횟수 */
+  quotaUsedByAttempt: Record<string, number>;
 }) {
   const { toast } = useToast();
   const [modal, setModal] = useState<RowAction | null>(null);
@@ -95,6 +101,17 @@ export function AdminBatchRosterClient({
     });
   }
 
+  function handleResetQuota(attemptId: string) {
+    startTransition(async () => {
+      try {
+        await resetAttemptQuotaAction(batchId, attemptId);
+        toast({ kind: 'success', title: '쿼터 초기화 완료', message: '프롬프트 사용 횟수가 초기화되었습니다.' });
+      } catch (e) {
+        toast({ kind: 'error', title: '초기화 실패', message: String((e as Error).message) });
+      }
+    });
+  }
+
   const columns: Array<Column<RosterItem>> = [
     { key: 'examineeName', header: '응시자', sortable: true },
     {
@@ -127,6 +144,20 @@ export function AdminBatchRosterClient({
       className: 'tabular-nums',
       render: (r) => fmt(r.submittedAt),
     },
+    {
+      key: 'examineeId' as keyof RosterItem,
+      header: '프롬프트',
+      className: 'tabular-nums',
+      render: (r: RosterItem) => {
+        const used = quotaUsedByAttempt[r.attemptId] ?? 0;
+        const blocked = used >= promptQuota;
+        return (
+          <Tag color={blocked ? 'red' : undefined}>
+            {used}/{promptQuota}
+          </Tag>
+        );
+      },
+    },
     ...(canOperate
       ? [
           {
@@ -156,6 +187,16 @@ export function AdminBatchRosterClient({
                   }}
                 >
                   연장
+                </Button>
+                <Button
+                  kind="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleResetQuota(r.attemptId);
+                  }}
+                >
+                  쿼터 초기화
                 </Button>
                 <Button
                   kind="danger"

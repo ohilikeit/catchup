@@ -59,6 +59,8 @@ export async function createBatch(input: {
   llmBudgetUsd?: number | null;
   /** 워밍 풀: 미리 띄울 pod 수. 미지정=정원의 20%(라이브 입장 기본). docs/6 Phase 3. */
   warmCount?: number | null;
+  /** 회차 학생당 허용 프롬프트(turn) 수. 미지정=30. 음수는 0으로 보정. docs/batch-prompt-quota. */
+  promptQuota?: number;
 }) {
   const cap = input.capacity ?? 50;
   // 워밍 풀 기본 정책: warm 미지정(빈 칸)이면 정원의 20%만 미리 띄우고 나머지는 도착 시 보충(B).
@@ -79,7 +81,9 @@ export async function createBatch(input: {
     if (!first) throw new Error('허용된 모델이 없습니다(게이트웨이 설정을 확인하세요).');
     model = first;
   }
-  const batch = await batchesRepo.create({ ...input, model, warmCount });
+  // 쿼터: 미지정이면 30, 음수는 0으로 보정(DB CHECK >= 0 의 선행 방어).
+  const promptQuota = Math.max(0, Math.round(input.promptQuota ?? 30));
+  const batch = await batchesRepo.create({ ...input, model, warmCount, promptQuota });
   await invalidateBatchLists();
   return batch;
 }
@@ -88,6 +92,12 @@ export async function createBatch(input: {
 export async function updateBatchModel(batchId: string, model: string): Promise<void> {
   await assertModelAllowed(model);
   await batchesRepo.updateModel(batchId, model);
+}
+
+/** 회차 프롬프트 쿼터 변경 — 음수 보정 후 영속. */
+export async function updateBatchPromptQuota(batchId: string, quota: number): Promise<void> {
+  const sanitized = Math.max(0, Math.round(quota));
+  await batchesRepo.updatePromptQuota(batchId, sanitized);
 }
 
 export async function setBatchStatus(id: string, status: batchesRepo.BatchStatus) {

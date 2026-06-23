@@ -1,7 +1,7 @@
 'use server';
 import { revalidatePath } from 'next/cache';
 import { requireGlobalRole } from '@/lib/auth/guard';
-import { batchesRepo } from '@/lib/db';
+import { batchesRepo, attemptsRepo } from '@/lib/db';
 import * as batchService from '@/lib/services/batchService';
 import * as attemptService from '@/lib/services/attemptService';
 import * as examOpsService from '@/lib/services/examOpsService';
@@ -138,5 +138,15 @@ export async function forceSubmitAction(batchId: string, attemptId: string) {
   const session = await requireGlobalRole('admin');
   const result = await attemptService.forceSubmit(attemptId, session.userId);
   if (!result.ok) throw new Error(result.error);
+  revalidatePath(`/admin/batches/${batchId}`);
+}
+
+/**
+ * 학생 1명의 프롬프트 쿼터를 초기화(attempt_events에 quota_reset 마커 append).
+ * 관리자만 호출 가능. 이후 해당 응시의 turn 카운트가 0부터 재집계된다.
+ */
+export async function resetAttemptQuotaAction(batchId: string, attemptId: string): Promise<void> {
+  const session = await requireGlobalRole('admin');
+  await attemptsRepo.recordQuotaReset(attemptId, session.userId, 'admin_manual');
   revalidatePath(`/admin/batches/${batchId}`);
 }

@@ -20,6 +20,16 @@ data:
     general_settings:
       master_key: os.environ/LITELLM_MASTER_KEY
       database_url: os.environ/DATABASE_URL
+      # T5: 학생 훅 → web 쿼터 조회 중계. auth:true 로 가상키 검증(v1.84.0+ OSS).
+      # x-internal-secret 은 LiteLLM 이 env 에서 주입 — 학생 pod 에는 이 값이 없어 직접 web 호출 불가.
+      pass_through_endpoints:
+        - path: "/quota"
+          target: "http://web.catchup-local.svc.cluster.local:3000/api/internal/quota"
+          auth: true
+          forward_headers: false
+          methods: ["POST"]
+          headers:
+            x-internal-secret: "os.environ/INTERNAL_API_SECRET"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -53,6 +63,12 @@ spec:
               value: redis
             - name: REDIS_PORT
               value: "6379"
+            # T5: pass_through /quota 헤더에서 os.environ/INTERNAL_API_SECRET 참조 — app-secrets 에서 주입.
+            - name: INTERNAL_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: INTERNAL_API_SECRET
           volumeMounts:
             - name: config
               mountPath: /etc/litellm

@@ -72,6 +72,9 @@ services:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-master-dev}
       # 진짜 Anthropic 키 — 게이트웨이에만(학생/앱엔 가상키만). 빈 기본값: 키 없이도 compose 정리 명령이 막히지 않게.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # T5: pass_through /quota 가 web 으로 부착하는 내부 시크릿 — web 의 INTERNAL_API_SECRET 과 동일 값.
+      #   학생 pod 엔 주입하지 않는다(litellm 만 신뢰 영역). config.yaml 의 os.environ/INTERNAL_API_SECRET 참조처.
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-}
       REDIS_HOST: redis            # replica 간 rate/budget 동기화(단일이라도 무해)
       REDIS_PORT: "6379"
     volumes:

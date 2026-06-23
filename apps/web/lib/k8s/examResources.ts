@@ -63,16 +63,102 @@ export function examBatchConfigMap(
  * 회차 모델로 고정(enforceAvailableModels=true). ⚠️ scale-up 前에 apply 해야 새 pod 이 흡수한다.
  */
 export function examClaudeConfigMap(ns: string, model: string): Record<string, unknown> {
+  // T6: quota-hook.sh — UserPromptSubmit 마다 litellm 경유로 쿼터 조회. blocked=true 면 차단.
+  // POSIX sh, jq 없음(python3 사용), curl --max-time 3, 모든 분기 exit 0(fail-open).
+  // 차단 시만 stdout 출력 — 통과/실패는 빈 stdout(평문 출력 시 Claude context 오염).
+  const quotaHookSh = `#!/bin/sh
+ORD="\${HOSTNAME##*-}"
+BATCH_ID="\${BATCH_ID:-}"
+KEY="\$(cat /var/run/exam-keys/slot-\${ORD} 2>/dev/null)"
+
+RESP="\$(curl -s --max-time 3 -X POST http://litellm:4000/quota \\
+  -H "Authorization: Bearer \$KEY" \\
+  -H 'content-type: application/json' \\
+  -d "{\\"batchId\\":\\"\$BATCH_ID\\",\\"slotNo\\":\$ORD}" 2>/dev/null)"
+
+python3 - <<'PYEOF'
+import sys, os, json
+resp = os.environ.get('QUOTA_RESP', '')
+try:
+    d = json.loads(resp)
+    data = d.get('data', {})
+    blocked = data.get('blocked', False)
+    limit = data.get('limit', '')
+    if blocked:
+        msg = f"이 시험에서 사용할 수 있는 AI 대화 횟수({limit}회)를 모두 사용했습니다. 관리자에게 문의하세요." if limit != '' else "AI 대화 횟수 한도를 초과했습니다. 관리자에게 문의하세요."
+        print(json.dumps({"decision": "block", "reason": msg}))
+except Exception:
+    pass
+sys.exit(0)
+PYEOF
+exit 0
+`;
+
+  // QUOTA_RESP env를 python3에 전달하기 위해 export 래핑
+  const quotaHookShFinal = `#!/bin/sh
+ORD="\${HOSTNAME##*-}"
+BATCH_ID="\${BATCH_ID:-}"
+KEY="\$(cat /var/run/exam-keys/slot-\${ORD} 2>/dev/null)"
+
+QUOTA_RESP="\$(curl -s --max-time 3 -X POST http://litellm:4000/quota \\
+  -H "Authorization: Bearer \$KEY" \\
+  -H 'content-type: application/json' \\
+  -d "{\\"batchId\\":\\"\$BATCH_ID\\",\\"slotNo\\":\$ORD}" 2>/dev/null)"
+
+export QUOTA_RESP
+
+python3 - <<'PYEOF'
+import sys, os, json
+resp = os.environ.get('QUOTA_RESP', '')
+try:
+    d = json.loads(resp)
+    data = d.get('data', {})
+    blocked = data.get('blocked', False)
+    limit = data.get('limit', '')
+    if blocked:
+        msg = (
+            f"이 시험에서 사용할 수 있는 AI 대화 횟수({limit}회)를 모두 사용했습니다. 관리자에게 문의하세요."
+            if limit != ''
+            else "AI 대화 횟수 한도를 초과했습니다. 관리자에게 문의하세요."
+        )
+        print(json.dumps({"decision": "block", "reason": msg}))
+except Exception:
+    pass
+sys.exit(0)
+PYEOF
+exit 0
+`;
+
   return {
     apiVersion: 'v1',
     kind: 'ConfigMap',
     metadata: { name: 'exam-claude-config', namespace: ns },
     data: {
       'managed-settings.json': JSON.stringify(
-        { model, availableModels: [model], enforceAvailableModels: true },
+        {
+          model,
+          availableModels: [model],
+          enforceAvailableModels: true,
+          // T6: UserPromptSubmit 훅 — 쿼터 초과 시 차단, 조회 실패 시 fail-open.
+          hooks: {
+            UserPromptSubmit: [
+              {
+                hooks: [
+                  {
+                    type: 'command',
+                    // subPath 마운트는 defaultMode(실행권한)를 무시하므로 sh 로 호출해 +x 의존을 없앤다.
+                    command: 'sh /etc/claude-code/quota-hook.sh',
+                    timeout: 5,
+                  },
+                ],
+              },
+            ],
+          },
+        },
         null,
         2,
       ),
+      'quota-hook.sh': quotaHookShFinal,
     },
   };
 }

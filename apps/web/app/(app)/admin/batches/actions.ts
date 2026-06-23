@@ -39,11 +39,18 @@ export async function createBatchAction(formData: FormData) {
   // AI 모델 — 빈 값이면 undefined(service가 allowlist[0]로 기본). allowlist 재검증은 service.
   const model = ((formData.get('model') as string | null) ?? '').trim() || undefined;
 
+  // 프롬프트 횟수 제한 — 빈 값이면 30(기본). 음수/비수 방어.
+  const quotaRaw = ((formData.get('promptQuota') as string | null) ?? '').trim();
+  const promptQuota = quotaRaw === '' ? 30 : (() => {
+    const n = Number(quotaRaw);
+    return Number.isFinite(n) ? Math.max(0, Math.round(n)) : 30;
+  })();
+
   if (!orgId || !name || !problemVersionId) {
     throw new Error('필수 항목을 모두 입력하세요.');
   }
 
-  await batchService.createBatch({ orgId, name, problemVersionId, capacity, scheduledAt, model, llmBudgetUsd, warmCount });
+  await batchService.createBatch({ orgId, name, problemVersionId, capacity, scheduledAt, model, llmBudgetUsd, warmCount, promptQuota });
   revalidatePath('/admin/batches');
 }
 
