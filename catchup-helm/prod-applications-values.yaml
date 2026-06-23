@@ -60,7 +60,10 @@ examPlatform:
       databaseUrl: ""
   litellm:
     image: ghcr.io/berriai/litellm-database:main-stable
-    model: anthropic/claude-sonnet-4-6  # "*" → Sonnet 강제 (대원칙 5⑤)
+    # ⭐⭐ 모델 단일 기준(SSOT) — ① LiteLLM 강제(model_list) ② exam 표시(ANTHROPIC_MODEL)
+    #   ③ Claude Code switch-model 피커(exam-claude-config: availableModels+enforce).
+    #   바꾸려면 여기만 수정하면 세 곳이 함께 따라온다. (대원칙 5⑤ 서버 강제)
+    model: anthropic/claude-haiku-4-5
     replicas: 2
     redisHost: prod-redis               # hostAliases 로 해석
     hostAliases:

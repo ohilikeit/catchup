@@ -218,7 +218,7 @@ flowchart LR
 | 스토리지 | PVC 2Gi/슬롯 (volumeClaimTemplates) | StatefulSet |
 | 동시성 | 슬롯 ≤ 50 / StatefulSet | `Math.min(capacity, 50)` |
 | AI 예산 | 가상키별 `max_budget_usd` | LiteLLM `/key/generate` |
-| 모델 | `claude-sonnet-4-6` 강제 | [`infra/litellm/config.yaml`](../infra/litellm/config.yaml) |
+| 모델 | `claude-haiku-4-5` 강제 (SSOT: helm `examPlatform.litellm.model`) | [`infra/litellm/config.yaml`](../infra/litellm/config.yaml) |
 | 네트워크 | egress = litellm + DNS only | NetworkPolicy |
 
 ---

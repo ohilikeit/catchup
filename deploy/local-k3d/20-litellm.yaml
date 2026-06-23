@@ -8,9 +8,11 @@ data:
     # ⭐ model_list 가 모델명의 단일 기준 — exam pod 의 ANTHROPIC_MODEL 과 정확히 일치시킨다.
     # (와일드카드 "*" 는 요청 모델명을 그대로 흘려 대시보드 모델별 집계가 흐려지고 빈 model 행이 생김)
     model_list:
-      - model_name: claude-sonnet-4-6
+      # ⭐ 모델 단일 기준(local SSOT) — 40-exam 의 ANTHROPIC_MODEL·managed-settings(피커)와 동일 값.
+      #   바꾸려면: 여기 model_name+model, 40-exam 의 ANTHROPIC_MODEL/SMALL_FAST + exam-claude-config 를 같이.
+      - model_name: claude-haiku-4-5
         litellm_params:
-          model: anthropic/claude-sonnet-4-6
+          model: anthropic/claude-haiku-4-5
           api_key: os.environ/ANTHROPIC_API_KEY
     litellm_settings:
       drop_params: true

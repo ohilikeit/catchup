@@ -57,7 +57,9 @@ examPlatform:
       databaseUrl: ""
   litellm:
     image: ghcr.io/berriai/litellm-database:main-stable
-    model: anthropic/claude-sonnet-4-6
+    # ⭐⭐ 모델 단일 기준(SSOT) — ① LiteLLM 강제 ② exam 표시(ANTHROPIC_MODEL)
+    #   ③ Claude Code 피커(exam-claude-config). 바꾸려면 여기만 수정.
+    model: anthropic/claude-haiku-4-5
     replicas: 2
     redisHost: alpha-redis
     hostAliases:

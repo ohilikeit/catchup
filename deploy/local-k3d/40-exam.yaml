@@ -5,6 +5,22 @@
 #
 # PROBLEM_ID=ainc2026 으로 시드하려면 exam 이미지 안에 /registry/ainc2026/scaffold 가 포함돼야 하거나,
 # ConfigMap/hostPath 로 /registry 를 주입해야 한다. 로컬 iframe 접속 검증만이 목적이라면 임의 문제로 교체.
+# ⭐ Claude Code managed-settings — exam pod 의 switch-model 피커를 SSOT 모델만 노출하도록 잠근다.
+#   model/availableModels 는 20-litellm 의 model_name·40-exam 의 ANTHROPIC_MODEL 과 동일해야 한다(claude-haiku-4-5).
+#   enforceAvailableModels=true → 피커 "Default" 항목까지 잠금(우회 차단). claude-code ≥ 2.1.175 필요.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: exam-claude-config
+  namespace: catchup-local
+data:
+  managed-settings.json: |
+    {
+      "model": "claude-haiku-4-5",
+      "availableModels": ["claude-haiku-4-5"],
+      "enforceAvailableModels": true
+    }
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -97,11 +113,11 @@ spec:
           env:
             - name: ANTHROPIC_BASE_URL
               value: "http://litellm:4000"
-            # ⭐ litellm model_list 의 model_name 과 일치(claude-sonnet-4-6) — 게이트웨이가 정확 매칭.
+            # ⭐ litellm model_list 의 model_name 과 일치(claude-haiku-4-5) — 게이트웨이가 정확 매칭 + 활성 모델 표시.
             - name: ANTHROPIC_MODEL
-              value: "claude-sonnet-4-6"
+              value: "claude-haiku-4-5"
             - name: ANTHROPIC_SMALL_FAST_MODEL
-              value: "claude-sonnet-4-6"
+              value: "claude-haiku-4-5"
           envFrom:
             # 회차 메타(BATCH_ID·PROBLEM_ID) — exam-ops provision 이 갱신(표시/추적용).
             - configMapRef: { name: exam-batch, optional: true }
@@ -126,9 +142,16 @@ spec:
             - name: virtual-keys
               mountPath: /var/run/exam-keys
               readOnly: true
+            # ⭐ Claude Code 관리자 설정 — switch-model 피커를 SSOT 모델(claude-haiku-4-5)만 노출(enforce).
+            - name: claude-managed
+              mountPath: /etc/claude-code/managed-settings.json
+              subPath: managed-settings.json
+              readOnly: true
       volumes:
         - name: stage
           emptyDir: {}
+        - name: claude-managed
+          configMap: { name: exam-claude-config }
         # 슬롯별 가상키(exam-ops provision 이 생성·close 가 삭제). optional — 없으면 LLM 만 비활성.
         - name: virtual-keys
           secret:

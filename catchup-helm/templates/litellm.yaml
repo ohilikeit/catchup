@@ -17,10 +17,10 @@ metadata:
     {{- include "catchup.labels" . | nindent 4 }}
 data:
   config.yaml: |
-    # ⭐ model_name = 모델명 단일 기준(values.litellm.model 에서 anthropic/ 접두 제거로 파생).
-    #   exam pod 의 ANTHROPIC_MODEL 과 정확히 일치해야 게이트웨이가 매칭(와일드카드 "*" 지양).
+    # ⭐ model_name = 모델명 단일 기준(SSOT: examPlatform.litellm.model → catchup.examModelName).
+    #   exam pod 의 ANTHROPIC_MODEL·Claude Code 피커와 같은 값으로 파생되어 게이트웨이가 정확 매칭.
     model_list:
-      - model_name: {{ $ep.litellm.model | trimPrefix "anthropic/" }}
+      - model_name: {{ include "catchup.examModelName" . }}
         litellm_params:
           model: {{ $ep.litellm.model }}
           api_key: os.environ/ANTHROPIC_API_KEY

@@ -47,7 +47,11 @@ examPlatform:
       databaseUrl: "postgresql://litellm:litellm@catchup-infra:5433/litellm"
   litellm:
     image: ghcr.io/berriai/litellm-database:main-stable
-    model: anthropic/claude-sonnet-4-6
+    # ⭐⭐ 모델 단일 기준(SSOT) — 이 한 줄이 전부를 결정한다:
+    #   ① LiteLLM 강제 모델(model_list)  ② exam pod 표시 모델(ANTHROPIC_MODEL)
+    #   ③ Claude Code switch-model 피커(exam-claude-config: availableModels+enforce)
+    # 모델을 바꾸려면 여기만 수정하면 세 곳이 함께 따라온다. (대원칙 5⑤ 서버 강제)
+    model: anthropic/claude-haiku-4-5
     replicas: 1
     redisHost: catchup-infra
     hostAliases:

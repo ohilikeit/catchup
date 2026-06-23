@@ -1,0 +1,28 @@
+{{- /*
+Claude Code 관리자 설정(managed-settings) — exam pod 의 switch-model 피커를 SSOT 모델로 잠근다.
+SSOT = examPlatform.litellm.model (→ catchup.examModelName). 이 값 하나가 LiteLLM 강제·exam 표시·
+피커 노출을 모두 결정하므로, 여기서도 같은 값으로 렌더한다(별도 손댈 곳 없음).
+
+  • availableModels      : /model 피커·CLI·env 로 고를 수 있는 모델 화이트리스트(이 모델만 노출)
+  • enforceAvailableModels: 피커의 "Default" 항목까지 화이트리스트로 잠금(우회 차단). managed 전용 키.
+  • model                : 시작/활성 모델
+근거: code.claude.com/docs/en/model-config · settings(managed-settings) — claude-code ≥ 2.1.175 필요.
+exam pod 은 /etc/claude-code/managed-settings.json 으로 마운트(exam-statefulset.yaml).
+*/ -}}
+{{- $ep := .Values.examPlatform -}}
+{{- $ns := include "catchup.namespace" . -}}
+{{- $model := include "catchup.examModelName" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: exam-claude-config
+  namespace: {{ $ns }}
+  labels:
+    {{- include "catchup.labels" . | nindent 4 }}
+data:
+  managed-settings.json: |
+    {
+      "model": {{ $model | quote }},
+      "availableModels": [{{ $model | quote }}],
+      "enforceAvailableModels": true
+    }

@@ -13,7 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -fsSL https://code-server.dev/install.sh | sh
 
 # claude code CLI 프리설치(§3①). 컨테이너 안에서 OAuth credentials로 바로 사용.
-RUN npm install -g @anthropic-ai/claude-code
+# ⭐ 버전 핀 고정(재현성 + 모델 picker 잠금 기능 보장). availableModels/enforceAvailableModels 는
+#    claude-code ≥ 2.1.175 에서만 동작 — 그 이상으로 고정한다. 올릴 땐 여기만 수정.
+RUN npm install -g @anthropic-ai/claude-code@2.1.186
 
 # non-root 학생 사용자(§8 pod 하드닝: non-root). uid 1000 = 호스트 첫 유저와 매칭 → bind mount 권한 정합.
 # node 베이스 이미지엔 이미 uid/gid 1000(node)이 있으므로 제거 후 coder로 재생성한다.

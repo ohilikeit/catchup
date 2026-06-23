@@ -15,6 +15,15 @@ common-helm 으로 배포되는 web 과 같은 네임스페이스에 배치한�
 {{- (index .Values "common-helm").stage -}}
 {{- end -}}
 
+{{/*
+모델명 단일 파생 — SSOT 는 examPlatform.litellm.model (예: anthropic/claude-haiku-4-5).
+LiteLLM 은 exact match(model_list.model_name)이므로 exam 의 ANTHROPIC_MODEL·피커
+availableModels 가 모두 이 값(anthropic/ 접두 제거)과 일치해야 한다.
+*/}}
+{{- define "catchup.examModelName" -}}
+{{- .Values.examPlatform.litellm.model | trimPrefix "anthropic/" -}}
+{{- end -}}
+
 {{/* 공통 라벨 */}}
 {{- define "catchup.labels" -}}
 app.kubernetes.io/managed-by: {{ .Release.Service }}

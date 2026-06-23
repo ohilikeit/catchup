@@ -4,7 +4,7 @@ title: 회차별 시험 환경 동작 원리
 description: 학생 개개인에게 격리된 코딩 컨테이너를 할당·운영·회수하는 전체 메커니즘.
 resource: file:///docs/0-how-it-works.md
 tags: [exam, k8s, statefulset, slots, litellm, hot-path, cold-path]
-timestamp: 2026-06-17T00:00:00Z
+timestamp: 2026-06-23T00:00:00Z
 ---
 
 # 회차별 시험 환경 동작 원리
@@ -102,7 +102,7 @@ sweepDeadlines 먼저 → scale 0 + 슬롯별 Service/Ingress/Secret 삭제(best
 | 스토리지 | PVC 2Gi/슬롯 (로컬 k3d `40-exam.yaml` 실측값) | volumeClaimTemplates |
 | 동시성 | 슬롯 ≤ 50 / StatefulSet | `Math.min(capacity, 50)` |
 | AI 예산 | 가상키별 `max_budget_usd` | LiteLLM `/key/generate` |
-| 모델 | claude-sonnet-4-6 강제 | `infra/litellm/config.yaml` |
+| 모델 | claude-haiku-4-5 강제 (SSOT: helm `examPlatform.litellm.model`; exam 표시·피커도 파생) | `infra/litellm/config.yaml` |
 | 네트워크 | egress = litellm + DNS only | NetworkPolicy |
 
 # Examples
