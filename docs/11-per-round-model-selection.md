@@ -1,6 +1,7 @@
 # 11 — 회차별 AI 모델 선택 (per-round model selection)
 
-> 상태: **구현 완료 · 검증 통과(typecheck·build·helm 렌더·in-cluster migrate) · 미배포(commit/ArgoCD/web 이미지 재빌드 대기)**. 작성 2026-06-23.
+> 상태: **구현·검증·로컬 k3s 배포 완료**(9b0be93). typecheck·build·helm 렌더·in-cluster migrate·
+> web→litellm /v1/models 도달 확인 / ArgoCD Synced·Healthy·web 롤아웃 완료. 작성 2026-06-23.
 > 선행: [docs/0](0-how-it-works.md)(동작 원리)·[docs/2](2-exam-environment.md)(시험 환경)·
 > [reference/03](reference/03-cache.md)·[reference/04](reference/04-user-role.md)·[reference/05](reference/05-security.md).
 > 현재 모델 강제 구조(SSOT)는 `infra/litellm/config.yaml`·`catchup-helm`·`deploy/local-k3d` 에 구현돼 있고
