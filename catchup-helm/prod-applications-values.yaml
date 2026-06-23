@@ -60,10 +60,11 @@ examPlatform:
       databaseUrl: ""
   litellm:
     image: ghcr.io/berriai/litellm-database:main-stable
-    # ⭐⭐ 모델 단일 기준(SSOT) — ① LiteLLM 강제(model_list) ② exam 표시(ANTHROPIC_MODEL)
-    #   ③ Claude Code switch-model 피커(exam-claude-config: availableModels+enforce).
-    #   바꾸려면 여기만 수정하면 세 곳이 함께 따라온다. (대원칙 5⑤ 서버 강제)
-    model: anthropic/claude-haiku-4-5
+    # ⭐⭐ 모델 허용 집합(SSOT, docs/11) — 회차별 선택 가능 목록. [0]=기본값.
+    #   파생: LiteLLM model_list(허용 집합) / web 드롭다운·검증은 litellm /v1/models 로 동적.
+    #   회차별 실제 강제·표시는 provision 이 batches.model 로 주입. 모델 추가=목록 한 줄+재배포.
+    allowedModels:
+      - anthropic/claude-haiku-4-5
     replicas: 2
     redisHost: prod-redis               # hostAliases 로 해석
     hostAliases:

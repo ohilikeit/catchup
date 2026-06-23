@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await provisionBatch(batchId.trim(), n as number | undefined);
+    const result = await provisionBatch(batchId.trim(), { warm: n as number | undefined });
     return ok(result);
   } catch (e: unknown) {
     return fail('provision_failed', e instanceof Error ? e.message : String(e), 500);

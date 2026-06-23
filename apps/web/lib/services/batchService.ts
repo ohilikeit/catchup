@@ -9,6 +9,7 @@ import { hashPassword, genTempPassword } from '../auth/password';
 import type { Session } from '../auth/session';
 import { myOrgAdminIds } from '../auth/guard';
 import type { BatchListItem } from '../db/repositories/batches';
+import { listAllowedModels, assertModelAllowed } from '../litellm/models';
 
 // batchService — 회차 목록(스코프)·개설·로스터 import. route는 얇게, 스코프/트랜잭션은 여기서.
 // 캐시: 회차 현황은 실시간성 중요 → 짧은 TTL(BATCH_STATUS=30s), 쓰기 후 invalidate(reference/03 §4).
@@ -53,6 +54,8 @@ export async function createBatch(input: {
   problemVersionId: string;
   capacity?: number;
   scheduledAt?: Date | null;
+  /** 회차 AI 모델(litellm model_name). 미지정=allowlist[0](기본). docs/11. */
+  model?: string;
   llmBudgetUsd?: number | null;
   /** 워밍 풀: 미리 띄울 pod 수. 미지정=정원의 20%(라이브 입장 기본). docs/6 Phase 3. */
   warmCount?: number | null;
@@ -65,9 +68,26 @@ export async function createBatch(input: {
   if (!Number.isInteger(warmCount) || warmCount < 0 || warmCount > cap) {
     throw new Error(`워밍 pod 수는 0~정원(${cap}) 사이의 정수여야 합니다.`);
   }
-  const batch = await batchesRepo.create({ ...input, warmCount });
+  // 모델 해석: 미지정이면 allowlist[0](기본), 지정이면 서버측 재검증(대원칙 5⑤).
+  let model: string;
+  if (input.model) {
+    await assertModelAllowed(input.model);
+    model = input.model;
+  } else {
+    const allowed = await listAllowedModels();
+    const first = allowed[0];
+    if (!first) throw new Error('허용된 모델이 없습니다(게이트웨이 설정을 확인하세요).');
+    model = first;
+  }
+  const batch = await batchesRepo.create({ ...input, model, warmCount });
   await invalidateBatchLists();
   return batch;
+}
+
+/** 회차 모델 변경 — allowlist 재검증 후 영속(provision 재확인 시). */
+export async function updateBatchModel(batchId: string, model: string): Promise<void> {
+  await assertModelAllowed(model);
+  await batchesRepo.updateModel(batchId, model);
 }
 
 export async function setBatchStatus(id: string, status: batchesRepo.BatchStatus) {

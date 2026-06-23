@@ -1,7 +1,7 @@
 'use client';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { DataTable, Button, Modal, Field, Input, Select, Notification, type Column } from '@app/ui';
+import { DataTable, Button, Modal, Field, Input, Select, Tag, Notification, type Column } from '@app/ui';
 import { useToast } from '@app/core';
 import type { BatchListItem } from '@/lib/db/repositories/batches';
 import type { Organization } from '@/lib/db/repositories/organizations';
@@ -30,10 +30,12 @@ export function AdminBatchesClient({
   batches,
   orgs,
   versionOptions,
+  allowedModels,
 }: {
   batches: BatchListItem[];
   orgs: Organization[];
   versionOptions: VersionOption[];
+  allowedModels: string[];
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -111,6 +113,11 @@ export function AdminBatchesClient({
       truncate: '16rem',
       titleValue: (r) => `${r.problemTitle} v${r.problemVersion}`,
       render: (r) => `${r.problemTitle} v${r.problemVersion}`,
+    },
+    {
+      key: 'model',
+      header: 'AI 모델',
+      render: (r) => <Tag color="blue">{r.model}</Tag>,
     },
     {
       key: 'status',
@@ -208,6 +215,7 @@ export function AdminBatchesClient({
         <CreateBatchModal
           orgs={orgs}
           versionOptions={versionOptions}
+          allowedModels={allowedModels}
           pending={pending}
           onClose={() => setModal(null)}
           onSubmit={handleCreate}
@@ -231,12 +239,14 @@ export function AdminBatchesClient({
 function CreateBatchModal({
   orgs,
   versionOptions,
+  allowedModels,
   pending,
   onClose,
   onSubmit,
 }: {
   orgs: Organization[];
   versionOptions: VersionOption[];
+  allowedModels: string[];
   pending: boolean;
   onClose: () => void;
   onSubmit: (fd: FormData) => void;
@@ -273,6 +283,9 @@ function CreateBatchModal({
         </Field>
         <Field label="회차명">
           <Input name="name" placeholder="예: 2026 상반기 기획직무 1회차" />
+        </Field>
+        <Field label="AI 모델" helper="이 회차 학생이 사용할 AI 모델. 시험 환경을 열 때 재확인·변경할 수 있습니다.">
+          <Select name="model" defaultValue={allowedModels[0]} options={allowedModels} />
         </Field>
         <Field label="정원">
           <Input name="capacity" type="number" placeholder="50" min="1" max="500" />

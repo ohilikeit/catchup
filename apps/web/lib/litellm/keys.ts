@@ -15,6 +15,8 @@ export async function generateVirtualKey(input: {
   maxBudgetUsd: number | null;
   /** 키 수명(기본 24h) — 회차보다 길고 영구보다 짧게. */
   duration?: string;
+  /** 이 키로 호출 가능한 모델 제한(회차 모델). 키 레벨 강제로 회차당 서버측 enforcement. */
+  models?: string[];
 }): Promise<string> {
   const res = await fetch(`${env.litellmBaseUrl}/key/generate`, {
     method: 'POST',
@@ -26,6 +28,7 @@ export async function generateVirtualKey(input: {
       key_alias: input.alias,
       duration: input.duration ?? '24h',
       ...(input.maxBudgetUsd != null ? { max_budget: input.maxBudgetUsd } : {}),
+      ...(input.models && input.models.length > 0 ? { models: input.models } : {}),
     }),
   });
   if (!res.ok) {

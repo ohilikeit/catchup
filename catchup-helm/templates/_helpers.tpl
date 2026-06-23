@@ -16,12 +16,12 @@ common-helm 으로 배포되는 web 과 같은 네임스페이스에 배치한�
 {{- end -}}
 
 {{/*
-모델명 단일 파생 — SSOT 는 examPlatform.litellm.model (예: anthropic/claude-haiku-4-5).
-LiteLLM 은 exact match(model_list.model_name)이므로 exam 의 ANTHROPIC_MODEL·피커
-availableModels 가 모두 이 값(anthropic/ 접두 제거)과 일치해야 한다.
+기본 모델명 파생 — SSOT 는 examPlatform.litellm.allowedModels (목록, [0]=기본). docs/11.
+회차별 실제 모델은 provision 이 batches.model 로 주입하며, 여기 값은 "유휴/기본" 표시용
+(exam-claude-config 의 초기 렌더). anthropic/ 접두를 떼어 litellm model_name 과 같은 표기로.
 */}}
 {{- define "catchup.examModelName" -}}
-{{- .Values.examPlatform.litellm.model | trimPrefix "anthropic/" -}}
+{{- index .Values.examPlatform.litellm.allowedModels 0 | trimPrefix "anthropic/" -}}
 {{- end -}}
 
 {{/* 공통 라벨 */}}

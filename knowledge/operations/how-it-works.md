@@ -102,7 +102,7 @@ sweepDeadlines 먼저 → scale 0 + 슬롯별 Service/Ingress/Secret 삭제(best
 | 스토리지 | PVC 2Gi/슬롯 (로컬 k3d `40-exam.yaml` 실측값) | volumeClaimTemplates |
 | 동시성 | 슬롯 ≤ 50 / StatefulSet | `Math.min(capacity, 50)` |
 | AI 예산 | 가상키별 `max_budget_usd` | LiteLLM `/key/generate` |
-| 모델 | claude-haiku-4-5 강제 (SSOT: helm `examPlatform.litellm.model`; exam 표시·피커도 파생) | `infra/litellm/config.yaml` |
+| 모델 | 회차별 선택(docs/11) — allowlist(`examPlatform.litellm.allowedModels`, 현재 `claude-haiku-4-5` 단일)에서 관리자가 회차마다 지정. provision 이 `batches.model` 을 가상키 models 제한·exam-batch env·피커에 주입 | `catchup-helm`·`examOpsService.ts` |
 | 네트워크 | egress = litellm + DNS only | NetworkPolicy |
 
 # Examples

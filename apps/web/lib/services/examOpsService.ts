@@ -3,6 +3,7 @@ import { attemptsRepo, batchesRepo, entryQueueRepo, problemsRepo, slotsRepo, wit
 import { DEFAULT_DURATION_MIN, sweepDeadlines } from './examService';
 import { BUCKETS } from '../storage';
 import { generateVirtualKey, blockVirtualKeys, getKeyInfo } from '../litellm/keys';
+import { assertModelAllowed } from '../litellm/models';
 import type { SlotState } from '../db/repositories/slots';
 import {
   inCluster,
@@ -20,6 +21,7 @@ import {
   paths,
   slotEndpoint,
   examBatchConfigMap,
+  examClaudeConfigMap,
   virtualKeysSecret,
   slotService,
   slotsIngress,
@@ -58,6 +60,8 @@ export interface ProvisionResult {
   warm: number;
   problemCode: string;
   scaffoldRef: string;
+  /** 이 회차 환경에 적용된 AI 모델(litellm model_name). */
+  model: string;
   warnings: string[];
 }
 
@@ -66,9 +70,13 @@ export interface ProvisionResult {
  * 가상키·슬롯별 Service/Ingress·슬롯 row는 슬롯 "번호"에 붙으므로 전부 선생성 가능 —
  * 학생 초과 도착 시 cold 성장이 `scale +Δ` 한 줄이 된다(reconcilePool).
  * 멱등(재실행 시 PVC wipe 후 재시드). 진행 중(assigned/submitting) 슬롯이 있으면 거부.
- * @param warmOverride CLI 검증용 warm 덮어쓰기(exam-ops.sh provision N) — 기본은 batches.warm_count.
+ * @param opts.warm CLI 검증용 warm 덮어쓰기(exam-ops.sh provision N) — 기본은 batches.warm_count.
+ * @param opts.model 개설 시 회차 모델 override(재확인) — 미지정이면 batch.model. 지정 시 영속(updateModel).
  */
-export async function provisionBatch(batchId: string, warmOverride?: number): Promise<ProvisionResult> {
+export async function provisionBatch(
+  batchId: string,
+  opts: { warm?: number; model?: string } = {},
+): Promise<ProvisionResult> {
   const ns = requireCluster();
   const warnings: string[] = [];
 
@@ -79,7 +87,14 @@ export async function provisionBatch(batchId: string, warmOverride?: number): Pr
   if (!version) throw new Error('회차에 연결된 문제 버전을 찾을 수 없습니다.');
   const slots = Math.min(batch.capacity, MAX_SLOTS);
   if (slots < 1) throw new Error('슬롯 수는 1 이상이어야 합니다.');
-  const warm = Math.min(slots, Math.max(0, warmOverride ?? batch.warmCount ?? slots));
+  const warm = Math.min(slots, Math.max(0, opts.warm ?? batch.warmCount ?? slots));
+
+  // ── 1b. 모델 해석 + 서버측 재검증(대원칙 5⑤). override 면 영속(개설 시 변경분 sticky). ──
+  const model = opts.model ?? batch.model;
+  await assertModelAllowed(model);
+  if (opts.model && opts.model !== batch.model) {
+    await batchesRepo.updateModel(batchId, opts.model);
+  }
 
   // ── 2. 가드: 어떤 회차든 학생이 작업/제출 중이면 거부 (단일 StatefulSet 구조의 불변식) ──
   if (await slotsRepo.hasBusySlots()) {
@@ -121,15 +136,23 @@ export async function provisionBatch(batchId: string, warmOverride?: number): Pr
   const batchKey = await generateVirtualKey({
     alias: `catchup-${batchId.slice(0, 8)}-${Date.now().toString(36)}`,
     maxBudgetUsd: batch.llmBudgetUsd,
+    models: [model], // 키 레벨 모델 제한 — 회차 모델만 호출 가능(서버측 enforcement).
   });
   const keys: string[] = new Array(slots).fill(batchKey);
 
   // ── 5. 회차 문제 ConfigMap + 가상키 Secret (seeder·기동 래퍼가 읽음) → ⭐ replicas는 warm만 ──
   await applyObject(
     paths.configMap(ns, 'exam-batch'),
-    examBatchConfigMap(ns, { batchId, scaffoldRef: version.publicScaffoldRef, problemCode: version.problemCode }),
+    examBatchConfigMap(ns, {
+      batchId,
+      scaffoldRef: version.publicScaffoldRef,
+      problemCode: version.problemCode,
+      model,
+    }),
   );
   await applyObject(paths.secret(ns, 'exam-virtual-keys'), virtualKeysSecret(ns, keys)); // ★GITOPS②
+  // ⭐ Claude Code 피커 잠금 CM 을 scale-up 前에 갱신 — 새 pod 이 회차 모델을 흡수하도록(순서 중요).
+  await applyObject(paths.configMap(ns, 'exam-claude-config'), examClaudeConfigMap(ns, model));
   await scaleStatefulSet(ns, EXAM_STS, warm); // ★GITOPS① replicas 커밋으로 교체(alpha+)
 
   // ── 6. 슬롯별 라우팅: Service(pod 고정) N개 + Ingress(/exam-ide/{i}) — per-student 격리의 실체 ──
@@ -180,7 +203,7 @@ export async function provisionBatch(batchId: string, warmOverride?: number): Pr
   warnings.push(
     `워밍 ${warm}/${slots} pod 기동 중 — Ready가 되면 자동으로 배정 가능해집니다(학생 화면이 대기→자동 진입).`,
   );
-  return { slots, warm, problemCode: version.problemCode, scaffoldRef: version.publicScaffoldRef, warnings };
+  return { slots, warm, problemCode: version.problemCode, scaffoldRef: version.publicScaffoldRef, model, warnings };
 }
 
 export interface CloseResult {

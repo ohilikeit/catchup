@@ -48,14 +48,14 @@ export interface EnvActionResult {
  * provision이 실패하면 상태를 바꾸지 않는다 — 슬롯 없는 회차에 학생이 입장하는 일을 막는다.
  * docs/6 Phase 3 "자동 회차 트리거"의 로컬판(web이 k8s API 직접 — ArgoCD 커밋 방식은 alpha부터).
  */
-export async function openBatchEnvAction(batchId: string): Promise<EnvActionResult> {
+export async function openBatchEnvAction(batchId: string, model: string): Promise<EnvActionResult> {
   await requireGlobalRole('admin');
   try {
-    const r = await examOpsService.provisionBatch(batchId);
+    const r = await examOpsService.provisionBatch(batchId, { model });
     await batchService.setBatchStatus(batchId, 'open');
     revalidatePath(`/admin/batches/${batchId}`);
     const warn = r.warnings.length > 0 ? ` ${r.warnings.join(' ')}` : '';
-    return { ok: true, message: `슬롯 ${r.slots}개 준비 완료 (문제 ${r.problemCode}).${warn}` };
+    return { ok: true, message: `슬롯 ${r.slots}개 준비 완료 (문제 ${r.problemCode} · 모델 ${r.model}).${warn}` };
   } catch (e: unknown) {
     revalidatePath(`/admin/batches/${batchId}`);
     return { ok: false, message: e instanceof Error ? e.message : String(e) };

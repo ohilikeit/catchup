@@ -17,13 +17,16 @@ metadata:
     {{- include "catchup.labels" . | nindent 4 }}
 data:
   config.yaml: |
-    # ⭐ model_name = 모델명 단일 기준(SSOT: examPlatform.litellm.model → catchup.examModelName).
-    #   exam pod 의 ANTHROPIC_MODEL·Claude Code 피커와 같은 값으로 파생되어 게이트웨이가 정확 매칭.
+    # ⭐ model_list = 허용 집합(SSOT: examPlatform.litellm.allowedModels). docs/11.
+    #   각 model_name(anthropic/ 제거)으로 exact-match — 회차 가상키의 models 제한·exam ANTHROPIC_MODEL
+    #   이 이 목록의 한 항목과 일치해야 게이트웨이가 매칭(대시보드 모델별 집계 유지, 빈 model 행 방지).
     model_list:
-      - model_name: {{ include "catchup.examModelName" . }}
+      {{- range $ep.litellm.allowedModels }}
+      - model_name: {{ . | trimPrefix "anthropic/" }}
         litellm_params:
-          model: {{ $ep.litellm.model }}
+          model: {{ . }}
           api_key: os.environ/ANTHROPIC_API_KEY
+      {{- end }}
     litellm_settings:
       drop_params: true
       set_verbose: false

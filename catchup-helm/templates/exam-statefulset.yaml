@@ -55,9 +55,11 @@ spec:
           imagePullPolicy: {{ $ep.exam.image.pullPolicy }}
           env:
             - { name: ANTHROPIC_BASE_URL, value: "http://litellm:4000" }   # 클러스터 내부 게이트웨이
-            # ⭐ SSOT(examPlatform.litellm.model)에서 파생 — litellm model_name 과 정확히 일치 + 활성 모델 표시도 이 값.
-            - { name: ANTHROPIC_MODEL, value: {{ include "catchup.examModelName" . | quote }} }
-            - { name: ANTHROPIC_SMALL_FAST_MODEL, value: {{ include "catchup.examModelName" . | quote }} }
+          # ⭐ 회차별 모델(docs/11): ANTHROPIC_MODEL/SMALL_FAST 은 정적 env 가 아니라 exam-batch ConfigMap
+          #   에서 온다 — provision 이 batches.model 로 회차마다 써넣는다. ⚠️ 정적 env 로 두면 envFrom 보다
+          #   우선해 회차값이 무시되므로 절대 여기 박지 않는다. (회차 미개설 시 키 없음 → LLM 비활성)
+          envFrom:
+            - configMapRef: { name: exam-batch, optional: true }
           ports: [{ containerPort: 8080 }]
           resources:
             {{- toYaml $ep.exam.resources | nindent 12 }}

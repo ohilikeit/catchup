@@ -15,6 +15,8 @@ export interface Batch {
   capacity: number;
   status: BatchStatus;
   scheduledAt: Date | null;
+  /** 이 회차의 AI 모델(litellm model_name). allowlist 검증은 앱 레이어(0016). */
+  model: string;
   /** 회차 1인당 LLM 예산 상한(USD). 가상키 max_budget의 근거. NULL=상한 없음(0010). */
   llmBudgetUsd: number | null;
   /** 미리(상시) 띄워둘 워밍 pod 수. NULL=capacity(일괄). 작으면 라이브 입장(0013, docs/6 Phase 3). */
@@ -33,6 +35,7 @@ interface BatchRow {
   capacity: number;
   status: BatchStatus;
   scheduled_at: Date | null;
+  model: string;
   llm_budget_usd: string | null; // NUMERIC → pg는 문자열로 반환
   warm_count: number | null;
   opened_at: Date | null;
@@ -50,6 +53,7 @@ function mapRow(r: BatchRow): Batch {
     capacity: r.capacity,
     status: r.status,
     scheduledAt: r.scheduled_at,
+    model: r.model,
     llmBudgetUsd: r.llm_budget_usd == null ? null : Number(r.llm_budget_usd),
     warmCount: r.warm_count,
     openedAt: r.opened_at,
@@ -70,6 +74,7 @@ export interface BatchListItem {
   capacity: number;
   status: BatchStatus;
   scheduledAt: Date | null;
+  model: string;
   llmBudgetUsd: number | null;
   attemptCount: number;
   submittedCount: number;
@@ -112,6 +117,7 @@ function mapListRow(r: BatchListRow): BatchListItem {
     capacity: r.capacity,
     status: r.status,
     scheduledAt: r.scheduled_at,
+    model: r.model,
     llmBudgetUsd: r.llm_budget_usd == null ? null : Number(r.llm_budget_usd),
     attemptCount: Number(r.attempt_count),
     submittedCount: Number(r.submitted_count),
@@ -168,23 +174,30 @@ export async function create(input: {
   problemVersionId: string;
   capacity?: number;
   scheduledAt?: Date | null;
+  model: string;
   llmBudgetUsd?: number | null;
   warmCount?: number | null;
 }): Promise<Batch> {
   const row = await queryOne<BatchRow>(
-    `INSERT INTO exam.batches (org_id, name, problem_version_id, capacity, scheduled_at, llm_budget_usd, warm_count)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    `INSERT INTO exam.batches (org_id, name, problem_version_id, capacity, scheduled_at, model, llm_budget_usd, warm_count)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
     [
       input.orgId,
       input.name,
       input.problemVersionId,
       input.capacity ?? 50,
       input.scheduledAt ?? null,
+      input.model,
       input.llmBudgetUsd ?? null,
       input.warmCount ?? null,
     ],
   );
   return mapRow(row!);
+}
+
+/** 회차 모델 변경(provision 재확인 시 영속). allowlist 검증은 service 가 선행한다. */
+export async function updateModel(id: string, model: string): Promise<void> {
+  await getPool().query(`UPDATE exam.batches SET model = $2 WHERE id = $1`, [id, model]);
 }
 
 /**

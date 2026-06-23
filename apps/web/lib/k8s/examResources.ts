@@ -40,7 +40,7 @@ export function slotIdePath(slotNo: number): string {
 /** seeder(initContainer)가 읽는 회차 ConfigMap — 이 회차의 문제 scaffold 객체 키. */
 export function examBatchConfigMap(
   ns: string,
-  input: { batchId: string; scaffoldRef: string; problemCode: string },
+  input: { batchId: string; scaffoldRef: string; problemCode: string; model: string },
 ): Record<string, unknown> {
   return {
     apiVersion: 'v1',
@@ -50,6 +50,29 @@ export function examBatchConfigMap(
       SCAFFOLD_REF: input.scaffoldRef,
       PROBLEM_ID: input.problemCode,
       BATCH_ID: input.batchId,
+      // exam pod 가 envFrom 으로 흡수 → 활성 모델. 정적 env 는 템플릿에서 제거됨(envFrom 우선순위 함정 회피).
+      ANTHROPIC_MODEL: input.model,
+      ANTHROPIC_SMALL_FAST_MODEL: input.model,
+    },
+  };
+}
+
+/**
+ * Claude Code 모델 피커 잠금 ConfigMap(managed-settings.json) — provision 이 회차마다 덮어쓴다.
+ * exam pod 에 /etc/claude-code/managed-settings.json 으로 마운트되어 학생 IDE 의 switch-model 피커를
+ * 회차 모델로 고정(enforceAvailableModels=true). ⚠️ scale-up 前에 apply 해야 새 pod 이 흡수한다.
+ */
+export function examClaudeConfigMap(ns: string, model: string): Record<string, unknown> {
+  return {
+    apiVersion: 'v1',
+    kind: 'ConfigMap',
+    metadata: { name: 'exam-claude-config', namespace: ns },
+    data: {
+      'managed-settings.json': JSON.stringify(
+        { model, availableModels: [model], enforceAvailableModels: true },
+        null,
+        2,
+      ),
     },
   };
 }

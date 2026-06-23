@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { Breadcrumb, MetricGrid, MetricTile } from '@app/ui';
+import { Breadcrumb, MetricGrid, MetricTile, Tag } from '@app/ui';
 import { requireGlobalRole } from '@/lib/auth/guard';
 import { usersRepo } from '@/lib/db';
 import { getBatchDetailForViewer } from '@/lib/services/batchService';
 import { batchOpsSnapshot } from '@/lib/services/examOpsService';
+import { listAllowedModels } from '@/lib/litellm/models';
 import { PageHead, BatchStatusTag } from '../../../_components/ui';
 import { AdminBatchRosterClient } from './AdminBatchRosterClient';
 import { BatchEnvControls } from './BatchEnvControls';
@@ -27,6 +28,13 @@ export default async function AdminBatchDetailPage({
   const candidates = canOperate ? await usersRepo.listExamineeCandidates() : [];
   // 실시간 관제(open 회차만): 슬롯 상태 분포 + LLM spend. 게이트웨이/슬롯 조회는 fail-soft.
   const ops = canOperate && detail.status === 'open' ? await batchOpsSnapshot(detail.id) : null;
+  // 환경 열기 재확인용 모델 선택지 — 게이트웨이 불통 시 현재 모델 단일로 폴백(페이지는 렌더).
+  const allowedModels = canOperate
+    ? await listAllowedModels().then(
+        (m) => (m.length > 0 ? m : [detail.model]),
+        () => [detail.model],
+      )
+    : [detail.model];
 
   const crumbs = [
     { label: '회차 운영', href: '/admin/batches' },
@@ -47,9 +55,16 @@ export default async function AdminBatchDetailPage({
         sub={subLine}
         action={
           <div className="flex items-center gap-03">
+            <Tag color="blue">{detail.model}</Tag>
             <BatchStatusTag status={detail.status} />
             {canOperate && (
-              <BatchEnvControls batchId={detail.id} status={detail.status} capacity={detail.capacity} />
+              <BatchEnvControls
+                batchId={detail.id}
+                status={detail.status}
+                capacity={detail.capacity}
+                model={detail.model}
+                allowedModels={allowedModels}
+              />
             )}
           </div>
         }

@@ -36,11 +36,14 @@ export async function createBatchAction(formData: FormData) {
   const warmRaw = ((formData.get('warmCount') as string | null) ?? '').trim();
   const warmCount = warmRaw === '' ? null : Number(warmRaw);
 
+  // AI 모델 — 빈 값이면 undefined(service가 allowlist[0]로 기본). allowlist 재검증은 service.
+  const model = ((formData.get('model') as string | null) ?? '').trim() || undefined;
+
   if (!orgId || !name || !problemVersionId) {
     throw new Error('필수 항목을 모두 입력하세요.');
   }
 
-  await batchService.createBatch({ orgId, name, problemVersionId, capacity, scheduledAt, llmBudgetUsd, warmCount });
+  await batchService.createBatch({ orgId, name, problemVersionId, capacity, scheduledAt, model, llmBudgetUsd, warmCount });
   revalidatePath('/admin/batches');
 }
 

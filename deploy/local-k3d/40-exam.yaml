@@ -113,13 +113,11 @@ spec:
           env:
             - name: ANTHROPIC_BASE_URL
               value: "http://litellm:4000"
-            # ⭐ litellm model_list 의 model_name 과 일치(claude-haiku-4-5) — 게이트웨이가 정확 매칭 + 활성 모델 표시.
-            - name: ANTHROPIC_MODEL
-              value: "claude-haiku-4-5"
-            - name: ANTHROPIC_SMALL_FAST_MODEL
-              value: "claude-haiku-4-5"
+          # ⭐ 회차별 모델(docs/11): ANTHROPIC_MODEL/SMALL_FAST 은 정적 env 가 아니라 exam-batch ConfigMap
+          #   에서 온다 — provision 이 batches.model 로 회차마다 써넣는다. ⚠️ 정적 env 로 두면 envFrom 보다
+          #   우선해 회차값이 무시되므로 여기 박지 않는다.
           envFrom:
-            # 회차 메타(BATCH_ID·PROBLEM_ID) — exam-ops provision 이 갱신(표시/추적용).
+            # 회차 메타(BATCH_ID·PROBLEM_ID·ANTHROPIC_MODEL·ANTHROPIC_SMALL_FAST_MODEL) — provision 이 갱신.
             - configMapRef: { name: exam-batch, optional: true }
           ports:
             - containerPort: 8080
