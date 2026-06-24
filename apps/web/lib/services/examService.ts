@@ -4,6 +4,45 @@ import type { AttemptRuntime } from '../db/repositories/attempts';
 import type { SlotState } from '../db/repositories/slots';
 import { packageAttempt, reconcilePool } from './examOpsService';
 
+// ── 프롬프트 쿼터 ────────────────────────────────────────────────────────────
+
+export interface QuotaStatus {
+  used: number;
+  limit: number;
+  remaining: number;
+  blocked: boolean;
+}
+
+export interface QuotaResult {
+  ok: true;
+  data: QuotaStatus;
+}
+
+export interface QuotaError {
+  ok: false;
+  error: string;
+}
+
+/**
+ * 학생용 잔량 조회. 소유권을 서버가 재판정(대원칙 ⑤): attempt의 examineeId === userId 여야 함.
+ * used = countTurnsSinceReset, limit = batch.promptQuota.
+ */
+export async function getQuotaStatusForExaminee(
+  attemptId: string,
+  userId: string,
+): Promise<QuotaResult | QuotaError> {
+  const rt = await attemptsRepo.findRuntimeForExaminee(attemptId, userId);
+  if (!rt) return { ok: false, error: '응시를 찾을 수 없거나 권한이 없습니다.' };
+
+  const batch = await batchesRepo.findById(rt.batchId);
+  if (!batch) return { ok: false, error: '회차 정보를 찾을 수 없습니다.' };
+
+  const used = await attemptsRepo.countTurnsSinceReset(attemptId);
+  const limit = batch.promptQuota;
+  const remaining = Math.max(0, limit - used);
+  return { ok: true, data: { used, limit, remaining, blocked: used >= limit } };
+}
+
 // examService — 시험 런타임 비즈니스 로직(소유권·시작·마감). docs/1 §4.
 // ⭐ 시각은 서버가 결정한다(클라 입력은 적대적, 대원칙 ⑤): deadline_at은 start 시점에 서버가 박는다.
 

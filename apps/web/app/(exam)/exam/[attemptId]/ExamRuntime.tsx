@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Tag, Icon } from '@app/ui';
 import { useToast } from '@app/core';
@@ -34,6 +34,32 @@ export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
   const { toast } = useToast();
   const [expired, setExpired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // 프롬프트 잔량 폴링(8초 간격). iframe 안 Claude 사용을 직접 감지 못하므로 주기 폴링.
+  // 실패는 조용히 무시(이전 값 유지) — 학생 경험을 해치지 않는다.
+  const [quota, setQuota] = useState<{ remaining: number; limit: number; blocked: boolean } | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    async function fetchQuota() {
+      try {
+        const res = await fetch(`/api/exam/${runtime.attemptId}/quota`);
+        if (!res.ok) return;
+        const body = await res.json();
+        if (body?.success && body.data) {
+          setQuota({ remaining: body.data.remaining, limit: body.data.limit, blocked: body.data.blocked });
+        }
+      } catch {
+        /* 네트워크 실패는 조용히 무시 — 이전 값 유지 */
+      }
+    }
+
+    void fetchQuota();
+    pollingRef.current = setInterval(() => { void fetchQuota(); }, 8_000);
+    return () => {
+      if (pollingRef.current !== null) clearInterval(pollingRef.current);
+    };
+  }, [runtime.attemptId]);
 
   async function submit() {
     // 제출은 되돌릴 수 없으므로 확인. (네이티브 다이얼로그 — 앱 UI 토큰과 무관)
@@ -78,6 +104,11 @@ export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
           </span>
         </div>
         <div className="flex items-center gap-04 shrink-0">
+          {quota !== null && (
+            <Tag color={quota.blocked || quota.remaining === 0 ? 'red' : 'blue'}>
+              AI {quota.remaining}/{quota.limit}회
+            </Tag>
+          )}
           <Countdown deadlineAt={runtime.deadlineAt} onExpire={handleExpire} />
           {ideReady && (
             <Button kind="ghost" size="sm" icon="launch" onClick={() => window.open(IDE_URL, '_blank', 'noopener')}>
