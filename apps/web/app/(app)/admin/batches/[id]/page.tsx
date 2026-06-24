@@ -29,7 +29,7 @@ export default async function AdminBatchDetailPage({
   // 응시별 쿼터 사용량(회차당 슬롯 수 ≤ MAX_SLOTS=50이므로 병렬 개별 조회 허용).
   const quotaUsedEntries = await Promise.all(
     roster.map(async (r) => {
-      const used = await attemptsRepo.countTurnsSinceReset(r.attemptId).catch(() => 0);
+      const used = await attemptsRepo.countPromptsSinceReset(r.attemptId).catch(() => 0);
       return [r.attemptId, used] as [string, number];
     }),
   );

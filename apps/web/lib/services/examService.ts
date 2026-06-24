@@ -24,8 +24,9 @@ export interface QuotaError {
 }
 
 /**
- * 학생용 잔량 조회. 소유권을 서버가 재판정(대원칙 ⑤): attempt의 examineeId === userId 여야 함.
- * used = countTurnsSinceReset, limit = batch.promptQuota.
+ * 학생용 잔량 조회(표시 전용 — 부수효과 없음). 소유권을 서버가 재판정(대원칙 ⑤).
+ * used = countPromptsSinceReset(type='prompt' 기준), limit = batch.promptQuota.
+ * 소비는 오직 /api/internal/quota(훅 경로)에서만 발생한다.
  */
 export async function getQuotaStatusForExaminee(
   attemptId: string,
@@ -37,7 +38,7 @@ export async function getQuotaStatusForExaminee(
   const batch = await batchesRepo.findById(rt.batchId);
   if (!batch) return { ok: false, error: '회차 정보를 찾을 수 없습니다.' };
 
-  const used = await attemptsRepo.countTurnsSinceReset(attemptId);
+  const used = await attemptsRepo.countPromptsSinceReset(attemptId);
   const limit = batch.promptQuota;
   const remaining = Math.max(0, limit - used);
   return { ok: true, data: { used, limit, remaining, blocked: used >= limit } };

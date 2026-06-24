@@ -516,8 +516,8 @@ export async function lastSnapshotAt(attemptId: string): Promise<Date | null> {
 /* ── 프롬프트 쿼터(0017) ──────────────────────────────────────────────────── */
 
 /**
- * 마지막 quota_reset 이후 turn 이벤트 수(= 현재 소진 횟수).
- * 리셋이 없으면 전체 turn 수. 단일 SQL로 서브쿼리 없이 처리.
+ * 마지막 quota_reset 이후 turn 이벤트 수.
+ * 스냅샷 트리거/상호작용 추적용(docs/10). 쿼터 카운트에는 사용하지 않는다.
  */
 export async function countTurnsSinceReset(attemptId: string): Promise<number> {
   const row = await queryOne<{ used: number }>(
@@ -533,6 +533,70 @@ export async function countTurnsSinceReset(attemptId: string): Promise<number> {
     [attemptId],
   );
   return row?.used ?? 0;
+}
+
+/**
+ * 마지막 quota_reset 이후 prompt 이벤트 수(= 현재 소진 횟수).
+ * 리셋이 없으면 전체 prompt 수. 단일 SQL로 서브쿼리 없이 처리.
+ * 쿼터 카운트 기준: "사용자 프롬프트 제출"(type='prompt').
+ */
+export async function countPromptsSinceReset(attemptId: string): Promise<number> {
+  const row = await queryOne<{ used: number }>(
+    `SELECT COUNT(*) FILTER (
+       WHERE e.type = 'prompt'
+         AND e.created_at > COALESCE(
+           (SELECT MAX(created_at) FROM exam.attempt_events
+             WHERE attempt_id = $1 AND type = 'quota_reset'),
+           '-infinity'::timestamptz)
+     )::int AS used
+     FROM exam.attempt_events e
+     WHERE e.attempt_id = $1`,
+    [attemptId],
+  );
+  return row?.used ?? 0;
+}
+
+/**
+ * 프롬프트 소비: 트랜잭션에서 현재 prompt 수를 확인하고 조건부 INSERT.
+ * - used >= limit → INSERT 없이 { used, blocked: true } 반환(차단).
+ * - used < limit  → type='prompt' 이벤트 INSERT 후 { used: used+1, blocked: false } 반환(통과).
+ * 동시성: 학생 1명당 pod 1개·프롬프트 순차라 경쟁 거의 없지만 단일 트랜잭션으로 견고하게 처리.
+ * ⚠️ 이 함수 호출 자체가 1 프롬프트를 소비한다 — 훅 경로에서만 호출할 것.
+ */
+export async function consumePrompt(
+  attemptId: string,
+  limit: number,
+): Promise<{ used: number; blocked: boolean }> {
+  // 단일 트랜잭션: 현재 카운트 조회 → 조건부 INSERT
+  const row = await queryOne<{ used: number; blocked: boolean }>(
+    `WITH current AS (
+       SELECT COUNT(*) FILTER (
+         WHERE e.type = 'prompt'
+           AND e.created_at > COALESCE(
+             (SELECT MAX(created_at) FROM exam.attempt_events
+               WHERE attempt_id = $1 AND type = 'quota_reset'),
+             '-infinity'::timestamptz)
+       )::int AS cnt
+       FROM exam.attempt_events e
+       WHERE e.attempt_id = $1
+     ),
+     inserted AS (
+       INSERT INTO exam.attempt_events (attempt_id, type)
+       SELECT $1, 'prompt'
+       FROM current
+       WHERE cnt < $2
+       RETURNING 1
+     )
+     SELECT
+       CASE WHEN EXISTS (SELECT 1 FROM inserted)
+         THEN (SELECT cnt FROM current) + 1
+         ELSE (SELECT cnt FROM current)
+       END AS used,
+       NOT EXISTS (SELECT 1 FROM inserted) AS blocked
+     FROM current`,
+    [attemptId, limit],
+  );
+  return { used: row?.used ?? 0, blocked: row?.blocked ?? true };
 }
 
 /**

@@ -578,9 +578,10 @@ export interface QuotaStatus {
 }
 
 /**
- * 슬롯 번호로 응시를 찾아 현재 쿼터 상태를 반환.
+ * 슬롯 번호로 응시를 찾아 현재 쿼터 상태를 반환(조회 전용 — 부수효과 없음).
  * - attempt 미배정 슬롯: fail-open 친화적으로 used=0, blocked=false 반환.
  * - batch 없음: 명확한 에러(호출자가 404 처리).
+ * used 기준: type='prompt'(사용자 프롬프트 제출).
  */
 export async function getQuotaStatusBySlot(batchId: string, slotNo: number): Promise<QuotaStatus> {
   const batch = await batchesRepo.findById(batchId);
@@ -593,9 +594,31 @@ export async function getQuotaStatusBySlot(batchId: string, slotNo: number): Pro
     return { used: 0, limit, remaining: limit, blocked: false };
   }
 
-  const used = await attemptsRepo.countTurnsSinceReset(attemptId);
+  const used = await attemptsRepo.countPromptsSinceReset(attemptId);
   const remaining = Math.max(0, limit - used);
   return { used, limit, remaining, blocked: used >= limit };
+}
+
+/**
+ * 슬롯 번호로 응시를 찾아 프롬프트 1회를 소비하고 쿼터 상태를 반환.
+ * ⚠️ 이 함수 호출이 1 프롬프트를 소비한다 — UserPromptSubmit 훅 경로에서만 호출할 것.
+ * - attempt 미배정 슬롯: fail-open(기록 없이 blocked=false) — 워밍 중·인프라 장애 시 시험 멈춤 방지.
+ * - batch 없음: 명확한 에러(호출자가 404 처리).
+ */
+export async function consumePromptBySlot(batchId: string, slotNo: number): Promise<QuotaStatus> {
+  const batch = await batchesRepo.findById(batchId);
+  if (!batch) throw new Error(`batch not found: ${batchId}`);
+  const limit = batch.promptQuota;
+
+  const attemptId = await slotsRepo.findAttemptBySlotNo(batchId, slotNo);
+  // 슬롯에 응시가 배정되지 않았으면 fail-open — 기록 없이 통과.
+  if (!attemptId) {
+    return { used: 0, limit, remaining: limit, blocked: false };
+  }
+
+  const { used, blocked } = await attemptsRepo.consumePrompt(attemptId, limit);
+  const remaining = Math.max(0, limit - used);
+  return { used, limit, remaining, blocked };
 }
 
 /**
