@@ -16,12 +16,13 @@ litellm_settings:
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY   # 가상키 발급용 관리자 키(/key/generate·/key/info)
   database_url: os.environ/DATABASE_URL       # 가상키·spend 저장(메인 postgres의 litellm DB)
-  # T5: 학생 훅 → web 쿼터 조회 중계. auth:true 로 가상키 검증(v1.84.0+ OSS).
-  # x-internal-secret 은 LiteLLM 이 env 에서 주입 — 학생 pod 에는 이 값이 없어 직접 web 호출 불가.
+  # T5: 학생 훅 → web 쿼터 소비/조회 중계. auth:false — 가상키는 패스스루 라우트 접근 권한이 없어
+  # (allowed_passthrough_routes 미설정) auth:true 면 403 으로 막힌다. 보안은 x-internal-secret 이 담당:
+  # LiteLLM 이 env 에서 주입하고 학생 pod 엔 그 값이 없어 web 의 /api/internal/quota 를 직접 못 친다.
   pass_through_endpoints:
     - path: "/quota"
       target: "http://web:3000/api/internal/quota"
-      auth: true
+      auth: false
       forward_headers: false
       methods: ["POST"]
       headers:
