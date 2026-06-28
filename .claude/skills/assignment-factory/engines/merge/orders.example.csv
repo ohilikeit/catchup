@@ -1,0 +1,21 @@
+﻿order_id,고객명,상품명,수량,금액_원,주문일,channels,표기변형,결측
+ORD26-0001,김민준,A4 복사용지 80g,1,18900,2026-01-06,web,none,none
+ORD26-0002,이서연,무선 마우스 광학식,2,25600,2026-01-13,partner,none,none
+ORD26-0003,박도윤,LED 모니터 27형,3,657000,2026-01-20,phone,none,none
+ORD26-0004,최지우,토너 카트리지 검정,4,188000,2026-01-27,web|partner,none,none
+ORD26-0005,정하준,모나미 볼펜 흑색,5,1750,2026-02-03,web|phone,none,none
+ORD26-0006,강서윤,기계식 키보드,6,468000,2026-02-10,partner|phone,none,none
+ORD26-0007,조시우,메쉬 사무의자,7,623000,2026-02-17,web|partner|phone,none,none
+ORD26-0008,윤하은,생수 2L 12입,8,57600,2026-02-24,web|phone,상품명공백,none
+ORD26-0009,장예준,기가비트 공유기,9,576000,2026-03-03,partner|phone,고객명공백,none
+ORD26-0010,임수아,외장하드 2TB,2,196000,2026-03-10,web|partner|phone,상품명공백,none
+ORD26-0011,한지호,복합기 A3,1,540000,2026-03-17,web,고객명공백,none
+ORD26-0012,오유진,USB허브 4포트,3,,2026-03-24,phone,none,금액결측
+ORD26-0013,서건우,포스트잇 노랑,4,,2026-03-31,web|partner,none,금액결측
+ORD26-0014,신아린,철제 책상 1200,2,264000,,web|partner|phone,none,주문일결측
+ORD26-0015,권민서,믹스커피 100T,5,59500,,partner|phone,none,주문일결측
+ORD26-0016,황주원,USB메모리 64GB,6,95400,,web,none,주문일결측
+ORD26-0017,안다은,HDMI 케이블 2m,7,31500,2026-04-28,partner,상품명공백,none
+ORD26-0018,송지안,라벨지 A4,8,,2026-05-05,web|phone,고객명공백,금액결측
+ORD26-0019,류현우,서랍장 3단,3,162000,2026-05-12,web|partner|phone,none,none
+ORD26-0020,전소율,종이컵 6.5oz,9,27900,,web|partner,none,주문일결측

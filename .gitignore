@@ -151,3 +151,5 @@ vite.config.ts.timestamp-*
 # 로컬 인프라 데이터(docker bind mount) — MinIO 객체 스토리지. 커밋 금지.
 /data/
 kubectl
+# assignment-factory 등 스킬 eval 스크래치(도그푸드 산출·프로브 결과)
+.claude/skills/*-workspace/
