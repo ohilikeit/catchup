@@ -153,3 +153,7 @@ vite.config.ts.timestamp-*
 kubectl
 # assignment-factory 등 스킬 eval 스크래치(도그푸드 산출·프로브 결과)
 .claude/skills/*-workspace/
+*.pyc
+# process-feedback 스킬 런타임 산출물 (실제 attempt별 결과 — 커밋 금지)
+eval_sheet/process_feedback/out/
+eval_sheet/**/__pycache__/

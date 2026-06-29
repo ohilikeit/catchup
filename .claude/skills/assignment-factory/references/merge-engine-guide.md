@@ -35,6 +35,7 @@
 - **엑셀/CSV 산출 골격** — `HDR`/`HDRFILL`/`GUIDE` 스타일(L338–340)·`style_header`(L347–352)·`write_xlsx`(L355–364)·`write_csv`(L367–371). 그대로.
 - **`build_consolidated`의 `answer` 분기 패턴**(L382–426) — '안내' 시트(항목/설명 2열, L387–415) + '통합주문' 데이터 시트 + freeze. `answer=False`면 빈 양식 + 예시행(L424), `True`면 정답 채움(L421–422). **한 함수로 빈양식·정답을 동시에 찍는** 비대칭 차단 패턴. 골격·분기 패턴은 G, 안내 텍스트·예시행은 S(§2⑤). `std_row`(L374–379, 빈칸 보존 출력)도 패턴은 G.
 - **`main` 파이프라인**(L432–470) — 로드(L433)→소스 렌더(L436)→정답 도출(재파싱→통합→자기검증, L441–444)→엑셀 5종 산출(L452–457)→요약 print(L460–470). **흐름은 G**(파일명·시트명만 따라옴).
+  > 📛 **학생 노출 네이밍**(`doc-templates.md §0.1`): 이 엔진이 찍는 학생 파일·폴더명은 한국어 역할명으로 둔다. 소스 파일은 이미 역할명(`웹주문.xlsx`·`전화주문.csv`·`제휴주문.xlsx`)이니 폴더만 `data/`→`데이터/`, 통합 양식 `*_template.xlsx`→`*_제출용.xlsx`. 안내시트 텍스트·problem.md도 쉬운 말(dedup·우선순위·행집합 F1 등 전문어 금지 — 통합 규칙·유일 정답은 보존, 실데이터 컬럼명은 예외). 파일명을 정하면 그 이름을 build 출력·docstring·안내시트·README/INPUT_GUIDE/evaluation·grade 사용예시까지 동기화하고, 재생성→자기채점 100점으로 확인.
 - **`grade.py` 거의 전부** — `norm_str`(L28–32, 모든 공백 제거)·`norm_int`(L35–43, 빈칸≠0 보존)·`load_sheet`(L83–95)·`rowkey`(L98–99)·`grade_part1` 셀 Exact + 행집합 F1 루프(L103–152)·`score`(L157–167)·`main`/CLI/result.json(L170–199). **바꾸는 건 §2⑦의 `STD_FIELDS`·`norm_date`/`norm_channel` 같은 형식별 norm·배점뿐**, 나머지는 채점 엔진으로 그대로 쓴다.
 
 ---

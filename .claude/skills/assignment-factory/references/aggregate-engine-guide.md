@@ -35,6 +35,7 @@
 - **`metric_row`의 `answer` 분기 패턴**(L337–342) — `answer=False`면 식별칸(`campaign_id`)만, `True`면 지표 채움. **한 함수로 빈양식·정답·given을 동시에 찍는** 비대칭 차단 패턴(L451–454). 칸 내용은 S, 분기 패턴은 G.
 - **`build_metrics`/`build_summary` 골격**(L345–380 / L383–417) — '안내' 시트(항목/설명 2열) + 데이터 시트 + 스타일·freeze. **골격은 G**, 안내 텍스트(`guide=[...]` L349–364 / L387–398)·컬럼 리스트는 S(§2⑤).
 - **`main` 파이프라인**(L423–467) — load→`build_log`→`regroup_metrics`→`cross_check`→`summarize`→발송0 보충(L442–450)→엑셀 산출(template/answer/given L451–454, summary L456–458)→요약 print. **흐름은 G**(파일명·시트명만 따라옴). **발송0 빈 캠페인 보충 로직(L442–450: 로그 행이 없으니 0/0.0으로 채워 집계표엔 등장)은 분모0 처리의 G 부분**이라 유지.
+  > 📛 **학생 노출 네이밍**(`doc-templates.md §0.1`): 이 엔진이 찍는 학생 파일·폴더명은 한국어 역할명으로 둔다(`data/`→`데이터/`, `*_template.xlsx`→`*_제출용.xlsx`, `*_given.xlsx`→`*_참고용.xlsx`). 안내시트 텍스트·problem.md도 쉬운 말(group by·분모0·round-half-up·가중평균 등 금지 — 계산 의미·유일 정답은 보존, 실데이터 컬럼명은 예외). 파일명을 정하면 그 이름을 build 출력 경로·docstring·안내시트·README/INPUT_GUIDE/evaluation·grade 사용예시까지 동기화하고, 재생성→자기채점 100점으로 확인.
 - **`grade.py` 거의 전부** — `norm_str/int/float`(L38–63)·`int_eq`/`float_eq`(L66–79)·`load_sheet`(L82–94)·`grade_part1` 키별 셀 Exact+±ε 루프(L102–151)·`grade_part2` 요약 1행(L155–178)·`main`/CLI/result.json(L192–227). **바꾸는 건 §2⑦의 INT/FLOAT 필드 목록·`FLOAT_TOL`·시트명·배점뿐**, 나머지는 채점 엔진으로 그대로 쓴다.
 
 ---

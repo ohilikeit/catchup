@@ -19,7 +19,7 @@
 | `policy_id` | 정책 고유키 | `YP01`, `YP02` … (중복 금지) |
 | `name` | 정책명 | 자유 문자열 (쉼표 포함 시 따옴표로 감쌈) |
 | `field` | 분야 | `일자리` \| `주거` \| `금융복지` \| `교육문화` (이 4개만) |
-| `poster_file` | 포스터 파일명 | `data/policies/` 안의 실제 파일명. 비워도 채점엔 무관 |
+| `poster_file` | 포스터 파일명 | `데이터/1_포스터/` 안의 실제 파일명. 비워도 채점엔 무관 |
 | `region` | 거주 요건 | 3형식 중 하나 (아래 §2) |
 | `age_min` | 만 나이 하한 | 정수. 비우면 하한 없음 |
 | `age_max` | 만 나이 상한 | 정수. 비우면 상한 없음 |
@@ -44,7 +44,7 @@
 > 칸(월소득상한·연소득상한 등)은 빈칸**이다 — 출제자도 그 칸을 비워 둔다. `matchable`은
 > 정책표(제출 양식)에 노출하지 않는 **운영 전용** 컬럼이다.
 
-> ⭐ **매칭 축 ↔ 회원 컬럼 교집합(불변식).** 매칭에 쓰는 모든 자격 축은 `members.xlsx`에
+> ⭐ **매칭 축 ↔ 회원 컬럼 교집합(불변식).** 매칭에 쓰는 모든 자격 축은 `2_회원명단.xlsx`에
 > 대응 컬럼이 반드시 있어야 판단이 가능하다. 현재 최대 9축의 대응은:
 > 연령↔`생년월일` · region↔`거주지` · employment↔`취업상태` · company_size↔`기업규모` ·
 > income_max_month↔`월소득_원` · **income_year_max↔`연소득_원`** · no_house↔`주택소유여부` ·
@@ -103,7 +103,7 @@
 
 ## 5. 포스터 파일 배치
 
-- 학생이 자격요건을 읽어낼 **실제 홍보 포스터/이미지**를 `data/policies/` 폴더에 넣는다.
+- 학생이 자격요건을 읽어낼 **실제 홍보 1_포스터/이미지**를 `데이터/1_포스터/` 폴더에 넣는다.
 - 파일명은 CSV의 `poster_file` 값과 **똑같이** 맞춘다(예: `YP01_청년수당.png`).
 - 코드는 포스터를 만들지 않는다 — 출제자가 실제 정책 포스터(1~2p)를 직접 배치한다.
 - `poster_file`이 비어 있어도 데이터 생성·채점은 동작한다(포스터는 학생용 입력일 뿐).
@@ -112,15 +112,15 @@
 
 ```bash
 # 1) policies.csv 를 실제 정책으로 채운다 (헤더 유지)
-# 2) data/policies/ 에 poster_file 과 같은 이름으로 포스터를 넣는다
+# 2) 데이터/1_포스터/ 에 poster_file 과 같은 이름으로 포스터를 넣는다
 # 3) 데이터·정답 동시 생성
 python3 eval/answer_key/build_dataset.py
-#    → data/members.xlsx, policy_table_template.xlsx, targeting_template.xlsx
-#    → eval/answer_key/policy_table_answer.xlsx, targeting_answer.xlsx
+#    → 데이터/2_회원명단.xlsx, 1_정책정리표_제출용.xlsx, 2_추천리스트_제출용.xlsx
+#    → eval/answer_key/1_정책정리표_정답.xlsx, 2_추천리스트_정답.xlsx
 # 4) 학생 제출물 채점 (P1 셀 비교 + P2 (회원ID,정책ID) 집합 F1)
 python3 eval/grade.py \
-  --part1 data/policy_table_template.xlsx \
-  --part2 data/targeting_template.xlsx \
+  --part1 데이터/1_정책정리표_제출용.xlsx \
+  --part2 데이터/2_추천리스트_제출용.xlsx \
   --answer-dir eval/answer_key
 ```
 

@@ -1,0 +1,3959 @@
+<!DOCTYPE html>
+<!-- saved from url=(0123)file:///C:/Users/hyunyoung/Desktop/AI%20%EC%97%AD%EB%9F%89%EA%B2%80%EC%82%AC%20%EB%A6%AC%ED%8F%AC%ED%8A%B8_V1.8_260619.html -->
+<html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CATCHUP AX AI 역량 검사 리포트 - 강OO</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com/">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+    <style>
+        :root {
+            /* 다크 차콜 + 순백 — 색상은 데이터에만 최소 사용 */
+            --background: #F5F6F8;
+            --foreground: #111827;
+            --card: #FFFFFF;
+            --card-foreground: #111827;
+            --popover: #FFFFFF;
+            --popover-foreground: #111827;
+            --primary: #111827;          /* 차콜 — UI 요소용 */
+            --primary-foreground: #FFFFFF;
+            --data-color: #2563EB;       /* 단 하나의 데이터 강조색 */
+            --secondary: #F3F4F6;
+            --secondary-foreground: #374151;
+            --muted: #F3F4F6;
+            --muted-foreground: #6B7280;
+            --accent: #F9FAFB;
+            --accent-foreground: #111827;
+            --destructive: #EF4444;
+            --destructive-foreground: #FFFFFF;
+            --border: #E5E7EB;
+            --input: #D1D5DB;
+            --ring: #111827;
+            --chart-1: #2563EB;
+            --chart-2: #93C5FD;
+            --chart-3: #BFDBFE;
+            --chart-4: #DBEAFE;
+            --chart-5: #3B82F6;
+            --success: #059669;
+            --success-light: #ECFDF5;
+            --warning: #D97706;
+            --warning-light: #FFFBEB;
+            --radius: 0.625rem;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+            --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 8px rgba(0,0,0,0.05), 0 12px 28px rgba(0,0,0,0.08);
+            --shadow-lg: 0 8px 16px rgba(0,0,0,0.07), 0 20px 40px rgba(0,0,0,0.09);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', ui-sans-serif, system-ui, -apple-system, sans-serif;
+            background-color: var(--background);
+            color: var(--foreground);
+            line-height: 1.7;
+            padding: 40px 24px;
+            font-size: 14px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 헤더 섹션 */
+        .header {
+            background: linear-gradient(145deg, #0D1117 0%, #161B22 55%, #1C2433 100%);
+            color: #FFFFFF;
+            padding: 32px 36px;
+            border-radius: 20px;
+            margin-bottom: 28px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            top: -60px;
+            right: -60px;
+            width: 280px;
+            height: 280px;
+            background: radial-gradient(circle, rgba(37,99,235,0.12) 0%, transparent 65%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .logo {
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            opacity: 0.9;
+            text-transform: uppercase;
+        }
+
+        .report-date {
+            font-size: 13px;
+            opacity: 0.85;
+            font-weight: 400;
+        }
+
+        .header h1 {
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 0;
+            letter-spacing: -0.3px;
+        }
+
+        .header .subtitle {
+            font-size: 15px;
+            opacity: 0.9;
+            font-weight: 400;
+        }
+
+        .candidate-info {
+            margin-top: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .candidate-avatar {
+            width: 42px;
+            height: 42px;
+            background: rgba(255,255,255,0.25);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .candidate-name {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .candidate-label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.85);
+            margin-top: 2px;
+        }
+
+        /* 카드 스타일 */
+        .card {
+            background: #FFFFFF;
+            border-radius: 18px;
+            padding: 32px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(15,23,42,0.04), 0 6px 24px rgba(15,23,42,0.07);
+            border: 1px solid #E8EDF5;
+        }
+
+        .card-title {
+            font-size: 17px;
+            font-weight: 800;
+            color: #111827;
+            letter-spacing: -0.3px;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #F0F1F3;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-title .icon-number {
+            width: auto;
+            height: 22px;
+            padding: 0 10px;
+            background: #111827;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            flex-shrink: 0;
+        }
+
+        /* 섹션 1: 개인 점수 */
+        .score-overview {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .score-box {
+            background: #F9FAFB;
+            border-radius: 14px;
+            padding: 24px 20px;
+            text-align: center;
+            border: 1px solid #E5E7EB;
+        }
+
+        .score-box.highlight {
+            background: linear-gradient(145deg, #0D1117 0%, #1C2433 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.22);
+        }
+
+        .score-box .label {
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            opacity: 0.75;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .score-box .value {
+            font-size: 38px;
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: -1px;
+        }
+
+        .score-box .max-score {
+            font-size: 13px;
+            opacity: 0.6;
+            margin-top: 4px;
+        }
+
+        /* 상세 점수 테이블 */
+        .score-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .score-table th,
+        .score-table td {
+            padding: 16px 20px;
+            text-align: center;
+        }
+
+        .score-table th {
+            background: #F3F4F6;
+            font-weight: 700;
+            font-size: 11px;
+            color: #374151;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .score-table th:first-child {
+            border-radius: 8px 0 0 8px;
+        }
+
+        .score-table th:last-child {
+            border-radius: 0 8px 8px 0;
+        }
+
+        .score-table td {
+            font-size: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .score-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .score-table .task-name {
+            text-align: left;
+            font-weight: 500;
+            color: var(--card-foreground);
+            white-space: nowrap;
+        }
+
+        .score-table .task-icon {
+            display: inline-flex;
+            min-width: 34px;
+            height: 28px;
+            background: var(--muted);
+            border-radius: 6px;
+            margin-right: 12px;
+            vertical-align: middle;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            line-height: 1;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .score-table .subtotal {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .score-table .score-muted {
+            color: var(--muted-foreground);
+            font-size: 13px;
+        }
+
+        /* 요약 인사이트 */
+        .insight-lead {
+            background: #F9FAFB;
+            border-left: 3px solid #111827;
+            border-radius: 0 12px 12px 0;
+            padding: 20px 24px;
+            margin-bottom: 22px;
+        }
+
+        .insight-lead .label {
+            color: var(--primary);
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .insight-lead .text {
+            color: var(--card-foreground);
+            font-size: 18px;
+            font-weight: 600;
+            line-height: 1.65;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .tag-chip {
+            background: #F3F4F6;
+            color: #374151;
+            border: 1px solid #E5E7EB;
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .insight-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .mini-panel {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+        }
+
+        .mini-panel-title {
+            color: var(--card-foreground);
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        /* 00 나의 AI 활용 프로필 — 개편 */
+        .profile-type-block {
+            background: #F9FAFB;
+            border-left: 3px solid #111827;
+            border-radius: 0 12px 12px 0;
+            padding: 20px 24px;
+            margin-bottom: 18px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .profile-type-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted-foreground);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .profile-type-name {
+            font-size: 20px;
+            font-weight: 800;
+            color: #111827;
+            letter-spacing: -0.3px;
+            margin-bottom: 10px;
+            line-height: 1.3;
+        }
+        .profile-type-desc {
+            font-size: 14px;
+            color: var(--secondary-foreground);
+            line-height: 1.75;
+            margin-bottom: 14px;
+        }
+        .profile-keyword-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted-foreground);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .profile-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 18px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .profile-metric-card {
+            background: #FFFFFF;
+            border: 1px solid #E8EDF5;
+            border-radius: 12px;
+            padding: 16px 14px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .metric-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted-foreground);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 8px;
+        }
+        .metric-value {
+            font-size: 26px;
+            font-weight: 900;
+            color: #111827;
+            letter-spacing: -0.5px;
+            line-height: 1.1;
+            margin-bottom: 4px;
+        }
+        .metric-unit {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .metric-achieve {
+            font-size: 22px;
+            font-weight: 900;
+            color: #059669;
+            letter-spacing: -0.3px;
+            line-height: 1.1;
+            margin-bottom: 4px;
+        }
+        .metric-sub {
+            font-size: 12px;
+            color: var(--muted-foreground);
+            margin-bottom: 4px;
+        }
+        .metric-note {
+            font-size: 11px;
+            color: var(--muted-foreground);
+            line-height: 1.5;
+            margin-top: 6px;
+        }
+        .profile-insight-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 14px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .profile-insight-block {
+            border-radius: 12px;
+            padding: 16px 18px;
+            background: #FFFFFF;
+            border: 1px solid #E8EDF5;
+        }
+        .profile-insight-block.strength { border-top: 3px solid #2563EB; }
+        .profile-insight-block.improve  { border-top: 3px solid #6B7280; }
+        .profile-insight-head {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted-foreground);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 12px;
+        }
+        .profile-insight-item { margin-bottom: 12px; }
+        .profile-insight-item:last-child { margin-bottom: 0; }
+        .profile-insight-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 5px;
+            line-height: 1.4;
+        }
+        .profile-insight-desc {
+            font-size: 12px;
+            color: var(--secondary-foreground);
+            line-height: 1.65;
+        }
+        .profile-next-step {
+            background: #F9FAFB;
+            border-radius: 10px;
+            padding: 16px 18px;
+            border: 1px solid #E8EDF5;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .profile-next-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted-foreground);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 7px;
+        }
+        .profile-next-text {
+            font-size: 13px;
+            color: var(--secondary-foreground);
+            line-height: 1.7;
+        }
+
+        /* 00 프로필 v2 — 추가 요소 */
+        .profile-type-features {
+            list-style: none;
+            margin: 10px 0 13px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .profile-type-features li {
+            font-size: 12px;
+            color: var(--secondary-foreground);
+            padding-left: 14px;
+            position: relative;
+            line-height: 1.5;
+        }
+        .profile-type-features li::before {
+            content: '';
+            position: absolute;
+            left: 2px;
+            top: 6px;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: #2563EB;
+        }
+        .profile-situation {
+            font-size: 12px;
+            color: var(--muted-foreground);
+            line-height: 1.6;
+            margin-bottom: 14px;
+            padding: 8px 12px;
+            background: rgba(37,99,235,0.04);
+            border-left: 2px solid rgba(37,99,235,0.28);
+            border-radius: 0 6px 6px 0;
+        }
+        .metric-badge {
+            display: inline-block;
+            margin: 5px auto 2px;
+            padding: 3px 9px;
+            background: #ECFDF5;
+            color: #059669;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+        }
+        .metric-score-note {
+            font-size: 10px;
+            color: var(--muted-foreground);
+            margin-top: 2px;
+        }
+        .metric-value-plus { color: #059669; }
+        .metrics-note {
+            text-align: center;
+            font-size: 11px;
+            color: var(--muted-foreground);
+            margin-top: -10px;
+            margin-bottom: 14px;
+        }
+        .profile-improve-label {
+            display: inline-block;
+            font-size: 9px;
+            font-weight: 700;
+            color: var(--muted-foreground);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            background: #F3F4F6;
+            border: 1px solid #E5E7EB;
+            border-radius: 4px;
+            padding: 2px 6px;
+            margin-bottom: 5px;
+        }
+        .profile-improve-effect {
+            font-size: 11px;
+            color: var(--muted-foreground);
+            line-height: 1.55;
+            margin-top: 5px;
+            padding: 6px 8px;
+            background: #F9FAFB;
+            border-radius: 6px;
+        }
+        .profile-result-summary {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--muted-foreground);
+            margin: 14px 0 16px;
+            padding: 8px 14px;
+            background: var(--muted);
+            border-radius: 8px;
+            letter-spacing: 0.01em;
+        }
+
+        .profile-tips {
+            background: #F9FAFB;
+            border: 1px solid #E8EDF5;
+            border-radius: 12px;
+            padding: 15px 16px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .profile-tips-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .profile-tip-item {
+            background: #FFFFFF;
+            border: 1px solid #E8EDF5;
+            border-radius: 8px;
+            padding: 11px 12px;
+        }
+        .tip-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 4px;
+        }
+        .tip-desc {
+            font-size: 11px;
+            color: var(--secondary-foreground);
+            line-height: 1.55;
+        }
+        .profile-tips-cta {
+            background: #FFFFFF;
+            border: 1px solid #E8EDF5;
+            border-radius: 8px;
+            padding: 11px 14px;
+        }
+        .tips-cta-label {
+            font-size: 9px;
+            font-weight: 700;
+            color: var(--muted-foreground);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 5px;
+        }
+        .tips-cta-text {
+            font-size: 12px;
+            color: #374151;
+            line-height: 1.65;
+        }
+
+        .strict-check-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .strict-check-table td {
+            border-bottom: 1px solid var(--border);
+            padding: 10px 0;
+            font-size: 13px;
+        }
+
+        .strict-check-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .strict-result {
+            display: inline-block;
+            min-width: 28px;
+            text-align: center;
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .strict-result.pass {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .strict-result.fail {
+            background: var(--warning-light);
+            color: rgb(133, 77, 14);
+        }
+
+        .behavior-list {
+            list-style: none;
+        }
+
+        .behavior-list li {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 9px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        .behavior-list li:last-child {
+            border-bottom: none;
+        }
+
+        .behavior-status {
+            flex-shrink: 0;
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .reliability-box {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 20px;
+        }
+
+        .reliability-level {
+            background: var(--primary);
+            color: var(--primary-foreground);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        /* ========== 섹션 01 리뉴얼 v2 ========== */
+
+        /* 결과 요약 한 줄 */
+        .s01-summary-row {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            padding: 9px 14px;
+            background: #F9FAFB;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+        .s01-summary-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--muted-foreground);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .s01-summary-text {
+            font-size: 12px;
+            color: var(--secondary-foreground);
+            line-height: 1.55;
+        }
+
+        /* 영역 대제목 (2단계) */
+        .s01-area-heading {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--card-foreground);
+            margin: 28px 0 14px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #111827;
+            break-after: avoid;
+            page-break-after: avoid;
+        }
+
+        /* 평가 결과 3열 카드 */
+        .s01-score-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .s01-score-card {
+            background: #F9FAFB;
+            border: 1px solid #E5E7EB;
+            border-radius: 12px;
+            padding: 16px 18px;
+        }
+        .s01-score-card.main {
+            background: #FFFFFF;
+            border: 2px solid #111827;
+        }
+        .s01-card-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--muted-foreground);
+            margin-bottom: 7px;
+            letter-spacing: 0.2px;
+        }
+        .s01-card-score {
+            font-size: 26px;
+            font-weight: 700;
+            color: #111827;
+            letter-spacing: -0.5px;
+            line-height: 1;
+            margin-bottom: 6px;
+            white-space: nowrap;
+        }
+        .s01-card-score.main-val { font-size: 30px; }
+        .s01-card-score-unit {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--muted-foreground);
+            margin-left: 1px;
+            letter-spacing: 0;
+        }
+        .s01-card-desc {
+            font-size: 11px;
+            color: var(--muted-foreground);
+            line-height: 1.5;
+        }
+        .s01-score-note {
+            font-size: 11px;
+            color: var(--muted-foreground);
+            margin-top: 8px;
+            padding-left: 2px;
+        }
+
+        /* 과제 카드 v2 */
+        .s01-task2 {
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 12px;
+            padding: 16px 18px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .s01-task2-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            padding-bottom: 11px;
+            margin-bottom: 11px;
+            border-bottom: 1px solid var(--border);
+        }
+        .s01-task2-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--card-foreground);
+            line-height: 1.4;
+        }
+        .s01-task2-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .s01-task2-score {
+            font-size: 22px;
+            font-weight: 700;
+            color: #111827;
+            letter-spacing: -0.5px;
+            white-space: nowrap;
+        }
+        .s01-task2-score.perfect { color: var(--success); }
+        .s01-task2-score .unit {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--muted-foreground);
+            margin-left: 1px;
+        }
+        .s01-task2-score.perfect .unit { color: var(--success); opacity: 0.7; }
+        .s01-status-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+        .s01-status-badge.meet {
+            background: var(--success-light);
+            color: rgb(21, 128, 61);
+        }
+        .s01-status-badge.partial {
+            background: #FFF7ED;
+            color: rgb(133, 77, 14);
+        }
+        .s01-status-badge.need {
+            background: #FEF2F2;
+            color: rgb(185, 28, 28);
+        }
+        .s01-task2-body {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .s01-task2-item-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--muted-foreground);
+            margin-bottom: 3px;
+        }
+        .s01-task2-item-text {
+            font-size: 11.5px;
+            color: var(--secondary-foreground);
+            line-height: 1.6;
+        }
+        .s01-criteria-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 3px;
+        }
+        .s01-criteria-tag {
+            font-size: 10.5px;
+            color: var(--muted-foreground);
+            background: var(--muted);
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-weight: 500;
+        }
+        .s01-task2-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .s01-note-text {
+            font-size: 11px;
+            color: var(--muted-foreground);
+            line-height: 1.6;
+            margin-top: 10px;
+            padding: 0 2px;
+        }
+
+        /* 결과물 완성도 표 */
+        .s01-completeness-table {
+            width: 100%;
+            border-collapse: collapse;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .s01-completeness-table tr {
+            border-bottom: 1px solid var(--border);
+        }
+        .s01-completeness-table tr:last-child {
+            border-bottom: none;
+        }
+        .s01-completeness-table td {
+            padding: 9px 8px;
+            font-size: 12px;
+            vertical-align: middle;
+        }
+        .s01-completeness-table td:first-child {
+            font-weight: 600;
+            color: var(--card-foreground);
+            width: 28%;
+            padding-left: 0;
+        }
+        .s01-completeness-table td:nth-child(2) {
+            width: 18%;
+        }
+        .s01-completeness-table td:last-child {
+            color: var(--secondary-foreground);
+            font-size: 11.5px;
+        }
+
+        /* 활용 수준 한 줄 */
+        .s01-usability-line {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-top: 12px;
+            padding: 10px 14px;
+            background: #F9FAFB;
+            border-radius: 8px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .s01-usability-status {
+            font-size: 13px;
+            font-weight: 700;
+            color: #111827;
+            white-space: nowrap;
+        }
+        .s01-usability-line-desc {
+            font-size: 11.5px;
+            color: var(--secondary-foreground);
+            line-height: 1.55;
+        }
+
+        /* 핵심 요약 쌍 */
+        .s01-summary-pair {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 12px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .s01-summary-item {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 11px 14px;
+        }
+        .s01-summary-item-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--muted-foreground);
+            margin-bottom: 5px;
+        }
+        .s01-summary-item-text {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--card-foreground);
+            line-height: 1.4;
+        }
+        /* 결과물 완성도 품질 리스트 */
+        .s01-quality-list {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .s01-quality-row {
+            display: grid;
+            grid-template-columns: 148px 1fr;
+            border-bottom: 1px solid var(--border);
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .s01-quality-row:last-child {
+            border-bottom: none;
+        }
+        .s01-quality-item-head {
+            padding: 13px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            background: #F9FAFB;
+            border-right: 1px solid var(--border);
+        }
+        .s01-quality-item-name {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--card-foreground);
+            line-height: 1.3;
+        }
+        .s01-quality-item-body {
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .s01-quality-detail {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .s01-quality-detail-label {
+            font-size: 9.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: var(--muted-foreground);
+        }
+        .s01-quality-detail-text {
+            font-size: 11.5px;
+            color: var(--secondary-foreground);
+            line-height: 1.55;
+        }
+        /* 새 상태 배지 */
+        .s01-status-badge.mostly-meet {
+            background: #F0FDF4;
+            color: rgb(21, 128, 61);
+        }
+        .s01-status-badge.check {
+            background: #EFF6FF;
+            color: rgb(29, 78, 216);
+        }
+        /* ========== /섹션 01 리뉴얼 v2 ========== */
+        /* ========== 섹션 00 용어 안내 ========== */
+        /* 리포트 읽는 법 */
+        .report-reading-guide { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px 24px; margin-bottom: 20px; box-shadow: none; }
+        .report-reading-guide-title { font-size: 13px; font-weight: 700; color: var(--foreground); margin-bottom: 12px; }
+        .report-reading-guide-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        .report-reading-guide-item { }
+        .report-reading-guide-term { font-size: 12px; font-weight: 700; color: var(--foreground); margin-bottom: 4px; }
+        .report-reading-guide-desc { font-size: 12px; color: var(--muted-foreground); line-height: 1.6; margin: 0; }
+
+        /* 02 해석 범위 안내 */
+        .s02-scope-note { margin: -4px 0 20px; padding: 8px 12px; background: #F9FAFB; border-left: 2px solid #D1D5DB; border-radius: 0 6px 6px 0; color: var(--muted-foreground); font-size: 11.5px; line-height: 1.6; }
+        /* ========== /섹션 00 용어 안내 ========== */
+
+        /* ========== 섹션 02 리뉴얼 ========== */
+        .s02-dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; margin-bottom: 20px; }
+        .s02-radar-wrap, .s02-compare-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 18px 14px; }
+        .s02-panel-title { font-size: 11px; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 12px; }
+        .s02-compare-table { width: 100%; border-collapse: collapse; }
+        .s02-compare-table th { font-size: 10.5px; font-weight: 700; color: var(--muted-foreground); padding: 5px 6px; border-bottom: 1px solid var(--border); text-align: center; white-space: nowrap; }
+        .s02-compare-table th:first-child { text-align: left; }
+        .s02-compare-table td { padding: 8px 6px; border-bottom: 1px solid #F3F4F6; text-align: center; font-size: 12.5px; color: var(--foreground); }
+        .s02-compare-table td:first-child { text-align: left; font-weight: 600; font-size: 12px; }
+        .s02-compare-table tr:last-child td { border-bottom: none; }
+        .s02-delta-pos { color: #15803D; font-weight: 700; }
+        .s02-delta-neg { color: #DC2626; font-weight: 700; }
+        .s02-tag { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+        .s02-tag.strength { background: #F0FDF4; color: #15803D; }
+        .s02-tag.grow     { background: #FFF7ED; color: #C2410C; }
+        .s02-tag.need     { background: #FFF7ED; color: #C2410C; }
+        .s02-tag.level    { background: #F5F5F4; color: #6B7280; }
+        .s02-tag.above    { background: #EFF6FF; color: #1D4ED8; }
+        .s02-summary-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+        .s02-summary-card { border-radius: 10px; padding: 14px 16px; }
+        .s02-summary-card.strength-card { background: #F0FDF4; border: 1px solid #BBF7D0; }
+        .s02-summary-card.grow-card     { background: #FFF7ED; border: 1px solid #FED7AA; }
+        .s02-summary-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 5px; text-transform: uppercase; }
+        .strength-card .s02-summary-label { color: #15803D; }
+        .grow-card .s02-summary-label     { color: #C2410C; }
+        .s02-summary-name { font-size: 15px; font-weight: 800; color: var(--foreground); margin-bottom: 3px; }
+        .s02-summary-sub  { font-size: 11.5px; color: var(--muted-foreground); }
+        .s02-interp { font-size: 13px; color: var(--muted-foreground); line-height: 1.65; padding: 10px 14px; background: var(--muted); border-radius: 8px; margin-bottom: 0; }
+        .s02-page-group { margin-top: 28px; }
+        .s02-skill-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; margin-bottom: 14px; }
+        .s02-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+        .s02-card-name { font-size: 14.5px; font-weight: 800; color: var(--foreground); margin-bottom: 4px; }
+        .s02-card-desc { font-size: 12px; color: var(--muted-foreground); line-height: 1.5; }
+        .s02-card-score-block { text-align: right; flex-shrink: 0; }
+        .s02-card-score-val { font-size: 22px; font-weight: 900; color: var(--foreground); line-height: 1; }
+        .s02-card-score-val span { font-size: 12px; font-weight: 400; color: var(--muted-foreground); }
+        .s02-card-score-avg { font-size: 11px; color: var(--muted-foreground); margin-top: 3px; }
+        .s02-bar-wrap { margin-bottom: 14px; }
+        .s02-bar-track { position: relative; height: 6px; background: #E5E7EB; border-radius: 3px; }
+        .s02-bar-fill { height: 6px; border-radius: 3px; background: var(--primary); position: absolute; top: 0; left: 0; }
+        .s02-bar-avg { position: absolute; top: -3px; width: 2px; height: 12px; background: #6B7280; border-radius: 1px; }
+        .s02-bar-legend { display: flex; justify-content: flex-end; margin-top: 5px; font-size: 10.5px; color: var(--muted-foreground); }
+        .s02-analysis-simple { margin-top: 2px; }
+        .s02-analysis-section { margin-bottom: 12px; }
+        .s02-analysis-label { font-size: 10px; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 5px; }
+        .s02-analysis-text { font-size: 12.5px; line-height: 1.65; color: var(--foreground); margin: 0; }
+        .s02-evidence-simple { background: #F9FAFB; border-radius: 8px; padding: 12px 14px; }
+        .s02-evidence-list { list-style: none; padding: 0; margin: 0; }
+        .s02-evidence-list li { font-size: 12.5px; line-height: 1.65; color: var(--foreground); padding: 4px 0; }
+        .s02-evidence-key { color: var(--foreground); margin-right: 6px; }
+        .s02-evidence-quote { font-style: italic; }
+        .s02-feedback-label { font-size: 10px; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 5px; }
+        .s02-feedback-text { font-size: 12.5px; line-height: 1.65; color: var(--foreground); margin: 0; }
+        .s02-quote  { font-size: 12.5px; line-height: 1.6; color: var(--foreground); font-style: italic; margin: 0; }
+        .s02-prompt { font-size: 12.5px; line-height: 1.6; color: var(--primary); font-style: italic; font-weight: 500; margin: 0; }
+        .s02-behavior-list { list-style: none; padding: 0; margin: 0; }
+        .s02-behavior-list li { font-size: 12.5px; line-height: 1.65; color: var(--foreground); padding: 3px 0 3px 12px; position: relative; }
+        .s02-behavior-list li::before { content: '·'; position: absolute; left: 0; color: var(--muted-foreground); font-weight: 700; }
+
+        /* ========== 섹션 03 실행 가이드 ========== */
+        .s03-guide-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; margin-bottom: 14px; }
+        .s03-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+        .s03-card-title { font-size: 14.5px; font-weight: 800; color: var(--foreground); margin-bottom: 6px; }
+        .s03-type-badge { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; }
+        .s03-type-badge.need { background: #FFF7ED; color: #C2410C; }
+        .s03-type-badge.strength { background: #F0FDF4; color: #15803D; }
+        .s03-type-badge.expand { background: #EFF6FF; color: #1D4ED8; }
+        .s03-section { margin-bottom: 14px; }
+        .s03-section-label { font-size: 10px; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 5px; }
+        .s03-section-text { font-size: 12.5px; line-height: 1.65; color: var(--foreground); margin: 0; }
+        .s03-steps { list-style: none; padding: 0; margin: 0; counter-reset: step; }
+        .s03-steps li { font-size: 12.5px; line-height: 1.65; color: var(--foreground); padding: 3px 0 3px 20px; position: relative; counter-increment: step; }
+        .s03-steps li::before { content: counter(step) '.'; position: absolute; left: 0; font-weight: 700; color: var(--primary); }
+        .s03-prompt-box { background: #F9FAFB; border-radius: 8px; padding: 11px 13px; margin-bottom: 14px; }
+        .s03-prompt-text { font-size: 12.5px; line-height: 1.6; color: var(--primary); font-style: italic; font-weight: 500; margin: 0; }
+        .s03-outcome { font-size: 12px; line-height: 1.6; color: var(--muted-foreground); padding: 10px 14px; background: var(--muted); border-radius: 8px; margin: 0; }
+        /* ========== /섹션 03 실행 가이드 ========== */
+
+        /* 02 평가 근거 구분 */
+        .s02-evidence-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .s02-evidence-item { background: #F9FAFB; border-radius: 8px; padding: 11px 13px; }
+        .s02-evidence-label { font-size: 10px; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 5px; }
+        .s02-evidence-text { font-size: 12.5px; line-height: 1.65; color: var(--foreground); margin: 0; }
+        .s02-evidence-text.quote { font-style: italic; }
+
+
+        /* 04 학습 포인트 */
+        .s04-learning-point { background: var(--muted); border-radius: 8px; padding: 10px 14px; margin-top: 12px; margin-bottom: 4px; }
+        .s04-learning-label { font-size: 10px; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .s04-learning-text { font-size: 12px; line-height: 1.6; color: var(--foreground); margin: 0; }
+
+        /* ========== /섹션 02 리뉴얼 ========== */
+
+        .example-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .quote-card {
+            background: var(--muted);
+            border-radius: 10px;
+            padding: 16px;
+            font-size: 13px;
+            color: var(--secondary-foreground);
+            line-height: 1.7;
+        }
+
+        .quote-card strong {
+            display: block;
+            color: var(--card-foreground);
+            margin-bottom: 8px;
+        }
+
+        .next-action-list {
+            padding-left: 20px;
+            color: var(--secondary-foreground);
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        /* 섹션 2: 전체 통계 비교 */
+        .comparison-container {
+            margin-top: 8px;
+        }
+
+        .comparison-intro {
+            color: var(--muted-foreground);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        .distribution-wrapper {
+            position: relative;
+            margin: 20px 0 32px 0;
+            padding: 24px 20px 16px;
+            background: #FFFFFF;
+            border-radius: 14px;
+            border: 1px solid #E8EDF5;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03), 0 4px 16px rgba(0,0,0,0.05);
+            min-height: 350px;
+        }
+
+        .distribution-wrapper canvas {
+            width: 100% !important;
+        }
+
+        /* 차트 범례 */
+        .chart-legend {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 16px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .legend-line {
+            width: 24px;
+            height: 3px;
+            border-radius: 2px;
+            background: repeating-linear-gradient(
+                90deg,
+                currentColor 0px,
+                currentColor 6px,
+                transparent 6px,
+                transparent 10px
+            );
+        }
+
+        .legend-item.average { color: #2563EB; font-weight: 600; }
+        .legend-item.median { color: #6B7280; }
+        .legend-item.target { color: #9CA3AF; }
+        .legend-item.target .legend-line { background: currentColor; }
+        .legend-item.myscore { color: #EF4444; font-weight: 700; }
+        .legend-item.myscore .legend-line { height: 4px; background: currentColor; }
+
+        .comparison-summary {
+            background: #F9FAFB;
+            border-radius: 0 12px 12px 0;
+            padding: 22px 24px;
+            margin-top: 48px;
+            border-left: 3px solid #111827;
+        }
+
+        .comparison-summary p {
+            font-size: 15px;
+            line-height: 1.8;
+            color: var(--foreground);
+        }
+
+        .comparison-summary strong { color: #111827; font-weight: 700; }
+        .comparison-summary .highlight-score {
+            color: #EF4444;
+            font-weight: 900;
+            font-size: 19px;
+        }
+
+        /* 푸터 */
+        .footer {
+            text-align: center;
+            padding: 32px;
+            color: var(--muted-foreground);
+            font-size: 12px;
+            border-top: 1px solid #E5E7EB;
+            margin-top: 40px;
+        }
+
+        .footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .footer a:hover { text-decoration: underline; }
+
+        .footer-logo {
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--foreground);
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* 섹션 3: AI 협업 방식 상세 분석 */
+        .criteria-section {
+            margin-top: 8px;
+        }
+
+        .criteria-item {
+            background: #FFFFFF;
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 14px;
+            border: 1px solid #E5E7EB;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .criteria-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .criteria-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .criteria-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--card-foreground);
+        }
+
+        .criteria-desc {
+            font-size: 12px;
+            color: var(--muted-foreground);
+            margin-top: 4px;
+            font-weight: 400;
+        }
+
+        .criteria-score {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .criteria-score .your-score {
+            font-size: 28px;
+            font-weight: 900;
+            color: #111827;
+            letter-spacing: -0.5px;
+        }
+
+        .criteria-score .avg-score {
+            font-size: 12px;
+            color: var(--muted-foreground);
+            background: var(--muted);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+
+        .criteria-bar-container {
+            position: relative;
+            margin: 16px 0;
+        }
+
+        .criteria-bar {
+            height: 8px;
+            background: var(--muted);
+            border-radius: 4px;
+            overflow: visible;
+            position: relative;
+        }
+
+        .criteria-bar .fill {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #1D4ED8, #3B82F6);
+            transition: width 0.5s ease;
+        }
+
+        .criteria-bar .avg-marker {
+            position: absolute;
+            top: -6px;
+            width: 4px;
+            height: 20px;
+            background: var(--warning);
+            border-radius: 2px;
+            transform: translateX(-50%);
+        }
+
+        .criteria-bar .avg-marker::after {
+            content: '평균';
+            position: absolute;
+            top: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 9px;
+            color: var(--muted-foreground);
+            white-space: nowrap;
+        }
+
+        .criteria-feedback {
+            font-size: 14px;
+            color: var(--secondary-foreground);
+            line-height: 1.8;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px dashed var(--border);
+        }
+
+        .criteria-feedback strong {
+            color: var(--card-foreground);
+            font-weight: 600;
+        }
+
+        .feedback-label {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 700;
+            color: #374151;
+            background: #F3F4F6;
+            border: 1px solid #E5E7EB;
+            padding: 3px 10px;
+            border-radius: 999px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+
+        .feedback-content {
+            margin-bottom: 16px;
+        }
+
+        .feedback-content:last-child {
+            margin-bottom: 0;
+        }
+
+        .feedback-content p {
+            white-space: pre-line;
+        }
+
+        /* 섹션 4: 대화 예시 */
+        .example-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 8px;
+        }
+
+        .example-box {
+            border-radius: 14px;
+            padding: 24px;
+            background: #FFFFFF;
+            border: 1px solid #E8EDF5;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 14px rgba(0,0,0,0.05);
+        }
+
+        .example-box.good {
+            border-top: 3px solid #2563EB;
+        }
+
+        .example-box.improvement {
+            border-top: 3px solid #6B7280;
+        }
+
+        .example-box h4 {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: -0.2px;
+        }
+
+        .example-box.good h4 { color: #111827; }
+        .example-box.improvement h4 { color: #374151; }
+
+        .chat-example {
+            background: #F9FAFB;
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            border: 1px solid #EEF1F7;
+        }
+
+        .chat-example:last-of-type {
+            margin-bottom: 0;
+        }
+
+        .chat-example .role {
+            font-weight: 700;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 6px;
+        }
+
+        .chat-example .role.user { color: #2563EB; }
+
+        .chat-example .content {
+            color: #374151;
+            line-height: 1.65;
+            font-size: 12px;
+        }
+
+        /* 섹션 4: 문제 결과 상세 */
+        .code-score-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 8px;
+        }
+
+        .code-score-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid var(--border);
+        }
+
+        .code-score-card h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--card-foreground);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .code-score-card h4 .icon {
+            width: 28px;
+            height: 28px;
+            background: var(--muted);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .code-score-card .score-big {
+            font-size: 38px;
+            font-weight: 900;
+            color: #111827;
+            letter-spacing: -1px;
+        }
+
+        .code-score-card .score-detail {
+            font-size: 14px;
+            color: var(--muted-foreground);
+            margin-top: 4px;
+        }
+
+        .code-progress-bar {
+            height: 8px;
+            background: var(--muted);
+            border-radius: 4px;
+            overflow: visible;
+            margin: 12px 0;
+            position: relative;
+        }
+
+        .code-progress-bar .fill {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #1D4ED8, #3B82F6);
+            transition: width 0.5s ease;
+        }
+
+        .code-progress-bar .fill.success {
+            background: linear-gradient(90deg, var(--success), rgb(21, 128, 61));
+        }
+
+        .code-progress-bar .avg-marker {
+            position: absolute;
+            top: -4px;
+            width: 3px;
+            height: 16px;
+            background: var(--warning);
+            border-radius: 2px;
+            transform: translateX(-50%);
+        }
+
+        .code-progress-bar .avg-marker::after {
+            content: '평균';
+            position: absolute;
+            top: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: var(--warning);
+            white-space: nowrap;
+        }
+
+        .flaw-list {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px dashed var(--border);
+        }
+
+        .flaw-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .flaw-item:last-child {
+            border-bottom: none;
+        }
+
+        .flaw-item .flaw-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--card-foreground);
+        }
+
+        .flaw-item .flaw-priority {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+
+        .flaw-priority.p0 {
+            background: rgba(220, 38, 38, 0.1);
+            color: rgb(220, 38, 38);
+        }
+
+        .flaw-priority.p1 {
+            background: rgba(234, 179, 8, 0.1);
+            color: rgb(161, 98, 7);
+        }
+
+        .flaw-priority.p2 {
+            background: rgba(34, 139, 84, 0.1);
+            color: rgb(21, 128, 61);
+        }
+
+        .flaw-item .flaw-score {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .category-item {
+            background: var(--muted);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .category-item .cat-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--muted-foreground);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .category-item .cat-score {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--card-foreground);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+
+        .status-badge.qualified {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .status-badge.not-qualified {
+            background: rgba(220, 38, 38, 0.1);
+            color: rgb(220, 38, 38);
+        }
+
+        /* 코드 결과물 상세 스타일 */
+        .code-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .code-section-header h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--card-foreground);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .code-section-header h3 .icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--chart-1) 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .code-summary-stats {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+
+        .code-stat-item {
+            text-align: center;
+        }
+
+        .code-stat-item .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .code-stat-item .stat-label {
+            font-size: 11px;
+            color: var(--muted-foreground);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .test-group-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .test-group-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        .test-group-card.passed {
+            border-left: 3px solid var(--success);
+        }
+
+        .test-group-card.failed {
+            border-left: 3px solid rgb(220, 38, 38);
+        }
+
+        .test-group-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .test-group-card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--card-foreground);
+        }
+
+        .test-group-card-status {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .test-group-card-status.passed {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .test-group-card-status.failed {
+            background: rgba(220, 38, 38, 0.1);
+            color: rgb(220, 38, 38);
+        }
+
+        .test-group-card-desc {
+            font-size: 12px;
+            color: var(--muted-foreground);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .test-group-card-result {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            border-top: 1px dashed var(--border);
+        }
+
+        .test-group-card-score {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .test-group-card-bar {
+            flex: 1;
+            height: 4px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 2px;
+            margin-left: 12px;
+            overflow: visible;
+            position: relative;
+        }
+
+        .test-group-card-bar .fill {
+            height: 100%;
+            border-radius: 2px;
+            background: var(--primary);
+        }
+
+        .test-group-card-bar .fill.success {
+            background: var(--success);
+        }
+
+        .test-group-card-bar .avg-marker {
+            position: absolute;
+            top: -4px;
+            width: 2px;
+            height: 12px;
+            background: var(--warning);
+            border-radius: 1px;
+            transform: translateX(-50%);
+        }
+
+        .flaw-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .flaw-detail-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            position: relative;
+        }
+
+        .flaw-detail-card.high {
+            border-left: 3px solid var(--success);
+        }
+
+        .flaw-detail-card.medium {
+            border-left: 3px solid rgb(234, 179, 8);
+        }
+
+        .flaw-detail-card.low {
+            border-left: 3px solid rgb(220, 38, 38);
+        }
+
+        .flaw-detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .flaw-detail-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--card-foreground);
+        }
+
+        .flaw-detail-rate {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .flaw-detail-rate.high {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .flaw-detail-rate.medium {
+            background: rgba(234, 179, 8, 0.1);
+            color: rgb(161, 98, 7);
+        }
+
+        .flaw-detail-rate.low {
+            background: rgba(220, 38, 38, 0.1);
+            color: rgb(220, 38, 38);
+        }
+
+        .flaw-detail-desc {
+            font-size: 12px;
+            color: var(--muted-foreground);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .flaw-detail-result {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            border-top: 1px dashed var(--border);
+        }
+
+        .flaw-result-score {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .flaw-detail-bar {
+            flex: 1;
+            height: 4px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 2px;
+            margin-left: 12px;
+            overflow: visible;
+            position: relative;
+        }
+
+        .flaw-detail-bar .fill {
+            height: 100%;
+            border-radius: 2px;
+            background: var(--primary);
+        }
+
+        .flaw-detail-bar .fill.success { background: var(--success); }
+
+        .flaw-detail-bar .avg-marker {
+            position: absolute;
+            top: -4px;
+            width: 2px;
+            height: 12px;
+            background: var(--warning);
+            border-radius: 1px;
+            transform: translateX(-50%);
+        }
+        .flaw-detail-bar .fill.warning { background: rgb(234, 179, 8); }
+
+        .category-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .category-detail-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        .category-detail-card.high {
+            border-left: 3px solid var(--success);
+        }
+
+        .category-detail-card.medium {
+            border-left: 3px solid rgb(234, 179, 8);
+        }
+
+        .category-detail-card.low {
+            border-left: 3px solid rgb(220, 38, 38);
+        }
+
+        .category-detail-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .category-detail-card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--card-foreground);
+        }
+
+        .category-detail-card-rate {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .category-detail-card-rate.high {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .category-detail-card-rate.medium {
+            background: rgba(234, 179, 8, 0.1);
+            color: rgb(161, 98, 7);
+        }
+
+        .category-detail-card-rate.low {
+            background: rgba(220, 38, 38, 0.1);
+            color: rgb(220, 38, 38);
+        }
+
+        .category-detail-card-desc {
+            font-size: 12px;
+            color: var(--muted-foreground);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .category-detail-card-result {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            border-top: 1px dashed var(--border);
+        }
+
+        .category-detail-card-score {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .category-detail-card-bar {
+            flex: 1;
+            height: 4px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 2px;
+            margin-left: 12px;
+            overflow: visible;
+            position: relative;
+        }
+
+        .category-detail-card-bar .fill {
+            height: 100%;
+            border-radius: 2px;
+            background: var(--primary);
+        }
+
+        .category-detail-card-bar .fill.success { background: var(--success); }
+        .category-detail-card-bar .fill.warning { background: rgb(234, 179, 8); }
+
+        .category-detail-card-bar .avg-marker {
+            position: absolute;
+            top: -4px;
+            width: 2px;
+            height: 12px;
+            background: var(--warning);
+            border-radius: 1px;
+            transform: translateX(-50%);
+        }
+
+        .code-subsection {
+            margin-top: 28px;
+            padding-top: 0;
+        }
+
+        .code-subsection-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--card-foreground);
+            margin-bottom: 4px;
+        }
+
+        .code-subsection-desc {
+            font-size: 12px;
+            color: var(--muted-foreground);
+            margin-bottom: 16px;
+        }
+
+        /* 품질 카드 스타일 */
+        .quality-card-wrapper {
+            margin-top: 16px;
+        }
+
+        .quality-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            max-width: calc(50% - 8px);
+        }
+
+        .quality-card.high {
+            border-left: 3px solid var(--success);
+        }
+
+        .quality-card.medium {
+            border-left: 3px solid rgb(234, 179, 8);
+        }
+
+        .quality-card.low {
+            border-left: 3px solid rgb(220, 38, 38);
+        }
+
+        .quality-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .quality-card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--card-foreground);
+        }
+
+        .quality-card-rate {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .quality-card-rate.high {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .quality-card-rate.medium {
+            background: rgba(234, 179, 8, 0.1);
+            color: rgb(161, 98, 7);
+        }
+
+        .quality-card-rate.low {
+            background: rgba(220, 38, 38, 0.1);
+            color: rgb(220, 38, 38);
+        }
+
+        .quality-card-desc {
+            font-size: 12px;
+            color: var(--muted-foreground);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .quality-card-result {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            border-top: 1px dashed var(--border);
+        }
+
+        .quality-card-score {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .quality-card-bar {
+            flex: 1;
+            height: 4px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 2px;
+            margin-left: 12px;
+            overflow: visible;
+            position: relative;
+        }
+
+        .quality-card-bar .fill {
+            height: 100%;
+            border-radius: 2px;
+            background: var(--primary);
+        }
+
+        .quality-card-bar .fill.success {
+            background: var(--success);
+        }
+
+        .quality-card-bar .fill.warning {
+            background: rgb(234, 179, 8);
+        }
+
+        .quality-card-bar .avg-marker {
+            position: absolute;
+            top: -4px;
+            width: 2px;
+            height: 12px;
+            background: var(--warning);
+            border-radius: 1px;
+            transform: translateX(-50%);
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .score-overview { grid-template-columns: 1fr; }
+            .insight-grid { grid-template-columns: 1fr; }
+            .example-columns { grid-template-columns: 1fr; }
+            .reliability-box { flex-direction: column; }
+            .example-section { grid-template-columns: 1fr; }
+            .code-score-grid { grid-template-columns: 1fr; }
+            .test-group-grid { grid-template-columns: 1fr; }
+            .flaw-detail-grid { grid-template-columns: 1fr; }
+            .category-detail-grid { grid-template-columns: 1fr; }
+            .quality-card { max-width: 100%; }
+            .header { padding: 32px 24px; }
+            .header h1 { font-size: 26px; }
+            .report-reading-guide-grid { grid-template-columns: 1fr; }
+        }
+
+        /* 강점/보완점 요약 카드 */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 22px 0;
+        }
+
+        .summary-card {
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid;
+        }
+
+        .summary-card.strength {
+            background: linear-gradient(135deg, #ECFDF5 0%, #F0FDF4 100%);
+            border-color: #A7F3D0;
+        }
+
+        .summary-card.improve {
+            background: linear-gradient(135deg, #FFF7ED 0%, #FFFBEB 100%);
+            border-color: #FDE68A;
+        }
+
+        .summary-card-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .summary-card.strength .summary-card-head { color: rgb(21, 128, 61); }
+        .summary-card.improve .summary-card-head { color: rgb(133, 77, 14); }
+
+        .summary-icon { font-size: 18px; }
+
+        .summary-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .summary-list li {
+            font-size: 13px;
+            line-height: 1.7;
+            color: var(--secondary-foreground);
+            padding-left: 18px;
+            position: relative;
+        }
+
+        .summary-list li::before {
+            content: '';
+            position: absolute;
+            left: 2px;
+            top: 8px;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+        }
+
+        .summary-card.strength .summary-list li::before { background: var(--success); }
+        .summary-card.improve .summary-list li::before { background: var(--warning); }
+
+        .summary-list li strong { color: var(--card-foreground); font-weight: 600; }
+
+        /* 용어 풀이 박스 */
+        .glossary-box {
+            background: var(--muted);
+            border-radius: 12px;
+            padding: 20px 22px;
+            margin-top: 22px;
+        }
+
+        .glossary-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--card-foreground);
+            margin-bottom: 14px;
+        }
+
+        .glossary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px 24px;
+        }
+
+        .glossary-item {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .glossary-item .term {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .glossary-item .desc {
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--secondary-foreground);
+        }
+
+
+        /* PDF/인쇄 스타일 */
+        @page {
+            size: A4 portrait;
+            margin: 18mm 16mm;
+        }
+        @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            body {
+                padding: 0;
+                background: white;
+                font-size: 11px;
+            }
+            .container {
+                max-width: 100%;
+                padding: 0;
+            }
+            .card {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                box-shadow: none;
+                margin-bottom: 16px;
+            }
+            .card-title {
+                break-after: avoid;
+                page-break-after: avoid;
+            }
+            .criteria-item {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            .distribution-wrapper {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            .comparison-summary {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            .guide-grid > div {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            .s01-score-grid { break-inside: avoid; page-break-inside: avoid; }
+            .s01-task2 { break-inside: avoid; page-break-inside: avoid; }
+            .s01-quality-list { break-inside: avoid; page-break-inside: avoid; }
+            .s01-quality-row { break-inside: avoid; page-break-inside: avoid; grid-template-columns: 1fr; }
+            .s01-quality-item-head { border-right: none; border-bottom: 1px solid var(--border); flex-direction: row; align-items: center; gap: 8px; }
+            .s01-quality-item-body { padding-top: 10px; }
+            .s01-completeness-table { break-inside: avoid; page-break-inside: avoid; }
+            .s01-task2-row { grid-template-columns: 1fr; }
+            .s01-summary-pair { grid-template-columns: 1fr 1fr; }
+            .s01-usability-line { flex-direction: column; gap: 4px; }
+            .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            /* 섹션 02 print */
+            .s02-section { break-inside: auto !important; page-break-inside: auto !important; }
+            .s02-dashboard { grid-template-columns: 1fr 1fr; }
+            .s02-summary-row { grid-template-columns: 1fr 1fr; }
+            .s02-feedback-grid { grid-template-columns: 1fr 1fr; }
+            .s02-skill-card { break-inside: avoid; page-break-inside: avoid; }
+            .s02-page-break { break-before: page; page-break-before: always; }
+            .s03-guide-card { break-inside: avoid; page-break-inside: avoid; }
+            .s04-learning-point { break-inside: avoid; page-break-inside: avoid; }
+            .report-reading-guide { break-inside: avoid; page-break-inside: avoid; }
+            .s02-intro-group { break-inside: avoid; page-break-inside: avoid; break-after: avoid; page-break-after: avoid; }
+        }
+
+        /* ============================================================
+           CATCHUP AX 헤더 전용 스타일 — ax- prefix, 기존 스타일 미충돌
+           ============================================================ */
+        .ax-header-wrap {
+            margin-bottom: 32px;
+        }
+
+        /* 히어로 */
+        .ax-hero {
+            position: relative;
+            background: linear-gradient(145deg, #EEF0FD 0%, #EBF4FF 55%, #EDF7F5 100%);
+            border: 1px solid #E2E6F3;
+            border-radius: 14px 14px 0 0;
+            padding: 44px 32px 40px;
+            overflow: hidden;
+        }
+        .ax-hero-grid {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(79, 99, 231, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(79, 99, 231, 0.04) 1px, transparent 1px);
+            background-size: 36px 36px;
+            pointer-events: none;
+        }
+        .ax-hero-blob1 {
+            position: absolute;
+            top: -80px;
+            right: -40px;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(79, 99, 231, 0.13) 0%, transparent 68%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .ax-hero-blob2 {
+            position: absolute;
+            bottom: -60px;
+            left: 28%;
+            width: 220px;
+            height: 220px;
+            background: radial-gradient(circle, rgba(52, 197, 160, 0.12) 0%, transparent 68%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .ax-cat-label {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #4F63E7;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+        .ax-cat-label::before {
+            content: '';
+            display: block;
+            width: 20px;
+            height: 2px;
+            background: linear-gradient(90deg, #4F63E7, #34C5A0);
+            border-radius: 1px;
+        }
+        .ax-report-title {
+            position: relative;
+            font-size: 30px;
+            font-weight: 800;
+            color: #1E2240;
+            line-height: 1.25;
+            letter-spacing: -0.6px;
+            margin: 0 0 14px 0;
+        }
+        .ax-brand-accent {
+            color: #4F63E7;
+        }
+        .ax-report-desc {
+            position: relative;
+            font-size: 14px;
+            color: #5E6785;
+            line-height: 1.75;
+            max-width: 560px;
+            margin: 0;
+        }
+
+        /* 3. 응시자 카드 */
+        .ax-candidate-section {
+            background: #ffffff;
+            border-left: 1px solid #E2E6F3;
+            border-right: 1px solid #E2E6F3;
+            border-top: 1px solid #E2E6F3;
+            padding: 22px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .ax-candidate-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .ax-monogram {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #4F63E7 0%, #7B8FFF 100%);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: #ffffff;
+            flex-shrink: 0;
+        }
+        .ax-name-area {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
+        }
+        .ax-cand-name {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1E2240;
+            letter-spacing: -0.4px;
+            line-height: 1;
+        }
+        .ax-job-badge {
+            display: inline-flex;
+            align-items: center;
+            background: #4F63E7;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 6px;
+            letter-spacing: 0.2px;
+        }
+        .ax-candidate-right {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            text-align: right;
+        }
+        .ax-cand-meta-row {
+            font-size: 12px;
+            color: #8A92B2;
+            line-height: 1.5;
+        }
+        .ax-cand-meta-row strong {
+            color: #5E6785;
+            font-weight: 600;
+            margin-right: 4px;
+        }
+
+        /* 4. 메타 그리드 */
+        .ax-meta-section {
+            background: #F6F7FE;
+            border: 1px solid #E2E6F3;
+            border-top: 1px dashed #D4D9EE;
+            border-radius: 0 0 14px 14px;
+            padding: 18px 32px;
+        }
+        .ax-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px 20px;
+        }
+        .ax-meta-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .ax-meta-k {
+            font-size: 10px;
+            font-weight: 700;
+            color: #9AA3C8;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+        .ax-meta-v {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1E2240;
+            word-break: break-all;
+            line-height: 1.4;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .ax-hero { padding: 30px 20px 26px; }
+            .ax-report-title { font-size: 22px; }
+            .ax-candidate-section {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 18px 16px;
+            }
+            .ax-candidate-right { text-align: left; }
+            .ax-meta-section { padding: 16px; }
+            .ax-meta-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 480px) {
+            .ax-report-title { font-size: 19px; }
+        }
+        @media print {
+            .ax-hero, .ax-wordmark, .ax-monogram, .ax-job-badge {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .summary-grid { grid-template-columns: 1fr; }
+            .glossary-grid { grid-template-columns: 1fr; }
+        }
+        /* 섹션 03 개인화 — 측면 범례 + 대화 타임라인 근거 */
+        .s03-type-badge.suggest { background: #EEF2FF; color: #4338CA; }
+        .s03-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 22px; padding: 11px 16px; background: #F9FAFB; border: 1px solid var(--border); border-radius: 8px; }
+        .s03-legend-item { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--secondary-foreground); }
+        /* 타임라인 블록 */
+        .s03-tl-block { border: 1px solid var(--border); border-radius: 10px; padding: 14px 15px 13px; margin-bottom: 14px; background: #FCFCFD; break-inside: avoid; page-break-inside: avoid; }
+        .s03-tl-block.good { border-color: #BBF7D0; background: #F6FEFA; }
+        .s03-tl-block.need { border-color: #FED7AA; background: #FFFBF5; }
+        .s03-tl-block.suggest { border-color: #C7D2FE; background: #F8F9FF; }
+        /* 전체 진행바(overview) */
+        .s03-tl-ov-label { display: flex; justify-content: space-between; align-items: center; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted-foreground); margin-bottom: 9px; }
+        .s03-tl-ov-range { font-size: 10px; font-weight: 700; color: #111827; background: #fff; border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px; text-transform: none; letter-spacing: 0; }
+        .s03-tl-track { display: flex; align-items: center; margin-bottom: 15px; }
+        .s03-tl-node { width: 19px; height: 19px; flex-shrink: 0; border-radius: 50%; background: #fff; border: 1.5px solid var(--border); color: var(--muted-foreground); font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+        .s03-tl-node.active { border-width: 0; color: #fff; }
+        .s03-tl-block.good .s03-tl-node.active { background: #16A34A; }
+        .s03-tl-block.need .s03-tl-node.active { background: #EA580C; }
+        .s03-tl-block.suggest .s03-tl-node.active { background: #4F46E5; }
+        .s03-tl-seg { flex: 1; height: 2px; background: var(--border); min-width: 5px; }
+        .s03-tl-block.good .s03-tl-seg.active { background: #86EFAC; }
+        .s03-tl-block.need .s03-tl-seg.active { background: #FDBA74; }
+        .s03-tl-block.suggest .s03-tl-seg.active { background: #A5B4FC; }
+        /* 강조 구간 실제 대화 흐름 */
+        .s03-tl-flow { position: relative; padding-left: 18px; }
+        .s03-tl-flow::before { content: ''; position: absolute; left: 5px; top: 5px; bottom: 5px; width: 2px; background: var(--border); }
+        .s03-tl-msg { position: relative; margin-bottom: 9px; }
+        .s03-tl-msg:last-child { margin-bottom: 0; }
+        .s03-tl-dot { position: absolute; left: -16px; top: 5px; width: 9px; height: 9px; border-radius: 50%; background: #fff; border: 2px solid var(--muted-foreground); }
+        .s03-tl-msg.user .s03-tl-dot { border-color: #2563EB; }
+        .s03-tl-msg.ai .s03-tl-dot { border-color: #6B7280; }
+        .s03-tl-msg.file .s03-tl-dot, .s03-tl-msg.ok .s03-tl-dot { border-color: #059669; background: #059669; }
+        .s03-tl-msg.miss .s03-tl-dot { border-color: #EA580C; background: #EA580C; }
+        .s03-tl-bubble { border-radius: 8px; padding: 8px 11px; border: 1px solid var(--border); background: #fff; }
+        .s03-tl-msg.user .s03-tl-bubble { background: #F0F6FF; border-color: #DBEAFE; }
+        .s03-tl-msg.file .s03-tl-bubble, .s03-tl-msg.ok .s03-tl-bubble { background: #F0FDF4; border-color: #BBF7D0; }
+        .s03-tl-msg.miss .s03-tl-bubble { background: #FFF7ED; border-color: #FED7AA; }
+        .s03-tl-meta { display: flex; align-items: center; gap: 5px; font-size: 9.5px; font-weight: 700; color: var(--muted-foreground); margin-bottom: 4px; }
+        .s03-tl-turn { background: #111827; color: #fff; border-radius: 3px; padding: 1px 5px; font-size: 8.5px; }
+        .s03-tl-content { font-size: 11.5px; color: var(--foreground); line-height: 1.55; }
+        .s03-tl-content.quote { font-style: italic; }
+        .s03-tl-content b { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size: 10.5px; }
+        .s03-tl-impact { font-size: 11.5px; color: var(--secondary-foreground); line-height: 1.55; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border); }
+        .s03-tl-impact.good strong { color: #15803D; }
+        .s03-tl-impact.need strong { color: #C2410C; }
+        .s03-tl-impact.suggest strong { color: #4338CA; }
+        .s03-suggest-note { font-size: 10.5px; color: var(--muted-foreground); font-style: italic; margin-top: 10px; padding: 7px 11px; background: var(--muted); border-radius: 6px; }
+        @media (max-width: 600px) { .s03-tl-node { width: 16px; height: 16px; font-size: 8px; } }
+        /* ========== /섹션 03 실행 가이드 ========== */
+        /* 섹션 03 ver.A — 한 줄 오버뷰(손잡이) + 구간 돋보기 */
+        .s03-overview { border: 1px solid var(--border); border-radius: 10px; padding: 15px 16px 12px; margin-bottom: 22px; background: #FCFCFD; }
+        .s03-ov-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .s03-ov-title { font-size: 12px; font-weight: 700; color: #111827; }
+        .s03-ov-total { font-size: 10.5px; font-weight: 700; color: var(--muted-foreground); background: #fff; border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px; }
+        .s03-ov-track-single { position: relative; height: 12px; background: #F1F3F5; border-radius: 6px; margin: 34px 0 8px; }
+        .s03-ov-band2 { position: absolute; top: 0; height: 12px; border-radius: 6px; }
+        .s03-ov-band2.good { background: #86EFAC; }
+        .s03-ov-band2.need { background: #FDBA74; }
+        .s03-ov-band2.suggest { background: #C7D2FE; }
+        .s03-ov-handle { position: absolute; top: -26px; transform: translateX(-50%); white-space: nowrap; font-size: 9px; font-weight: 700; padding: 3px 9px; border-radius: 999px; color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.18); }
+        .s03-ov-handle::after { content: ''; position: absolute; left: 50%; bottom: -5px; transform: translateX(-50%); width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid; }
+        .s03-ov-handle.good { background: #16A34A; } .s03-ov-handle.good::after { border-top-color: #16A34A; }
+        .s03-ov-handle.need { background: #EA580C; } .s03-ov-handle.need::after { border-top-color: #EA580C; }
+        .s03-ov-handle.suggest { background: #4F46E5; } .s03-ov-handle.suggest::after { border-top-color: #4F46E5; }
+        .s03-ov-axis2 { display: flex; justify-content: space-between; margin-top: 8px; font-size: 9px; color: var(--muted-foreground); }
+        .s03-tl-ellipsis { color: var(--muted-foreground); font-size: 13px; font-weight: 700; padding: 0 1px; flex-shrink: 0; }
+
+        /* 섹션 00 — 16유형 성향 스펙트럼 (PDSM 등) */
+        .ptype-code { display: flex; gap: 8px; margin-bottom: 9px; }
+        .ptype-code span { width: 30px; height: 34px; display: flex; align-items: center; justify-content: center; background: #111827; color: #fff; border-radius: 7px; font-size: 19px; font-weight: 900; }
+        .ptype-axes { display: flex; flex-direction: column; gap: 17px; margin: 20px 0 18px; }
+        .ptype-axis-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; }
+        .ptype-axis-name { font-size: 12.5px; font-weight: 700; color: #111827; }
+        .ptype-axis-pct { font-size: 12px; font-weight: 800; color: #2563EB; }
+        .ptype-bar { display: flex; align-items: center; gap: 10px; }
+        .ptype-pole { font-size: 11px; font-weight: 600; color: var(--secondary-foreground); white-space: nowrap; flex-shrink: 0; width: 60px; }
+        .ptype-pole.left { text-align: right; }
+        .ptype-pole.right { text-align: left; }
+        .ptype-track { position: relative; flex: 1; height: 8px; background: #E5E7EB; border-radius: 4px; }
+        .ptype-track::before { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: #9CA3AF; opacity: 0.55; }
+        .ptype-dot { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 15px; height: 15px; border-radius: 50%; background: #2563EB; border: 2.5px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .ptype-axis-ends { display: flex; justify-content: space-between; gap: 12px; font-size: 10px; color: var(--muted-foreground); margin-top: 8px; line-height: 1.4; }
+        .ptype-axis-ends span:last-child { text-align: right; }
+        .ptype-note { font-size: 11px; color: var(--muted-foreground); line-height: 1.6; margin-top: 4px; padding: 9px 13px; background: #F9FAFB; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <header class="ax-header-wrap" style="order: 1;">
+            <!-- 히어로 -->
+            <div class="ax-hero">
+                <div class="ax-hero-grid"></div>
+                <div class="ax-hero-blob1"></div>
+                <div class="ax-hero-blob2"></div>
+                <div class="ax-cat-label">AI Competency Report</div>
+                <h1 class="ax-report-title"><span class="ax-brand-accent">CATCHUP</span> AX 역량 리포트</h1>
+                <p class="ax-report-desc">AI와 협업하여 문제를 해결하는 과정과 결과물의 완성도를 종합적으로 분석한 리포트입니다.</p>
+            </div>
+
+            <!-- 3. 응시자 카드 -->
+            <div class="ax-candidate-section">
+                <div class="ax-candidate-left">
+                    <div class="ax-name-area">
+                        <div class="ax-cand-name">강OO</div>
+                        <span class="ax-job-badge">경영·사무</span>
+                    </div>
+                </div>
+                <div class="ax-candidate-right">
+                    <div class="ax-cand-meta-row"><strong>응시 ID</strong>AX2026-00001</div>
+                    <div class="ax-cand-meta-row"><strong>응시 회차</strong>2026학년도 1차</div>
+                </div>
+            </div>
+
+            <!-- 4. 검사 메타 정보 -->
+            <div class="ax-meta-section">
+                <div class="ax-meta-grid">
+                    <div class="ax-meta-cell">
+                        <span class="ax-meta-k">제공 기관</span>
+                        <span class="ax-meta-v">진학사 CATCH</span>
+                    </div>
+                    <div class="ax-meta-cell">
+                        <span class="ax-meta-k">응시 기관</span>
+                        <span class="ax-meta-v">원광대학교</span>
+                    </div>
+                    <div class="ax-meta-cell">
+                        <span class="ax-meta-k">응시일</span>
+                        <span class="ax-meta-v">2026. 06. 01.</span>
+                    </div>
+                    <div class="ax-meta-cell">
+                        <span class="ax-meta-k">리포트 번호</span>
+                        <span class="ax-meta-v">AX-WKU-2026-00001</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 리포트 읽는 법 -->
+        <section class="report-reading-guide" style="order: 1;">
+            <h2 class="report-reading-guide-title">리포트 읽는 법</h2>
+            <div class="report-reading-guide-grid">
+                <div class="report-reading-guide-item">
+                    <div class="report-reading-guide-term">AI 협업 평가</div>
+                    <p class="report-reading-guide-desc">AI에게 요구사항을 전달하고 결과를 확인하며 문제를 풀어간 과정을 평가한 점수입니다.</p>
+                </div>
+                <div class="report-reading-guide-item">
+                    <div class="report-reading-guide-term">문제 해결 평가</div>
+                    <p class="report-reading-guide-desc">제출 결과물의 정확도와 요구사항 충족도를 평가한 점수입니다.</p>
+                </div>
+                <div class="report-reading-guide-item">
+                    <div class="report-reading-guide-term">최종점수</div>
+                    <p class="report-reading-guide-desc">AI 협업 평가와 문제 해결 평가를 종합한 점수입니다.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="card" style="order: 2; break-inside: avoid; page-break-inside: avoid;">
+            <h2 class="card-title">
+                <span class="icon-number">00</span>
+                나의 AI 활용 프로필
+            </h2>
+
+            <div class="profile-type-block">
+                <div class="profile-type-label">이번 검사에서 나타난 AI 활용 유형</div>
+                <div class="ptype-code"><span>P</span><span>D</span><span>S</span><span>M</span></div>
+                <div class="profile-type-name">마스터 아키텍트형</div>
+                <p class="profile-type-desc">청사진을 그리고, 직접 지휘하고, 상세히 말하고, 원리까지 파고드는 — 작업을 가장 손에 쥐고 끌고 가는 스타일입니다.</p>
+            </div>
+
+            <div class="ptype-axes">
+                <div class="ptype-axis">
+                    <div class="ptype-axis-head"><span class="ptype-axis-name">① 계획성</span><span class="ptype-axis-pct">설계자 78%</span></div>
+                    <div class="ptype-bar">
+                        <span class="ptype-pole left">P 설계자</span>
+                        <div class="ptype-track"><div class="ptype-dot" style="left: 22%;"></div></div>
+                        <span class="ptype-pole right">E 탐험가</span>
+                    </div>
+                    <div class="ptype-axis-ends"><span>먼저 계획하고 시작</span><span>바로 시도하며 발견</span></div>
+                </div>
+                <div class="ptype-axis">
+                    <div class="ptype-axis-head"><span class="ptype-axis-name">② 주도권</span><span class="ptype-axis-pct">지휘자 70%</span></div>
+                    <div class="ptype-bar">
+                        <span class="ptype-pole left">D 지휘자</span>
+                        <div class="ptype-track"><div class="ptype-dot" style="left: 30%;"></div></div>
+                        <span class="ptype-pole right">G 위임가</span>
+                    </div>
+                    <div class="ptype-axis-ends"><span>직접 단계별로 지휘</span><span>맡기고 결과를 기다림</span></div>
+                </div>
+                <div class="ptype-axis">
+                    <div class="ptype-axis-head"><span class="ptype-axis-name">③ 소통 방식</span><span class="ptype-axis-pct">정밀가 66%</span></div>
+                    <div class="ptype-bar">
+                        <span class="ptype-pole left">S 정밀가</span>
+                        <div class="ptype-track"><div class="ptype-dot" style="left: 34%;"></div></div>
+                        <span class="ptype-pole right">C 대화가</span>
+                    </div>
+                    <div class="ptype-axis-ends"><span>한 번에 길고 자세히</span><span>짧게 자주 주고받기</span></div>
+                </div>
+                <div class="ptype-axis">
+                    <div class="ptype-axis-head"><span class="ptype-axis-name">④ 관여 깊이</span><span class="ptype-axis-pct">장인 72%</span></div>
+                    <div class="ptype-bar">
+                        <span class="ptype-pole left">M 장인</span>
+                        <div class="ptype-track"><div class="ptype-dot" style="left: 28%;"></div></div>
+                        <span class="ptype-pole right">R 실용가</span>
+                    </div>
+                    <div class="ptype-axis-ends"><span>원리·과정까지 탐구</span><span>결과·완성에 집중</span></div>
+                </div>
+            </div>
+
+            <p class="ptype-note">※ 이 유형은 ‘선호 스타일’을 보여줄 뿐입니다. 검증·디버깅 같은 역량 피드백은 아래 ‘나에게 맞는 AI 활용법’에서 따로 다룹니다.</p>
+        </section>
+
+
+        <!-- 섹션 1: 검사 결과와 나의 위치 -->
+        <section class="card" style="order: 3;">
+            <h2 class="card-title">
+                <span class="icon-number">01</span>
+                나의 AI 역량 검사 결과
+            </h2>
+
+
+            <!-- 평가 결과 -->
+            <h3 class="s01-area-heading">평가 점수</h3>
+            <div class="s01-score-grid">
+                <div class="s01-score-card">
+                    <div class="s01-card-label">AI 협업 평가</div>
+                    <div class="s01-card-score">82.0<span class="s01-card-score-unit">점</span></div>
+                    <div class="s01-card-desc">AI와 문제를 풀어간 과정</div>
+                </div>
+                <div class="s01-score-card">
+                    <div class="s01-card-label">문제 해결 평가</div>
+                    <div class="s01-card-score">89.0<span class="s01-card-score-unit">점</span></div>
+                    <div class="s01-card-desc">결과물의 정확도와 요구사항 충족도</div>
+                </div>
+                <div class="s01-score-card main">
+                    <div class="s01-card-label">최종점수</div>
+                    <div class="s01-card-score main-val">85.5<span class="s01-card-score-unit">점</span></div>
+                    <div class="s01-card-desc">AI 협업 과정과 제출 결과의 종합 점수</div>
+                </div>
+            </div>
+            <p class="s01-score-note">최종점수는 AI 협업 과정과 제출 결과를 종합해 산출합니다.</p>
+
+            <!-- 나의 위치와 점수 분포 -->
+            <h3 class="s01-area-heading">전체 응시자와 점수 비교</h3>
+            <div class="comparison-container">
+                <p class="comparison-intro">동일 회차 응시자 123명 중 내 점수의 등수와 백분위를 확인해보세요.</p>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
+                    <div style="background: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; text-align: center;">
+                        <div style="font-size: 11px; color: var(--muted-foreground); margin-bottom: 4px;">전체 등수</div>
+                        <div style="font-size: 24px; font-weight: 900; color: var(--foreground);"><span id="rankValue">52</span>위</div>
+                        <div style="font-size: 11px; color: var(--muted-foreground); margin-top: 2px;">전체 <span id="rankTotal">123</span>명</div>
+                    </div>
+                    <div style="background: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; text-align: center;">
+                        <div style="font-size: 11px; color: var(--muted-foreground); margin-bottom: 4px;">백분위</div>
+                        <div style="font-size: 24px; font-weight: 900; color: var(--foreground);"><span id="percentileValue">57.7</span></div>
+                        <div style="font-size: 11px; color: var(--muted-foreground); margin-top: 2px;">상위 <span id="topPercentValue">42.3</span>%</div>
+                    </div>
+                </div>
+                <p style="font-size: 10.5px; color: var(--muted-foreground); margin-bottom: 16px; line-height: 1.5;">백분위는 동일 회차 응시자 중 내 점수보다 낮은 응시자의 비율입니다. 동일 점수는 공동 순위로 계산합니다.</p>
+
+                <div class="chart-legend">
+                    <div class="legend-item average">
+                        <span class="legend-line"></span>
+                        <span>평균 80.54점</span>
+                    </div>
+                    <div class="legend-item median">
+                        <span class="legend-line"></span>
+                        <span>중앙값 83.5점</span>
+                    </div>
+                    <div class="legend-item myscore">
+                        <span class="legend-line"></span>
+                        <span>나의 점수 85.5점</span>
+                    </div>
+                </div>
+
+                <div class="distribution-wrapper">
+                    <canvas id="distributionChart" width="891" height="445" style="display: block; box-sizing: border-box; height: 396px; width: 792px;"></canvas>
+                </div>
+
+                <div class="comparison-summary">
+                    <p>
+                        전체 응시자의 <strong>평균은 80.54점</strong>, <strong>중앙값은 83.5점</strong>입니다.
+                        강OO님의 최종점수는 <span class="highlight-score">85.5점</span>으로,
+                        동일 회차 응시자 123명 중 <strong>52위</strong>입니다.
+                        백분위는 <strong>57.7</strong>로 전체 응시자의 57.7%보다 높은 점수이며, 상위 <strong>42.3%</strong>에 해당합니다.
+                    </p>
+                </div>
+
+                <div style="margin-top: 10px; font-size: 11px; color: var(--muted-foreground); padding: 0 2px;">
+                    점수와 등수 비교는 동일 회차 응시자 123명의 최종점수를 기준으로 합니다.
+                </div>
+            </div>
+
+            <!-- 과제별 수행 결과 -->
+            <h3 class="s01-area-heading">과제별 수행 결과</h3>
+
+            <!-- 과제 1 (전체 폭) -->
+            <div class="s01-task2" style="margin-bottom: 12px;">
+                <div class="s01-task2-header">
+                    <div class="s01-task2-name">과제 1 · 조건에 맞는 채용공고 찾기</div>
+                    <div class="s01-task2-right">
+                        <div class="s01-task2-score perfect">100.0<span class="unit">점</span></div>
+                        <span class="s01-status-badge meet">충족</span>
+                    </div>
+                </div>
+                <div class="s01-task2-body">
+                    <div>
+                        <div class="s01-task2-item-label">수행 내용</div>
+                        <div class="s01-task2-item-text">조건에 맞는 채용공고를 찾고 지원 가능 여부와 판단 근거를 정리했습니다.</div>
+                    </div>
+                    <div>
+                        <div class="s01-task2-item-label">평가 기준</div>
+                        <div class="s01-criteria-tags">
+                            <span class="s01-criteria-tag">공고 수집 정확도</span>
+                            <span class="s01-criteria-tag">기준 적용</span>
+                            <span class="s01-criteria-tag">판단 근거</span>
+                            <span class="s01-criteria-tag">결과 형식</span>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="s01-task2-item-label">결과 및 보완</div>
+                        <div class="s01-task2-item-text">모든 평가 기준을 충족했으며, 별도의 주요 보완 사항은 없습니다.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 과제 2 (전체 폭) -->
+            <div class="s01-task2">
+                <div class="s01-task2-header">
+                    <div class="s01-task2-name">과제 2 · 지원자 판정 및 결과 정리</div>
+                    <div class="s01-task2-right">
+                        <div class="s01-task2-score">84.5<span class="unit">점</span></div>
+                        <span class="s01-status-badge partial">일부 보완</span>
+                    </div>
+                </div>
+                <div class="s01-task2-body">
+                    <div>
+                        <div class="s01-task2-item-label">수행 내용</div>
+                        <div class="s01-task2-item-text">지원자 정보와 공고 기준을 비교해 지원 가능 여부를 판단하고, 지원 가능한 선택지를 정리하여 결과값을 작성했습니다.</div>
+                    </div>
+                    <div>
+                        <div class="s01-task2-item-label">평가 기준</div>
+                        <div class="s01-criteria-tags">
+                            <span class="s01-criteria-tag">판정 정확도</span>
+                            <span class="s01-criteria-tag">기준 적용</span>
+                            <span class="s01-criteria-tag">결과 정확도</span>
+                            <span class="s01-criteria-tag">선택지 누락</span>
+                            <span class="s01-criteria-tag">컬럼명 및 값 형식</span>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="s01-task2-item-label">결과 및 보완</div>
+                        <div class="s01-task2-item-text">대부분의 판정과 주요 내용은 정확했지만, 일부 사례에서 기준 적용 확인이 필요했고 일부 컬럼명과 값 형식이 안내 기준과 달랐습니다.</div>
+                    </div>
+                </div>
+            </div>
+            <p class="s01-note-text">문제 해결 평가는 과제별 정확도와 요구사항 충족 결과를 세부 평가 기준에 따라 종합하여 산출합니다.</p>
+
+        </section>
+
+        <!-- 섹션 2: 나의 AI 협업 방식 -->
+
+        <section class="card s02-section" style="order: 4;">
+            <h2 class="card-title">
+                <span class="icon-number">02</span>
+                나의 AI 협업 방식
+            </h2>
+
+            <div class="s02-intro-group">
+                <p class="comparison-intro" style="margin-bottom: 10px;">AI와 나눈 대화와 제출 결과물을 바탕으로 5가지 협업 역량을 분석했습니다. 각 역량의 점수와 실제 행동, 과제 결과와의 연결, 평가 근거를 확인할 수 있습니다.</p>
+                <div class="s02-scope-note">※ 이번 결과는 해당 과제에서 관찰된 행동을 기준으로 한 참고 자료이며, 평소의 모든 AI 활용 방식이나 전체 직무 역량을 의미하지 않습니다.</div>
+            </div>
+
+            <h3 class="s01-area-heading">협업 역량 한눈에 보기</h3>
+            <div class="s02-dashboard">
+                <div class="s02-radar-wrap">
+                    <div class="s02-panel-title">역량 분포</div>
+                    <canvas id="radarChart02" style="max-height: 240px; display: block; box-sizing: border-box; height: 240px; width: 369px;" width="415" height="270"></canvas>
+                </div>
+                <div class="s02-compare-wrap">
+                    <div class="s02-panel-title">역량별 점수 비교</div>
+                    <table class="s02-compare-table">
+                        <thead><tr><th>역량</th><th>내 점수</th><th>평균</th><th>대비</th><th>해석</th></tr></thead>
+                        <tbody>
+                            <tr><td>문제 정의</td><td>9.0</td><td>8.5</td><td class="s02-delta-pos">+0.5</td><td><span class="s02-tag strength">대표 강점</span></td></tr>
+                            <tr><td>AI 출력 검토</td><td>9.0</td><td>8.5</td><td class="s02-delta-pos">+0.5</td><td><span class="s02-tag strength">대표 강점</span></td></tr>
+                            <tr><td>실행 환경 관리</td><td>7.0</td><td>7.6</td><td class="s02-delta-neg">−0.6</td><td><span class="s02-tag need">보완 필요</span></td></tr>
+                            <tr><td>완성 및 가치</td><td>8.0</td><td>7.6</td><td class="s02-delta-pos">+0.4</td><td><span class="s02-tag above">평균 이상</span></td></tr>
+                            <tr><td>불확실성 관리</td><td>8.0</td><td>7.6</td><td class="s02-delta-pos">+0.4</td><td><span class="s02-tag above">평균 이상</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="s02-summary-row">
+                <div class="s02-summary-card strength-card">
+                    <div class="s02-summary-label">대표 강점 역량</div>
+                    <div class="s02-summary-name">문제 정의 · AI 출력 검토</div>
+                    <div class="s02-summary-sub">두 역량 모두 9.0점으로, 평균보다 0.5점 높게 나타났습니다.</div>
+                </div>
+                <div class="s02-summary-card grow-card">
+                    <div class="s02-summary-label">보완 필요 역량</div>
+                    <div class="s02-summary-name">실행 환경 관리</div>
+                    <div class="s02-summary-sub">평균 대비 0.6점 낮게 나타났으며, 이상 결과가 발생했을 때 원인을 단계별로 확인하는 과정의 보완이 필요합니다.</div>
+                </div>
+            </div>
+
+            <div class="s02-interp">문제를 명확히 정의하고 AI 출력을 검토하는 능력은 강점으로 나타났습니다. 다만 이상 결과가 발생했을 때 입력값, 조건과 처리 과정을 단계적으로 확인하는 요청은 상대적으로 적게 나타났습니다.</div>
+
+            <h3 class="s01-area-heading">역량별 상세 분석</h3>
+
+            <!-- 페이지 2: 역량 상세 카드 1–3 -->
+            <div class="s02-page-group">
+                <div class="s02-skill-card">
+                    <div class="s02-card-header">
+                        <div>
+                            <div class="s02-card-name">1. 문제 정의</div>
+                            <div class="s02-card-desc">AI에게 무엇을, 어떻게, 어떤 기준으로 처리할지 명확하게 전달하는 능력</div>
+                        </div>
+                        <div class="s02-card-score-block">
+                            <div class="s02-card-score-val">9.0 <span>/ 10</span></div>
+                            <div class="s02-card-score-avg">평균 8.5</div>
+                        </div>
+                    </div>
+                    <div class="s02-bar-wrap"><div class="s02-bar-track"><div class="s02-bar-fill" style="width:90%;"></div><div class="s02-bar-avg" style="left:85%;"></div></div><div class="s02-bar-legend"><span>— 평균 (8.5)</span></div></div>
+                    <div class="s02-analysis-simple">
+                        <div class="s02-analysis-section">
+                            <div class="s02-analysis-label">핵심 해석</div>
+                            <p class="s02-analysis-text">작업 초반에 목표와 결과물 형태, 판단 기준과 제약조건을 구체적으로 정리한 뒤 AI에게 전달했습니다. 전체 작업을 한 번에 맡기지 않고 먼저 1건의 결과를 확인한 뒤 나머지에 적용하는 단계적 접근 방식도 나타났습니다. 이러한 문제 정의 방식은 과제 1에서 공고 수집 정확도, 기준 적용, 판단 근거와 결과 형식을 모두 충족한 결과로 이어졌습니다.</p>
+                        </div>
+                        <div class="s02-analysis-section s02-evidence-simple">
+                            <div class="s02-analysis-label">평가 근거</div>
+                            <ul class="s02-evidence-list">
+                                <li><strong class="s02-evidence-key">대화</strong> <span class="s02-evidence-quote">"먼저 공고자료 1개만 처리해서 결과를 보여줘. 내가 확인하면 나머지에 전체 적용하자."</span></li>
+                                <li><strong class="s02-evidence-key">대화</strong> <span class="s02-evidence-quote">"수집 기준, 출력 파일 형식, 보안 조건 등 핵심 요구사항을 구조화하여 전달"</span></li>
+                                <li><strong class="s02-evidence-key">결과</strong> <span>과제 1에서 공고 수집 정확도, 기준 적용, 판단 근거와 결과 형식을 모두 충족해 100.0점을 받았습니다.</span></li>
+                                <li><strong class="s02-evidence-key">결과</strong> <span>전체 실행 전 일부 결과를 먼저 확인하는 방식으로 작업 방향의 오류 가능성을 줄였습니다.</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="s02-skill-card">
+                    <div class="s02-card-header">
+                        <div>
+                            <div class="s02-card-name">2. AI 출력 검토</div>
+                            <div class="s02-card-desc">AI가 만든 결과를 그대로 받아들이지 않고, 조건에 맞는지 비판적으로 확인하는 능력</div>
+                        </div>
+                        <div class="s02-card-score-block">
+                            <div class="s02-card-score-val">9.0 <span>/ 10</span></div>
+                            <div class="s02-card-score-avg">평균 8.5</div>
+                        </div>
+                    </div>
+                    <div class="s02-bar-wrap"><div class="s02-bar-track"><div class="s02-bar-fill" style="width:90%;"></div><div class="s02-bar-avg" style="left:84.8%;"></div></div><div class="s02-bar-legend"><span>— 평균 (8.5)</span></div></div>
+                    <div class="s02-analysis-simple">
+                        <div class="s02-analysis-section">
+                            <div class="s02-analysis-label">핵심 해석</div>
+                            <p class="s02-analysis-text">AI가 전체 작업을 시작하기 전에 처리 방식을 먼저 제시하도록 요청하고, 요청 조건을 올바르게 이해했는지 확인하는 행동이 반복적으로 나타났습니다. 결과물에서 누락 가능성을 발견했을 때 추가 확인을 요청하는 능동적인 검토 태도도 확인됐습니다. 다만 과제 2의 최종 제출에서는 일부 컬럼명과 값 형식이 안내 기준과 달라, 중간 검토를 최종 결과까지 이어갈 필요가 있습니다.</p>
+                        </div>
+                        <div class="s02-analysis-section s02-evidence-simple">
+                            <div class="s02-analysis-label">평가 근거</div>
+                            <ul class="s02-evidence-list">
+                                <li><strong class="s02-evidence-key">대화</strong> <span class="s02-evidence-quote">"먼저 전체 처리 방식을 보여줘. 내가 확인한 뒤에 진행하자."</span></li>
+                                <li><strong class="s02-evidence-key">대화</strong> <span class="s02-evidence-quote">"결과 파일에서 특정 항목이 빠진 것 같아. 왜 그런지 확인해줘."</span></li>
+                                <li><strong class="s02-evidence-key">결과</strong> <span>과제 2의 주요 판정 결과는 대체로 정확했지만, 일부 컬럼명과 값 형식이 안내 기준과 다르게 작성됐습니다.</span></li>
+                                <li><strong class="s02-evidence-key">결과</strong> <span>중간 과정에서의 적극적인 검토가 주요 판단의 정확도를 높이는 데 기여한 것으로 볼 수 있습니다.</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="s02-skill-card">
+                    <div class="s02-card-header">
+                        <div>
+                            <div class="s02-card-name">3. 실행 환경 관리</div>
+                            <div class="s02-card-desc">작업에 필요한 조건과 맥락 정보를 AI에게 명확히 제공하고, 이상 결과에 적절히 대응하는 능력</div>
+                        </div>
+                        <div class="s02-card-score-block">
+                            <div class="s02-card-score-val">7.0 <span>/ 10</span></div>
+                            <div class="s02-card-score-avg">평균 7.6</div>
+                        </div>
+                    </div>
+                    <div class="s02-bar-wrap"><div class="s02-bar-track"><div class="s02-bar-fill" style="width:70%;"></div><div class="s02-bar-avg" style="left:75.9%;"></div></div><div class="s02-bar-legend"><span>— 평균 (7.6)</span></div></div>
+                    <div class="s02-analysis-simple">
+                        <div class="s02-analysis-section">
+                            <div class="s02-analysis-label">핵심 해석</div>
+                            <p class="s02-analysis-text">입력 파일, 저장 위치와 시트명 등 작업 조건을 구체적으로 전달해 AI가 데이터를 처리하는 환경을 명확하게 설정했습니다. 파일 경로와 결과 저장 위치를 정확히 지정한 점은 작업 흐름을 안정적으로 유지하는 데 강점으로 작용했습니다. 다만 이상 결과가 발생했을 때 입력값, 조건과 처리 과정으로 원인을 단계적으로 나누어 확인하는 요청은 명확하게 나타나지 않았고, 과제 2에서도 일부 형식 오류와 선택지 누락 가능성이 확인됐습니다.</p>
+                        </div>
+                        <div class="s02-analysis-section s02-evidence-simple">
+                            <div class="s02-analysis-label">평가 근거</div>
+                            <ul class="s02-evidence-list">
+                                <li><strong class="s02-evidence-key">대화</strong> <span class="s02-evidence-quote">"입력 파일은 applicants.xlsx이고, 결과는 submission_template.xlsx의 '판정결과' 시트에 저장해줘."</span></li>
+                                <li><strong class="s02-evidence-key">대화</strong> <span class="s02-evidence-quote">저장 위치, 시트명 등 작업 환경을 구체적으로 지정하는 요청이 반복적으로 나타남</span></li>
+                                <li><strong class="s02-evidence-key">결과</strong> <span>과제 2에서 일부 컬럼명과 값 형식이 안내 기준과 다르게 작성됐고, 일부 선택지 누락 가능성에 대한 확인이 필요했습니다.</span></li>
+                                <li><strong class="s02-evidence-key">결과</strong> <span>이상 결과 발생 시 원인을 단계별로 구분해 확인하는 요청은 대화에서 명확하게 드러나지 않았습니다.</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 페이지 3: 역량 상세 카드 4–5 -->
+            <div class="s02-page-group s02-page-break">
+                <div class="s02-skill-card">
+                    <div class="s02-card-header">
+                        <div>
+                            <div class="s02-card-name">4. 완성 및 가치</div>
+                            <div class="s02-card-desc">과제 요구사항과 산출물을 대조하고, 작업 목적에 맞는 완성도 있는 결과물을 만드는 능력</div>
+                        </div>
+                        <div class="s02-card-score-block">
+                            <div class="s02-card-score-val">8.0 <span>/ 10</span></div>
+                            <div class="s02-card-score-avg">평균 7.6</div>
+                        </div>
+                    </div>
+                    <div class="s02-bar-wrap"><div class="s02-bar-track"><div class="s02-bar-fill" style="width:80%;"></div><div class="s02-bar-avg" style="left:76.2%;"></div></div><div class="s02-bar-legend"><span>— 평균 (7.6)</span></div></div>
+                    <div class="s02-analysis-simple">
+                        <div class="s02-analysis-section">
+                            <div class="s02-analysis-label">핵심 해석</div>
+                            <p class="s02-analysis-text">저장 경로, 시트명, 컬럼명 등 제출 기준을 초기에 구체적으로 제시하고, 결과물에서 누락된 항목을 스스로 발견해 원인을 확인하는 행동이 나타났습니다. 다만 최종 제출 전에 전체 결과를 누락, 중복, 컬럼명과 값 형식 기준으로 체계적으로 대조하는 과정은 충분히 드러나지 않았습니다. 과제 2에서는 일부 형식 오류로 '일부 보완' 평가를 받았습니다.</p>
+                        </div>
+                        <div class="s02-analysis-section s02-evidence-simple">
+                            <div class="s02-analysis-label">평가 근거</div>
+                            <ul class="s02-evidence-list">
+                                <li><strong class="s02-evidence-key">대화</strong> <span class="s02-evidence-quote">"결과 파일에서 특정 항목이 빠진 것 같아. 왜 그런지 확인해줘."</span></li>
+                                <li><strong class="s02-evidence-key">대화</strong> <span class="s02-evidence-quote">제출 기준(저장 경로, 시트명, 컬럼명)을 작업 초반에 명시적으로 전달</span></li>
+                                <li><strong class="s02-evidence-key">결과</strong> <span>과제 2에서 일부 컬럼명과 값 형식이 안내 기준과 다르게 작성돼 '일부 보완' 평가를 받았습니다.</span></li>
+                                <li><strong class="s02-evidence-key">결과</strong> <span>결과물 누락을 능동적으로 발견했지만, 최종 제출 전 전체 형식 대조는 확인되지 않았습니다.</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="s02-skill-card">
+                    <div class="s02-card-header">
+                        <div>
+                            <div class="s02-card-name">5. 불확실성 관리</div>
+                            <div class="s02-card-desc">모르거나 애매한 부분을 솔직하게 드러내고, AI에게 확인을 요청하며 오해를 줄이는 능력</div>
+                        </div>
+                        <div class="s02-card-score-block">
+                            <div class="s02-card-score-val">8.0 <span>/ 10</span></div>
+                            <div class="s02-card-score-avg">평균 7.6</div>
+                        </div>
+                    </div>
+                    <div class="s02-bar-wrap"><div class="s02-bar-track"><div class="s02-bar-fill" style="width:80%;"></div><div class="s02-bar-avg" style="left:76.4%;"></div></div><div class="s02-bar-legend"><span>— 평균 (7.6)</span></div></div>
+                    <div class="s02-analysis-simple">
+                        <div class="s02-analysis-section">
+                            <div class="s02-analysis-label">핵심 해석</div>
+                            <p class="s02-analysis-text">진행 방향이 불분명할 때 AI에게 처리 방식을 다시 설명하도록 요청하고, 자신의 이해가 맞는지 명시적으로 확인하는 행동이 나타났습니다. 이해가 불분명한 상태에서 작업을 계속하지 않고 먼저 질문한 점은 사용자와 AI 사이의 해석 차이를 줄이는 데 도움이 됐습니다. 과제 1의 주요 요구사항 충족과 과제 2의 대체로 정확한 판정 결과에서도 이러한 확인 행동의 강점이 확인됩니다.</p>
+                        </div>
+                        <div class="s02-analysis-section s02-evidence-simple">
+                            <div class="s02-analysis-label">평가 근거</div>
+                            <ul class="s02-evidence-list">
+                                <li><strong class="s02-evidence-key">대화</strong> <span class="s02-evidence-quote">"내가 요청한 방식대로 진행되고 있는 건지 헷갈려. 어떻게 처리할 건지 다시 확인해줘."</span></li>
+                                <li><strong class="s02-evidence-key">대화</strong> <span class="s02-evidence-quote">생소한 개념이 등장했을 때 즉시 설명을 요청하며 불확실성을 해소하는 행동이 나타남</span></li>
+                                <li><strong class="s02-evidence-key">결과</strong> <span>과제 1에서는 주요 요구사항이 모두 충족됐으며, 과제 2에서도 주요 판정 결과는 대체로 정확했습니다.</span></li>
+                                <li><strong class="s02-evidence-key">결과</strong> <span>작업 방향을 확인한 행동이 요구사항 누락 위험을 줄이는 데 기여한 것으로 볼 수 있습니다.</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 섹션 3: 나에게 맞는 AI 활용법 (ver.A 한 줄 오버뷰 + 돋보기) -->
+        <section class="card" style="order: 5;">
+            <h2 class="card-title">
+                <span class="icon-number">03</span>
+                나에게 맞는 AI 활용법
+            </h2>
+            <p class="comparison-intro" style="margin-bottom: 8px;">검사 중 <strong>AI가 답변을 마칠 때마다 저장된 작업 기록</strong>을 따라가며, 대화와 결과물(엑셀·코드)이 어떻게 바뀌었는지 추적해 분석했습니다. 아래 내용은 모두 실제 작업 과정에서 관찰된 <strong>이전 → 이후 변화</strong>를 근거로 합니다.</p>
+            <div class="s03-legend">
+                <span class="s03-legend-item"><span class="s03-type-badge strength">강점 활용</span> 잘한 점을 계속 살리기</span>
+                <span class="s03-legend-item"><span class="s03-type-badge need">보완 필요</span> 평가에서 아쉬웠던 점 보강</span>
+                <span class="s03-legend-item"><span class="s03-type-badge suggest">추가 제안</span> 평가와 별개로 권하는 습관</span>
+            </div>
+
+            <!-- 전체 타임라인 오버뷰 (한 줄, 손잡이 마커) -->
+            <div class="s03-overview">
+                <div class="s03-ov-head">
+                    <span class="s03-ov-title">전체 대화에서 유형별 위치</span>
+                    <span class="s03-ov-total">총 30번의 대화</span>
+                </div>
+                <div class="s03-ov-track-single">
+                    <span class="s03-ov-band2 good" style="left: 6.7%; width: 10%;"></span>
+                    <span class="s03-ov-band2 suggest" style="left: 33.3%; width: 10%;"></span>
+                    <span class="s03-ov-band2 need" style="left: 46.7%; width: 10%;"></span>
+                    <span class="s03-ov-band2 need" style="left: 73.3%; width: 10%;"></span>
+                    <span class="s03-ov-handle good" style="left: 11.7%;">강점 3~5</span>
+                    <span class="s03-ov-handle suggest" style="left: 38.3%;">제안 11~13</span>
+                    <span class="s03-ov-handle need" style="left: 51.7%;">보완 15~17</span>
+                    <span class="s03-ov-handle need" style="left: 78.3%;">보완 23~25</span>
+                </div>
+                <div class="s03-ov-axis2"><span>1번째</span><span>10번째</span><span>20번째</span><span>30번째</span></div>
+            </div>
+
+            <!-- 1) 강점 -->
+            <h3 class="s01-area-heading">1. 계속 살리면 좋은 강점</h3>
+            <div class="s03-tl-block good">
+                <div class="s03-tl-ov-label"><span>구간 돋보기</span><span class="s03-tl-ov-range">전체 30번의 대화 중 2~6번째 확대</span></div>
+                <div class="s03-tl-track">
+                    <span class="s03-tl-ellipsis">…</span><span class="s03-tl-seg"></span>
+                    <span class="s03-tl-node">2</span>
+                    <span class="s03-tl-seg"></span>
+                    <span class="s03-tl-node active">3</span>
+                    <span class="s03-tl-seg active"></span>
+                    <span class="s03-tl-node active">4</span>
+                    <span class="s03-tl-seg active"></span>
+                    <span class="s03-tl-node active">5</span>
+                    <span class="s03-tl-seg"></span>
+                    <span class="s03-tl-node">6</span>
+                    <span class="s03-tl-seg"></span><span class="s03-tl-ellipsis">…</span>
+                </div>
+                <div class="s03-tl-flow">
+                    <div class="s03-tl-msg user"><span class="s03-tl-dot"></span><div class="s03-tl-bubble"><div class="s03-tl-meta"><span class="s03-tl-turn">3번째 대화</span>나의 요청</div><div class="s03-tl-content quote">"먼저 공고자료 1개만 처리해서 결과를 보여줘. 내가 확인하면 나머지에 전체 적용하자."</div></div></div>
+                    <div class="s03-tl-msg ai"><span class="s03-tl-dot"></span><div class="s03-tl-bubble"><div class="s03-tl-meta"><span class="s03-tl-turn">3번째 대화</span>AI가 한 작업</div><div class="s03-tl-content">공고 1건만 수집·정리하는 스크립트를 작성해 실행하고, 결과 1행을 미리 보여줌</div></div></div>
+                    <div class="s03-tl-msg user"><span class="s03-tl-dot"></span><div class="s03-tl-bubble"><div class="s03-tl-meta"><span class="s03-tl-turn">5번째 대화</span>나의 요청</div><div class="s03-tl-content quote">"좋아, 형식 맞네. 나머지 공고도 같은 방식으로 전체 적용해줘."</div></div></div>
+                    <div class="s03-tl-msg file"><span class="s03-tl-dot"></span><div class="s03-tl-bubble"><div class="s03-tl-meta">결과물 변화</div><div class="s03-tl-content">applications.xlsx — 전체 행 생성, 컬럼 형식 유지 <b>지원자ID·판정결과·불가사유</b></div></div></div>
+                </div>
+                <div class="s03-tl-impact good">관찰 · 1건을 먼저 확인하고 형식이 맞는 것을 본 뒤 전체에 적용했습니다. 채점 영향 · <strong>공고 수집 정확도 · 기준 적용 · 결과 형식 모두 충족 → 과제 1 100점</strong></div>
+            </div>
+            <div class="s03-guide-card">
+                <div class="s03-card-top">
+                    <div class="s03-card-title">큰 작업은 ‘1건 먼저 확인 → 전체 적용’ 방식을 계속 쓰세요</div>
+                    <span class="s03-type-badge strength">강점 활용</span>
+                </div>
+                <div class="s03-section"><div class="s03-section-label">이렇게 활용하세요</div><ol class="s03-steps"><li>전체 작업을 작은 단위로 나눕니다.</li><li>첫 번째 결과만 먼저 받아 내용과 형식을 확인합니다.</li><li>수정 사항을 반영한 뒤 나머지 작업에 동일하게 적용합니다.</li></ol></div>
+                <div class="s03-prompt-box"><div class="s03-section-label">바로 활용할 수 있는 문장</div><p class="s03-prompt-text">"전체 작업을 시작하기 전에 먼저 1건만 처리해줘. 결과의 내용과 형식을 확인한 뒤 같은 기준으로 나머지를 진행하자."</p></div>
+            </div>
+
+            <!-- 2) 보완 -->
+            <h3 class="s01-area-heading">2. 보완하면 좋을 점</h3>
+            <div class="s03-tl-block need">
+                <div class="s03-tl-ov-label"><span>구간 돋보기</span><span class="s03-tl-ov-range">전체 30번의 대화 중 14~18번째 확대</span></div>
+                <div class="s03-tl-track">
+                    <span class="s03-tl-ellipsis">…</span><span class="s03-tl-seg"></span>
+                    <span class="s03-tl-node">14</span>
+                    <span class="s03-tl-seg"></span>
+                    <span class="s03-tl-node active">15</span>
+                    <span class="s03-tl-seg active"></span>
+                    <span class="s03-tl-node active">16</span>
+                    <span class="s03-tl-seg active"></span>
+                    <span class="s03-tl-node active">17</span>
+                    <span class="s03-tl-seg"></span>
+                    <span class="s03-tl-node">18</span>
+                    <span class="s03-tl-seg"></span><span class="s03-tl-ellipsis">…</span>
+                </div>
+                <div class="s03-tl-flow">
+                    <div class="s03-tl-msg user"><span class="s03-tl-dot"></span><div class="s03-tl-bubble"><div class="s03-tl-meta"><span class="s03-tl-turn">15번째 대화</span>나의 요청</div><div class="s03-tl-content quote">"판정 결과가 좀 이상한데, 결과 파일을 다시 정리해서 새로 만들어줘."</div></div></div>
+                    <div class="s03-tl-msg ai"><span class="s03-tl-dot"></span><div class="s03-tl-bubble"><div class="s03-tl-meta"><span class="s03-tl-turn">15번째 대화</span>AI가 한 작업</div><div class="s03-tl-content">판정 로직을 고치고 결과 엑셀을 처음부터 다시 생성 — 이 과정에서 컬럼명을 영문으로 임의 변경</div></div></div>
+                    <div class="s03-tl-msg miss"><span class="s03-tl-dot"></span><div class="s03-tl-bubble"><div class="s03-tl-meta">결과물 변화 (형식 깨짐)</div><div class="s03-tl-content"><b>지원자ID·판정결과·불가사유</b> → <b>id·result·reason</b></div></div></div>
+                    <div class="s03-tl-msg user"><span class="s03-tl-dot"></span><div class="s03-tl-bubble"><div class="s03-tl-meta"><span class="s03-tl-turn">17번째 대화</span>나의 요청</div><div class="s03-tl-content quote">"응, 그걸로 제출할게." <span style="font-style:normal; color:var(--muted-foreground);">(형식 확인 없이 진행)</span></div></div></div>
+                </div>
+                <div class="s03-tl-impact need">관찰 · 컬럼명이 바뀐 뒤 <strong>형식을 확인하는 요청이 관찰되지 않았습니다</strong>. 채점 영향 · <strong>‘컬럼명·값 형식’ 기준 불일치 → 과제 2 일부 보완(84.5점)</strong></div>
+            </div>
+            <div class="s03-guide-card">
+                <div class="s03-card-top">
+                    <div class="s03-card-title">본인이 정한 출력 형식이 끝까지 유지되는지 점검하세요</div>
+                    <span class="s03-type-badge need">보완 필요</span>
+                </div>
+                <div class="s03-section"><div class="s03-section-label">이렇게 활용하세요</div><ol class="s03-steps"><li>작업 시작 시 정한 출력 형식(컬럼명·시트명)을 따로 적어 둡니다.</li><li>최종 결과와 처음 형식을 항목별로 다시 비교합니다.</li><li>내용뿐 아니라 형식·누락·중복까지 함께 확인합니다.</li></ol></div>
+                <div class="s03-prompt-box"><div class="s03-section-label">바로 활용할 수 있는 문장</div><p class="s03-prompt-text">"처음에 정한 컬럼명·시트명 형식과 지금 결과 파일을 비교해줘. 형식이 바뀐 항목이 있으면 원래대로 되돌려줘."</p></div>
+            </div>
+
+            <div class="s03-tl-block need">
+                <div class="s03-tl-ov-label"><span>구간 돋보기</span><span class="s03-tl-ov-range">전체 30번의 대화 중 22~26번째 확대</span></div>
+                <div class="s03-tl-track">
+                    <span class="s03-tl-ellipsis">…</span><span class="s03-tl-seg"></span>
+                    <span class="s03-tl-node">22</span>
+                    <span class="s03-tl-seg"></span>
+                    <span class="s03-tl-node active">23</span>
+                    <span class="s03-tl-seg active"></span>
+                    <span class="s03-tl-node active">24</span>
+                    <span class="s03-tl-seg active"></span>
+                    <span class="s03-tl-node active">25</span>
+                    <span class="s03-tl-seg"></span>
+                    <span class="s03-tl-node">26</span>
+                    <span class="s03-tl-seg"></span><span class="s03-tl-ellipsis">…</span>
+                </div>
+                <div class="s03-tl-flow">
+                    <div class="s03-tl-msg user"><span class="s03-tl-dot"></span><div class="s03-tl-bubble"><div class="s03-tl-meta"><span class="s03-tl-turn">23번째 대화</span>나의 요청</div><div class="s03-tl-content quote">"결과 행 수가 예상보다 적게 나왔어. 그냥 다시 해줘."</div></div></div>
+                    <div class="s03-tl-msg ai"><span class="s03-tl-dot"></span><div class="s03-tl-bubble"><div class="s03-tl-meta"><span class="s03-tl-turn">23번째 대화</span>AI가 한 작업</div><div class="s03-tl-content">원인 설명 없이 전체 처리 로직을 다시 작성해 재실행 — 행 수가 적게 나온 원인은 짚지 않음</div></div></div>
+                    <div class="s03-tl-msg user"><span class="s03-tl-dot"></span><div class="s03-tl-bubble"><div class="s03-tl-meta"><span class="s03-tl-turn">25번째 대화</span>나의 요청</div><div class="s03-tl-content">재실행 결과를 그대로 수용 <span style="color:var(--muted-foreground);">(어느 단계가 문제였는지 확인 없이 진행)</span></div></div></div>
+                </div>
+                <div class="s03-tl-impact need">관찰 · 입력값·조건·처리 과정 중 <strong>어디서 문제가 생겼는지 구분하는 요청이 없었습니다</strong>. 채점 영향 · <strong>실행 환경 관리 7.0점(평균 7.6 이하)</strong></div>
+            </div>
+            <div class="s03-guide-card">
+                <div class="s03-card-top">
+                    <div class="s03-card-title">예상과 다른 결과가 나오면 수정 전에 원인부터 나눠보세요</div>
+                    <span class="s03-type-badge need">보완 필요</span>
+                </div>
+                <div class="s03-section"><div class="s03-section-label">이렇게 활용하세요</div><ol class="s03-steps"><li>오류가 입력값·조건·처리 과정·결과 중 어디서 났는지 구분합니다.</li><li>AI에게 바로 수정하지 말고 가능한 원인을 먼저 설명하도록 요청합니다.</li><li>원인을 확인한 뒤 필요한 수정만 진행합니다.</li></ol></div>
+                <div class="s03-prompt-box"><div class="s03-section-label">바로 활용할 수 있는 문장</div><p class="s03-prompt-text">"아직 수정하지 말고, 입력값·조건·처리 과정·결과 중 어느 단계에서 문제가 생겼는지 먼저 나눠서 분석해줘."</p></div>
+            </div>
+
+            <!-- 3) 추가 제안 -->
+            <h3 class="s01-area-heading">3. 추가로 제안하는 개선점</h3>
+            <div class="s03-tl-block suggest">
+                <div class="s03-tl-ov-label"><span>구간 돋보기</span><span class="s03-tl-ov-range">전체 30번의 대화 중 10~14번째 확대</span></div>
+                <div class="s03-tl-track">
+                    <span class="s03-tl-ellipsis">…</span><span class="s03-tl-seg"></span>
+                    <span class="s03-tl-node">10</span>
+                    <span class="s03-tl-seg"></span>
+                    <span class="s03-tl-node active">11</span>
+                    <span class="s03-tl-seg active"></span>
+                    <span class="s03-tl-node active">12</span>
+                    <span class="s03-tl-seg active"></span>
+                    <span class="s03-tl-node active">13</span>
+                    <span class="s03-tl-seg"></span>
+                    <span class="s03-tl-node">14</span>
+                    <span class="s03-tl-seg"></span><span class="s03-tl-ellipsis">…</span>
+                </div>
+                <div class="s03-tl-flow">
+                    <div class="s03-tl-msg user"><span class="s03-tl-dot"></span><div class="s03-tl-bubble"><div class="s03-tl-meta"><span class="s03-tl-turn">11번째 대화</span>나의 요청</div><div class="s03-tl-content quote">"이제 과제 2 시작할게. 지원자 전체 데이터로 판정 결과를 한 번에 만들어줘."</div></div></div>
+                    <div class="s03-tl-msg ai"><span class="s03-tl-dot"></span><div class="s03-tl-bubble"><div class="s03-tl-meta"><span class="s03-tl-turn">11번째 대화</span>AI가 한 작업</div><div class="s03-tl-content">전체 지원자 데이터를 한 번에 처리해 판정 결과를 생성 — 과제 1에서 효과 본 ‘1건 먼저 확인’은 적용되지 않음</div></div></div>
+                </div>
+                <div class="s03-tl-impact suggest">관찰 · 과제 1에서 효과를 본 ‘1건 먼저 확인’ 방식이 과제 2를 시작할 때 이어지지 않았습니다. <strong>잘 통한 방식을 작업마다 일관되게 재사용</strong>하면 과제 2의 형식 오류 같은 실수를 줄일 수 있습니다.</div>
+            </div>
+            <div class="s03-guide-card">
+                <div class="s03-card-top">
+                    <div class="s03-card-title">한 번 잘 통한 요청 방식을 다음 작업에도 그대로 재사용하세요</div>
+                    <span class="s03-type-badge suggest">추가 제안</span>
+                </div>
+                <div class="s03-section"><div class="s03-section-label">이렇게 활용하세요</div><ol class="s03-steps"><li>효과가 좋았던 요청 문장을 따로 메모해 둡니다.</li><li>비슷한 작업에서 그 문장을 그대로 다시 사용합니다.</li><li>작업마다 ‘일부 먼저 확인’ 같은 검증 단계를 빠뜨리지 않습니다.</li></ol></div>
+                <div class="s03-prompt-box"><div class="s03-section-label">바로 활용할 수 있는 문장</div><p class="s03-prompt-text">"지난 작업에서 효과가 좋았던 ‘1건 먼저 확인’ 방식으로 이번 작업도 진행하자. 먼저 일부만 처리하고 형식까지 확인할게."</p></div>
+                <div class="s03-suggest-note">※ 이 항목은 평가 점수에 반영되지 않은, 일반적으로 권하는 AI 활용 습관입니다.</div>
+            </div>
+        </section>
+
+        <!-- 섹션 4: 다른 응시자에게 배우는 AI 활용법 -->
+
+        <section class="card" style="order: 6;">
+            <h2 class="card-title">
+                <span class="icon-number">04</span>
+                다른 응시자에게 배우는 AI 활용법
+            </h2>
+            <p style="color: var(--muted-foreground); font-size: 13px; margin-bottom: 24px; line-height: 1.6;">
+                아래 내용은 점수 비교 대상과 별도로, 같은 회차 응시자 55명의 AI 채팅 로그를 분석한 결과입니다. 다른 응시자가 AI에게 작업을 요청하고 결과를 검토한 방식을 참고해보세요.
+            </p>
+            <p style="font-size: 10.5px; color: var(--muted-foreground); margin-bottom: 20px; line-height: 1.5;">04의 채팅 로그 분석은 채팅 기록이 있는 응시자만 포함되어, 01의 점수 비교 집단과 인원이 다를 수 있습니다.</p>
+
+            <h3 class="s01-area-heading">전체 응시자 AI 협업 패턴</h3>
+            <!-- 첫 메시지 전략 분포 -->
+            <div style="margin-bottom: 28px;">
+                <h3 style="font-size: 15px; font-weight: 600; color: var(--card-foreground); margin-bottom: 14px;">첫 메시지 전략 분포</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <span style="font-size: 12px; color: var(--card-foreground);">짧은 지시형</span>
+                                <span style="font-size: 12px; font-weight: 600; color: var(--primary);">57.3%</span>
+                            </div>
+                            <div style="height: 6px; background: var(--secondary); border-radius: 3px; overflow: hidden;">
+                                <div style="height: 100%; width: 57.3%; background: var(--primary); border-radius: 3px; transition: width 0.3s;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <span style="font-size: 12px; color: var(--card-foreground);">상세 지시형</span>
+                                <span style="font-size: 12px; font-weight: 600; color: var(--primary);">22.7%</span>
+                            </div>
+                            <div style="height: 6px; background: var(--secondary); border-radius: 3px; overflow: hidden;">
+                                <div style="height: 100%; width: 22.7%; background: var(--primary); border-radius: 3px; transition: width 0.3s;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <span style="font-size: 12px; color: var(--card-foreground);">분석 우선형</span>
+                                <span style="font-size: 12px; font-weight: 600; color: var(--primary);">10.0%</span>
+                            </div>
+                            <div style="height: 6px; background: var(--secondary); border-radius: 3px; overflow: hidden;">
+                                <div style="height: 100%; width: 10.0%; background: var(--primary); border-radius: 3px; transition: width 0.3s;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <span style="font-size: 12px; color: var(--card-foreground);">역할 부여형</span>
+                                <span style="font-size: 12px; font-weight: 600; color: var(--primary);">6.4%</span>
+                            </div>
+                            <div style="height: 6px; background: var(--secondary); border-radius: 3px; overflow: hidden;">
+                                <div style="height: 100%; width: 6.4%; background: var(--primary); border-radius: 3px; transition: width 0.3s;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <span style="font-size: 12px; color: var(--card-foreground);">구조화 목록형</span>
+                                <span style="font-size: 12px; font-weight: 600; color: var(--primary);">3.6%</span>
+                            </div>
+                            <div style="height: 6px; background: var(--secondary); border-radius: 3px; overflow: hidden;">
+                                <div style="height: 100%; width: 3.6%; background: var(--primary); border-radius: 3px; transition: width 0.3s;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+                <p style="font-size: 11px; color: var(--muted-foreground); margin-top: 10px; line-height: 1.5;">
+                    * 짧은 지시형은 100자 미만, 상세 지시형은 목표·조건·결과 형식을 포함한 500자 이상의 첫 메시지입니다.
+                </p>
+            </div>
+
+            <div class="s04-learning-point"><div class="s04-learning-label">여기서 배울 점</div><p class="s04-learning-text">복잡한 작업에서는 요청을 길게 쓰는 것보다 목표, 제약조건과 원하는 결과 형식을 빠뜨리지 않고 전달하는 것이 중요합니다.</p></div>
+
+
+            <!-- 구조화 수준 -->
+            <div style="margin-bottom: 16px;">
+                <h3 style="font-size: 15px; font-weight: 600; color: var(--card-foreground); margin-bottom: 14px;">프롬프트 구조화 수준</h3>
+                <div style="background: var(--muted); border-radius: 10px; padding: 16px;">
+                    <div style="margin-bottom: 8px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                            <span style="font-size: 11px; color: var(--secondary-foreground);">고구조화</span>
+                            <span style="font-size: 11px; font-weight: 600; color: var(--success);">45.5%</span>
+                        </div>
+                        <div style="height: 5px; background: var(--secondary); border-radius: 3px; overflow: hidden;">
+                            <div style="height: 100%; width: 45.5%; background: var(--success); border-radius: 3px;"></div>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                            <span style="font-size: 11px; color: var(--secondary-foreground);">반구조화</span>
+                            <span style="font-size: 11px; font-weight: 600; color: var(--warning);">21.8%</span>
+                        </div>
+                        <div style="height: 5px; background: var(--secondary); border-radius: 3px; overflow: hidden;">
+                            <div style="height: 100%; width: 21.8%; background: var(--warning); border-radius: 3px;"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                            <span style="font-size: 11px; color: var(--secondary-foreground);">비구조화</span>
+                            <span style="font-size: 11px; font-weight: 600; color: var(--muted-foreground);">32.7%</span>
+                        </div>
+                        <div style="height: 5px; background: var(--secondary); border-radius: 3px; overflow: hidden;">
+                            <div style="height: 100%; width: 32.7%; background: var(--border); border-radius: 3px;"></div>
+                        </div>
+                    </div>
+                </div>
+                <p style="font-size: 11px; color: var(--muted-foreground); margin-top: 10px; line-height: 1.5;">
+                    고구조화는 번호 목록, 제약조건과 결과 형식 중 두 가지 이상을 명확히 제시한 경우입니다. 요청이 길기보다 필요한 조건을 구조적으로 전달했는지가 중요합니다.
+                </p>
+            </div>
+
+            <div class="s04-learning-point"><div class="s04-learning-label">여기서 배울 점</div><p class="s04-learning-text">AI가 작업 방향을 정확히 이해하도록 목표, 조건과 결과 형식을 구분해서 전달해보세요.</p></div>
+
+
+
+            
+            <h3 class="s01-area-heading">AI 결과를 검증하는 대표 방식</h3>
+            <p style="color: var(--muted-foreground); font-size: 12px; margin-bottom: 16px; line-height: 1.6;">아래 내용은 행동별 사용 비율을 집계한 통계가 아니라, 우수 대화 사례에서 확인된 대표적인 AI 검증 방식입니다.</p>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                <div style="background: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;">
+                    <div style="font-size: 13px; font-weight: 700; color: var(--foreground); margin-bottom: 6px;">실행 전에 접근 방법부터 확인하기</div>
+                    <p style="font-size: 12px; color: var(--foreground); line-height: 1.6; margin: 0 0 8px 0;">AI에게 바로 결과를 만들도록 맡기지 않고, 어떤 순서와 기준으로 작업할지 먼저 설명하도록 요청하는 방식입니다.</p>
+                    <div style="font-size: 10.5px; color: var(--muted-foreground);">관련 예시: 단계별 승인 통제, 분석 우선 + 확실성 수준 구분</div>
+                </div>
+                <div style="background: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;">
+                    <div style="font-size: 13px; font-weight: 700; color: var(--foreground); margin-bottom: 6px;">확인된 사실과 추정을 구분하기</div>
+                    <p style="font-size: 12px; color: var(--foreground); line-height: 1.6; margin: 0 0 8px 0;">AI가 확실하지 않은 내용을 사실처럼 제시하지 않도록, 확정된 내용과 추정 또는 추가 확인이 필요한 내용을 구분하게 합니다.</p>
+                    <div style="font-size: 10.5px; color: var(--muted-foreground);">관련 예시: 분석 우선 + 확실성 수준 구분, 가정 명시 및 검증 요청</div>
+                </div>
+                <div style="background: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;">
+                    <div style="font-size: 13px; font-weight: 700; color: var(--foreground); margin-bottom: 6px;">예외 상황과 위험 요소 확인하기</div>
+                    <p style="font-size: 12px; color: var(--foreground); line-height: 1.6; margin: 0 0 8px 0;">정상적인 상황뿐 아니라 오류, 경계 조건과 예상하지 못한 부작용까지 함께 검토하도록 요청하는 방식입니다.</p>
+                    <div style="font-size: 10.5px; color: var(--muted-foreground);">관련 예시: 아키텍처 스트레스 테스트, 사이드이펙트 선제 분석, 교차 영향 분석</div>
+                </div>
+                <div style="background: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;">
+                    <div style="font-size: 13px; font-weight: 700; color: var(--foreground); margin-bottom: 6px;">제약조건 위반 여부 확인하기</div>
+                    <p style="font-size: 12px; color: var(--foreground); line-height: 1.6; margin: 0 0 8px 0;">AI가 제안한 방법이 최초 요구사항이나 금지 조건을 어기지 않는지 다시 확인하고, 조건에 맞지 않으면 다른 방법을 요청합니다.</p>
+                    <div style="font-size: 10.5px; color: var(--muted-foreground);">관련 예시: 제약조건 위반 즉시 기각, 구현 계획 비판적 검토</div>
+                </div>
+                <div style="background: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; grid-column: 1 / -1;">
+                    <div style="font-size: 13px; font-weight: 700; color: var(--foreground); margin-bottom: 6px;">결과가 실제 기준을 충족하는지 재검증하기</div>
+                    <p style="font-size: 12px; color: var(--foreground); line-height: 1.6; margin: 0 0 8px 0;">작업이 완료됐다는 AI의 답변만 믿지 않고, 테스트 기준과 예외 사례를 기준으로 결과를 다시 검증합니다.</p>
+                    <div style="font-size: 10.5px; color: var(--muted-foreground);">관련 예시: 자기주도 엣지케이스 테스트 설계, 구현 계획 비판적 검토</div>
+                </div>
+            </div>
+
+            <div class="s04-learning-point"><div class="s04-learning-label">여기서 배울 점</div><p class="s04-learning-text">AI가 만든 결과를 바로 사용하는 것보다 작업 방법, 판단 근거, 예외 상황과 최종 요구사항 충족 여부를 다시 확인하는 과정이 중요합니다.</p></div>
+
+            <h3 class="s01-area-heading">우수 대화 예시</h3>
+            <p style="color: var(--muted-foreground); font-size: 13px; margin-bottom: 20px; line-height: 1.6;">전체 응시자의 실제 대화 중 AI를 효과적으로 활용한 사례를 발췌했습니다. 과제 내용보다 AI에게 작업을 요청하고 검토하는 방식에 주목해보세요.</p>
+
+            <div class="example-section">
+                <!-- 좋은 예시: 분석 우선 & 구조화된 접근 -->
+                <div class="example-box good">
+                    <h4>분석 우선 &amp; 구조화된 접근</h4>
+                    <div class="chat-example">
+                        <div class="role user">단계별 승인 통제</div>
+                        <div class="content">"다음 단계에 따라 작업을 진행한다. 각 단계를 완료하고, 다음 단계를 진행하기 전에 나에게 승인을 받아야 해.<br>1단계: 문제 정의 + 요구사항 검증<br>2단계: 접근법 요청<br>3단계: 선택 근거 남기기<br>4단계: 테스트 전략 수립<br>5단계: 구현<br>6단계: 구현 후 검증<br>7단계: 코드리뷰<br>8단계: 학습 + 회고"</div>
+                    </div>
+                    <div class="chat-example">
+                        <div class="role user">분석 우선 + 확실성 수준 구분</div>
+                        <div class="content">"우선 코드 수정은 절대 하지 말고, 분석만 진행해줘.<br><br>중요 지시사항:<br>- 추측을 사실처럼 쓰지 말고, '확정', '추정', '추가 확인 필요'를 구분해서 작성하라.<br>- DB 스키마 변경, 패키지 추가, src/db.js 수정을 해결책으로 제안하지 마라.<br><br>분석 범위: 체크인 흐름 / 포인트 적립·차감 로직 / 연속 출석 보너스 / 캠페인 적용 조건 / 시간대 경계 / 동시성 가능성"</div>
+                    </div>
+                    <div class="chat-example">
+                        <div class="role user">결함 유형 관점 재분류</div>
+                        <div class="content">"이 문제들을 단순 개별 버그가 아니라 '결함 유형' 관점에서 재분류하세요.<br>1. 동시성 문제 (race condition)<br>2. 시간 경계 처리 오류<br>3. 보너스 계산 로직 순서 문제<br>4. 데이터 정합성 문제<br>5. 활동 사용자 판정 오류<br><br>이 단계에서는 코드 수정 제안을 하지 말고 문제 구조를 먼저 명확하게 정의하세요."</div>
+                    </div>
+                    <div class="chat-example">
+                        <div class="role user">아키텍처 스트레스 테스트</div>
+                        <div class="content">"이번 단계의 목적은 정상 상황에서 맞는지 확인하는 것이 아니라, 트래픽 급증, 락 경합, 데드락, 지연 같은 최악의 운영 시나리오에서도 이 설계가 버틸 수 있는지 비판적으로 검증하는 것입니다. 아직 코드는 작성하지 마세요.<br><br>1. 동시성 급증 시 체크인 처리 안정성<br>2. reward redeem / checkin 간 락 경합<br>3. 데드락 가능성<br>4. 경계 시각(자정, 월요일 00:00, 캠페인 시작/종료) 처리"</div>
+                    </div>
+                    <div class="chat-example">
+                        <div class="role user">가정 명시 및 검증 요청</div>
+                        <div class="content">"내가 전제하고 있는 가정(Assumptions):<br>1. SQLite의 datetime('now')가 UTC 기준으로 동작한다고 가정<br>2. BYPASS_AUTH=true 환경에서는 user_id 파라미터로 사용자를 식별한다고 가정<br>3. 금액 경계값은 '이하/초과' 기준으로 처리 (50만원까지 = 50만원 포함)<br><br>이 이해가 맞는지 확인해줘. 내가 세운 가정 중 위험하거나 틀릴 수 있는 것이 있다면 반드시 알려줘."</div>
+                    </div>
+                </div>
+
+                <!-- 좋은 예시: 비판적 사고 & 검증 -->
+                <div class="example-box good">
+                    <h4>비판적 사고 &amp; 검증</h4>
+                    <div class="chat-example">
+                        <div class="role user">구현 계획 비판적 검토</div>
+                        <div class="content">"지금 작성된 구현 계획을 비판적으로 검토해보자.<br>1. advisory lock 방식이 실제 환경에서 문제를 만들 가능성<br>2. KST 날짜 처리 방식이 다른 코드와 충돌할 가능성<br>3. 트랜잭션/락 순서에서 데드락이 발생할 가능성<br>4. hidden test에서 실패할 수 있는 edge case<br>5. 더 작은 변경으로 같은 문제를 해결할 수 있는 방법이 있는지<br><br>리스크가 될 수 있는 부분과 대안 구현 방식이 있다면 함께 설명해줘."</div>
+                    </div>
+                    <div class="chat-example">
+                        <div class="role user">제약조건 위반 즉시 기각</div>
+                        <div class="content">"ON CONFLICT를 쓰려면 checkin_logs에 UNIQUE 제약이 있어야 하는데, 제약사항에 DB 스키마 변경 금지라고 했거든. 인덱스 추가도 안 되니까 ON CONFLICT 방식은 못 써. 스키마 안 건드리고 코드 레벨에서만 해결해야 해.<br><br>수정은 한번에 다 하지 말고, 체크인 쪽 버그 3개부터 먼저 잡고 테스트 돌려보자."</div>
+                    </div>
+                    <div class="chat-example">
+                        <div class="role user">자기주도 엣지케이스 테스트 설계</div>
+                        <div class="content">"38/38 통과 좋다. 근데 'tests/public 통과만으로는 해결 완료가 아니다'라고 명시돼 있거든.<br><br>[정확성] 동시 체크인: 같은 userId로 동시 2개 요청 시 하나만 성공하는지 / streak 29→30→31 전환 시 포인트 일관성 / 캠페인 시작/종료 시각 경계<br>[일관성] 리더보드에서 이전 주 데이터가 안 섞이는지 / 총발행 - 총사용 ≈ 총잔액 정합성<br>[안정성] 배율 상한 초과: Diamond 등급 사용자 체크인 시 최대 250P를 안 넘는지"</div>
+                    </div>
+                    <div class="chat-example">
+                        <div class="role user">사이드이펙트 선제 분석</div>
+                        <div class="content">"이 기능을 적용했을 때 발생할 수 있는 최악의 사이드 이펙트는 뭐야? 그리고 위에서 제시한 사이드 이펙트를 대비하기 위해선 어떤 검증 코드를 먼저 작성해야 할까?<br><br>너는 나의 전략적 파트너 혹은 비판적 검토자이지 결정권자가 아니야. 너가 먼저 멋대로 해결하려고 하지 마."</div>
+                    </div>
+                    <div class="chat-example">
+                        <div class="role user">교차 영향 분석</div>
+                        <div class="content">"동시 체크인(FOR UPDATE), 배율 상한 재계산, 활동 사용자 검증 — 세 가지 수정이 서로 교차 영향을 미칠 수 있는 시나리오를 분석해줘:<br>1. FOR UPDATE 락이 보상 교환 쿼리와 데드락을 일으킬 가능성<br>2. 배율 캡이 적용된 포인트로 보상 교환 시 잔액 정합성<br>3. 동시 보상 교환 요청의 동시성 안전성<br><br>발견된 위험이 있으면 수정 방안도 함께 제안해줘."</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+
+        <!-- 푸터 -->
+        <footer class="footer" style="order: 100;">
+            <div class="footer-logo">CATCHUP AX</div>
+            <p>
+                CATCHUP AX AI 역량 검사 리포트는 AI-TEST 평가 시스템을 기반으로 자동 생성되었습니다.<br>
+                문의사항: <a href="mailto:aiteam01@jinhakapply.com">aiteam01@jinhakapply.com</a>
+            </p>
+            <p style="margin-top: 16px; opacity: 0.6;">
+                © 2026 CATCHUP AX. All rights reserved.
+            </p>
+        </footer>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 점수 데이터 (Python에서 주입)
+        const allScores = [99.0, 97.0, 96.2, 96.0, 95.9, 95.6, 94.9, 94.0, 93.7, 93.3, 93.2, 93.1, 93.0, 92.6, 92.3, 92.0, 91.8, 91.2, 90.7, 90.5, 90.5, 90.3, 89.9, 89.8, 89.6, 89.5, 89.5, 88.9, 88.8, 88.3, 88.3, 88.2, 88.2, 88.2, 88.2, 88.1, 88.0, 87.8, 87.3, 87.3, 87.0, 87.0, 86.9, 86.9, 86.8, 86.7, 86.5, 86.2, 85.9, 85.8, 85.7, 85.5, 85.0, 84.9, 84.4, 84.2, 84.1, 83.9, 83.8, 83.8, 83.7, 83.5, 83.2, 83.0, 82.8, 82.4, 82.1, 82.0, 81.5, 81.2, 81.2, 81.1, 81.1, 80.9, 80.8, 80.8, 80.7, 80.3, 80.2, 80.0, 79.3, 78.8, 78.2, 77.5, 77.2, 77.2, 77.1, 76.9, 75.4, 75.4, 75.0, 75.0, 74.7, 74.5, 74.4, 74.4, 73.0, 71.3, 70.8, 69.7, 69.7, 69.7, 69.3, 69.3, 69.2, 69.0, 69.0, 67.8, 67.4, 67.2, 67.0, 65.0, 64.4, 61.7, 61.3, 61.2, 60.4, 55.0, 54.8, 54.0, 48.8, 35.2, 29.8];
+        const myScore = 85.5;
+
+        // 통계 계산
+        const average = allScores.reduce((a, b) => a + b, 0) / allScores.length;
+        const sortedScores = [...allScores].sort((a, b) => a - b);
+        const median = sortedScores[Math.floor(sortedScores.length / 2)];
+
+        // 등수·백분위 계산
+        const totalCount = allScores.length;
+        const rank = allScores.filter(function(s){return s > myScore}).length + 1;
+        const lowerCount = allScores.filter(function(s){return s < myScore}).length;
+        const percentile = Math.round(lowerCount / totalCount * 1000) / 10;
+        const topPercent = Math.round(rank / totalCount * 1000) / 10;
+        // UI 갱신
+        var uel;
+        uel=document.getElementById('rankValue');if(uel)uel.textContent=rank;
+        uel=document.getElementById('rankTotal');if(uel)uel.textContent=totalCount;
+        uel=document.getElementById('percentileValue');if(uel)uel.textContent=percentile.toFixed(1);
+        uel=document.getElementById('topPercentValue');if(uel)uel.textContent=topPercent.toFixed(1);
+
+        // 히스토그램 데이터 생성 (5점 단위 구간, 동적 범위)
+        const binSize = 5;
+        const minBin = Math.floor(Math.min.apply(null,allScores) / binSize) * binSize;
+        const maxBin = Math.ceil(Math.max.apply(null,allScores) / binSize) * binSize;
+        const bins = [];
+        const binLabels = [];
+
+        for (let i = minBin; i < maxBin; i += binSize) {
+            bins.push(0);
+            binLabels.push(`${i}-${i + binSize}`);
+        }
+
+        allScores.forEach(function(score) {
+            var binIndex = Math.floor((score - minBin) / binSize);
+            binIndex = Math.min(binIndex, bins.length - 1);
+            if (binIndex >= 0) {
+                bins[binIndex]++;
+            }
+        });
+
+        // 빈도 기반 그라데이션
+        const maxBinCount = Math.max(...bins);
+
+        const barColors = bins.map((count) => {
+            const intensity = count / maxBinCount;
+            const alpha = 0.1 + (intensity * 0.38);
+            return `rgba(100, 116, 139, ${alpha})`;
+        });
+
+        const barBorders = bins.map((count) => {
+            const intensity = count / maxBinCount;
+            const alpha = 0.2 + (intensity * 0.35);
+            return `rgba(71, 85, 105, ${alpha})`;
+        });
+
+        // 정규 분포 곡선 데이터 생성
+        const mean = average;
+        const stdDev = Math.sqrt(allScores.reduce((sum, x) => sum + Math.pow(x - mean, 2), 0) / allScores.length);
+
+        const distributionCurve = bins.map((_, i) => {
+            const x = minBin + (i + 0.5) * binSize;
+            const z = (x - mean) / stdDev;
+            const pdf = Math.exp(-0.5 * z * z) / (stdDev * Math.sqrt(2 * Math.PI));
+            return pdf * allScores.length * binSize;
+        });
+
+        // 점수를 차트 x축 위치로 변환
+        const scoreToPosition = (score) => (score - minBin) / binSize - 0.5;
+
+        // Chart.js 설정
+        const ctx = document.getElementById('distributionChart').getContext('2d');
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: binLabels,
+                datasets: [
+                    {
+                        label: '인원 수',
+                        data: bins,
+                        backgroundColor: barColors,
+                        borderColor: barBorders,
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        barPercentage: 0.85,
+                        order: 2
+                    },
+                    {
+                        label: '분포 곡선',
+                        data: distributionCurve,
+                        type: 'line',
+                        borderColor: 'rgba(148, 163, 184, 0.35)',
+                        borderWidth: 1.5,
+                        fill: false,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        order: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 2.0,
+                resizeDelay: 0,
+                animation: false,  // PDF 변환 시 애니메이션 비활성화
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(17, 24, 39, 0.92)',
+                        titleFont: { family: 'Noto Sans KR', size: 12 },
+                        bodyFont: { family: 'Noto Sans KR', size: 11 },
+                        padding: 10,
+                        cornerRadius: 6,
+                        filter: (item) => item.datasetIndex === 0,
+                        callbacks: {
+                            title: (items) => `${items[0].label}점 구간`,
+                            label: (item) => `${item.raw}명`
+                        }
+                    },
+                    annotation: {
+                        annotations: {
+                            averageLine: {
+                                type: 'line',
+                                xMin: scoreToPosition(average),
+                                xMax: scoreToPosition(average),
+                                borderColor: '#2563EB',
+                                borderWidth: 2,
+                                borderDash: [6, 4],
+                                label: {
+                                    display: true,
+                                    content: `평균 ${average.toFixed(2)}점`,
+                                    position: 'end',
+                                    backgroundColor: '#2563EB',
+                                    color: 'white',
+                                    font: { family: 'Noto Sans KR', size: 10, weight: '600' },
+                                    padding: { x: 7, y: 4 },
+                                    borderRadius: 4,
+                                    yAdjust: 0
+                                }
+                            },
+                            medianLine: {
+                                type: 'line',
+                                xMin: scoreToPosition(median),
+                                xMax: scoreToPosition(median),
+                                borderColor: '#6B7280',
+                                borderWidth: 1.5,
+                                borderDash: [3, 3],
+                                label: {
+                                    display: true,
+                                    content: '중앙값 ' + median.toFixed(1) + '점',
+                                    position: 'end',
+                                    backgroundColor: '#6B7280',
+                                    color: '#FFFFFF',
+                                    font: { family: "'Noto Sans KR', sans-serif", size: 10 },
+                                    padding: { x: 6, y: 3 },
+                                    borderRadius: 3,
+                                    yAdjust: 44
+                                }
+                            },
+                            myScoreLine: {
+                                type: 'line',
+                                xMin: scoreToPosition(myScore),
+                                xMax: scoreToPosition(myScore),
+                                borderColor: '#EF4444',
+                                borderWidth: 4,
+                                borderShadowColor: 'rgba(239, 68, 68, 0.55)',
+                                shadowBlur: 14,
+                                shadowOffsetX: 0,
+                                shadowOffsetY: 0,
+                                label: {
+                                    display: true,
+                                    content: `★ 나의 점수: ${myScore}점`,
+                                    position: 'start',
+                                    backgroundColor: '#EF4444',
+                                    color: 'white',
+                                    font: {
+                                        family: 'Noto Sans KR',
+                                        size: 12,
+                                        weight: '700'
+                                    },
+                                    padding: { x: 10, y: 5 },
+                                    borderRadius: 5,
+                                    yAdjust: -10
+                                }
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: '점수 구간',
+                            font: { family: 'Noto Sans KR', size: 12, weight: '500' },
+                            color: 'rgb(131, 130, 125)'
+                        },
+                        grid: { display: false },
+                        ticks: {
+                            font: { family: 'Noto Sans KR', size: 11 },
+                            color: 'rgb(131, 130, 125)'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: '인원 수',
+                            font: { family: 'Noto Sans KR', size: 12, weight: '500' },
+                            color: 'rgb(131, 130, 125)'
+                        },
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1,
+                            font: { family: 'Noto Sans KR', size: 11 },
+                            color: 'rgb(131, 130, 125)'
+                        },
+                        grid: { color: 'rgba(218, 217, 212, 0.5)' }
+                    }
+                }
+            }
+        });
+    });
+
+        // ── 섹션 02 레이더 차트 ──
+        (function() {
+            var el = document.getElementById('radarChart02');
+            if (!el) return;
+            new Chart(el.getContext('2d'), {
+                type: 'radar',
+                data: {
+                    labels: ['문제 정의', 'AI 출력 검토', '실행 환경 관리', '완성 및 가치', '불확실성 관리'],
+                    datasets: [
+                        {
+                            label: '내 점수',
+                            data: [9.0, 9.0, 7.0, 8.0, 8.0],
+                            backgroundColor: 'rgba(79,99,231,0.15)',
+                            borderColor: '#4F63E7',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#4F63E7',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 1.5,
+                            pointRadius: 4
+                        },
+                        {
+                            label: '평균',
+                            data: [8.5, 8.48, 7.59, 7.62, 7.64],
+                            backgroundColor: 'rgba(156,163,175,0.08)',
+                            borderColor: '#9CA3AF',
+                            borderWidth: 1.5,
+                            borderDash: [4,4],
+                            pointBackgroundColor: '#9CA3AF',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 1,
+                            pointRadius: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { family: "'Noto Sans KR',sans-serif", size: 11 },
+                                padding: 14,
+                                usePointStyle: true,
+                                pointStyleWidth: 10,
+                                color: '#6B7280'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    return ctx.dataset.label + ': ' + parseFloat(ctx.parsed.r).toFixed(1);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        r: {
+                            min: 0,
+                            max: 10,
+                            ticks: { stepSize: 2, font: { size: 9 }, color: '#9CA3AF', backdropColor: 'transparent' },
+                            pointLabels: { font: { family: "'Noto Sans KR',sans-serif", size: 10.5, weight: '600' }, color: '#374151' },
+                            grid: { color: '#E5E7EB' },
+                            angleLines: { color: '#E5E7EB' }
+                        }
+                    }
+                }
+            });
+        })();
+    </script>
+
+</body></html>

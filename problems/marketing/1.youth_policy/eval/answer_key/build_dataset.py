@@ -12,15 +12,15 @@
                                  · income_year_max : 연 소득 상한(원). 비면 무관(월소득과 별개 축).
                                  · matchable : 'Y'(기본)|'N'. N=회원 명단으로 자격을 확인 불가한
                                    정책 → 아무에게도 추천하지 않음(매칭 0건, 의도된 결함).
-  data/policies/*                실제 정책 홍보 포스터(사용자가 직접 넣음).
+  데이터/1_포스터/*                실제 정책 홍보 포스터(사용자가 직접 넣음).
                                  ── 이 스크립트는 이 폴더를 절대 만들거나 지우거나 건드리지 않는다.
 
 [출력]
-  data/members.xlsx                  회원 DB (약 1,000명, 정책 axes 기반 경계 함정 자동 포함)
-  data/policy_table_template.xlsx    Part1 제출 양식(식별칸만 채운 빈 표 + '안내' 시트)
-  data/targeting_template.xlsx       Part2 제출 양식(빈 표 + '안내' + 예시행)
-  eval/answer_key/policy_table_answer.xlsx   Part1 정답
-  eval/answer_key/targeting_answer.xlsx      Part2 정답 ((회원ID,정책ID) 매칭 전부)
+  데이터/2_회원명단.xlsx               회원 DB (약 1,000명, 정책 axes 기반 경계 함정 자동 포함)
+  데이터/1_정책정리표_제출용.xlsx      Part1 제출 양식(식별칸만 채운 빈 표 + '안내' 시트)
+  데이터/2_추천리스트_제출용.xlsx      Part2 제출 양식(빈 표 + '안내' + 예시행)
+  eval/answer_key/1_정책정리표_정답.xlsx   Part1 정답(eval 내부라 영어 유지)
+  eval/answer_key/2_추천리스트_정답.xlsx      Part2 정답 ((회원ID,정책ID) 매칭 전부, 영어 유지)
 
 [고정 기준일]
   ASSIGN_DATE = 2026-06-28 (신입 마케터가 과제를 받은 날). datetime.now() 절대 금지.
@@ -43,10 +43,10 @@ from openpyxl.styles import Font, PatternFill, Alignment
 # 경로 / 기준일 / 시드
 # ----------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parents[2]          # .../1.youth_policy
-DATA = ROOT / "data"
+DATA = ROOT / "데이터"
 ANS  = ROOT / "eval" / "answer_key"
 CSV_PATH = ANS / "policies.csv"
-# 주의: data/policies/ 의 실제 포스터는 사용자가 넣는다 → 코드는 손대지 않는다.
+# 주의: 데이터/1_포스터/ 의 실제 포스터는 사용자가 넣는다 → 코드는 손대지 않는다.
 DATA.mkdir(parents=True, exist_ok=True)
 ANS.mkdir(parents=True, exist_ok=True)
 
@@ -571,7 +571,7 @@ def write_members(members):
     for m in members:
         ws.append([m[c] for c in MEMBER_COLS])
     ws.freeze_panes = "A2"
-    wb.save(DATA / "members.xlsx")
+    wb.save(DATA / "2_회원명단.xlsx")
 
 
 def p1_row(p, answer):
@@ -600,8 +600,8 @@ def build_p1(path, policies, answer):
     g.title = "안내"
     guide = [
         ["항목", "설명"],
-        ["행 단위", "정책 1건 (data/policies/ 의 포스터 전부)"],
-        ["입력", "data/policies/ 의 실제 정책 포스터·공고문(PDF·이미지)"],
+        ["행 단위", "정책 1건 (데이터/1_포스터/ 의 공고문 전부)"],
+        ["입력", "데이터/1_포스터/ 의 실제 정책 포스터·공고문(PDF·이미지)"],
         ["★날짜 안 봄", "신청 날짜(신청시작·신청마감)는 보지 않는다. 마감일이 언제든 무관 — 자격 조건만 추출한다"],
         ["채점 칸", "거주지요건, 연령_min/max, 취업요건, 기업규모요건, 소득상한_월_원, 연소득상한_원, 무주택요건, 학력요건, 혼인요건"],
         ["거주지요건", "허용값: '전국' 또는 '서울특별시' 또는 '서울특별시 관악구'(시도/자치구). 포스터 그대로. 예: 전국"],
@@ -614,7 +614,7 @@ def build_p1(path, policies, answer):
         ["학력요건", "허용값: '재학'(대학·대학원 재학/휴학)·'졸업'(졸업 후)·빈칸(무관). 예: 재학"],
         ["혼인요건", "허용값: '신혼부부'·'미혼'·빈칸(무관). 예: 미혼"],
         ["빈칸 규칙", "빈칸 = 제약 없음(무관). 0과 빈칸은 다르다 — 무관 칸에 0이나 '무관' 글자를 넣지 말고 비운다"],
-        ["★확인 불가 규칙", "포스터에 안 나오거나 회원 명단(members.xlsx 컬럼)으로 잴 수 없는 자격 칸은 비운다(억지 숫자=오답). "
+        ["★확인 불가 규칙", "포스터에 안 나오거나 회원 명단(2_회원명단.xlsx 컬럼)으로 잴 수 없는 자격 칸은 비운다(억지 숫자=오답). "
                           "명단으로 자격을 끝까지 확인할 수 없는 정책은 Part2에서도 아무에게도 추천하지 않는다 — 확실할 때만"],
         ["정책명·분야", "참조용(채점 대상 아님). 이미 채워져 있음"],
     ]
@@ -642,9 +642,9 @@ def build_p2(path, matches, answer):
     g.title = "안내"
     guide = [
         ["항목", "설명"],
-        ["행 단위", "(회원 × 추천정책) 1조합"],
-        ["입력", "data/members.xlsx + Part1에서 정리한 정책표(자격만, 날짜 무관)"],
-        ["회원ID", "members.xlsx의 회원 식별자(M0001 …)"],
+        ["행 단위", "회원 한 명과 추천할 정책 하나를 짝지은 한 줄"],
+        ["입력", "데이터/2_회원명단.xlsx + Part1에서 정리한 정책표(자격만, 날짜 무관)"],
+        ["회원ID", "2_회원명단.xlsx의 회원 식별자(M0001 …)"],
         ["추천정책ID", "자격이 맞는 정책의 정책ID"],
         ["기록 규칙", "한 회원이 한 정책의 자격 조건을 '모두' 통과하면 그 (회원,정책)을 한 줄. "
                     "어떤 정책에도 안 맞는 회원은 적지 않음. 신청 날짜는 보지 않음(자격만)"],
@@ -660,7 +660,7 @@ def build_p2(path, matches, answer):
         ["무주택", "무주택요건이 '필요'면 회원 주택소유여부가 '아니오' / 빈칸=모두"],
         ["학력", "학력요건 '재학'=회원 재학상태가 재학 또는 휴학 / '졸업'=졸업 / 빈칸=모두"],
         ["혼인", "혼인요건 '신혼부부'=회원 혼인여부 기혼 / '미혼'=미혼 / 빈칸=모두"],
-        ["★확인 불가 정책", "회원 명단(members.xlsx의 컬럼)만으로는 자격을 끝까지 확인할 수 없는 정책이 섞여 있을 수 있다. "
+        ["★확인 불가 정책", "회원 명단(2_회원명단.xlsx의 컬럼)만으로는 자격을 끝까지 확인할 수 없는 정책이 섞여 있을 수 있다. "
                           "그런 정책은 아무에게도 추천하지 않는다 — 확실할 때만 추천하고, 무리하면 오발송(FP)이다"],
         ["행 순서", "채점에 영향 없음. 중복 행은 1개로 간주"],
         ["예시", "아래 '타게팅' 시트의 예시 행 참고(실제 답 아님, 채점 시 무시)"],
@@ -707,10 +707,10 @@ def main():
           f"(대상 정책 {len(targets)}개, 회원 {len(set(x[0] for x in matches))}명 발송)")
 
     write_members(members)
-    build_p1(DATA / "policy_table_template.xlsx", policies, answer=False)
-    build_p1(ANS  / "policy_table_answer.xlsx",   policies, answer=True)
-    build_p2(DATA / "targeting_template.xlsx", matches, answer=False)
-    build_p2(ANS  / "targeting_answer.xlsx",   matches, answer=True)
+    build_p1(DATA / "1_정책정리표_제출용.xlsx", policies, answer=False)
+    build_p1(ANS  / "1_정책정리표_정답.xlsx",   policies, answer=True)
+    build_p2(DATA / "2_추천리스트_제출용.xlsx", matches, answer=False)
+    build_p2(ANS  / "2_추천리스트_정답.xlsx",   matches, answer=True)
     print("[4/4] 엑셀 산출 완료: members / 제출양식 2 / 정답키 2")
 
     # ── 생성 요약 ───────────────────────────────────────────────────────────

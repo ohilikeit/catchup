@@ -7,7 +7,7 @@
 
 ## 1. 제출물 스키마 (정답이 결정되는 형식)
 
-### Part 1 — `policy_table_template.xlsx` · 시트 `정책정리`
+### Part 1 — `1_정책정리표_제출용.xlsx` · 시트 `정책정리`
 행 단위 = **정책 1건** (`policies.csv`에 정의된 모든 정책, `policy_id` = `YP01`…). 정답은 모두 `policies.csv` 값에서 나온다. 컬럼 순서: `정책ID,정책명,분야,거주지요건,연령_min,연령_max,취업요건,기업규모요건,소득상한_월_원,연소득상한_원,무주택요건,학력요건,혼인요건`.
 
 | 컬럼 | 형식 / 허용값 | 채점유형 |
@@ -28,12 +28,12 @@
 
 > 정책명·분야는 제출 양식에 **미리 채워져 제공**된다(채점 대상 아님). **매칭은 신청 날짜를 보지 않으므로 신청시작/신청마감/마감2주이내여부 칸은 양식에서 삭제됐다.** `apply_start/apply_end`는 `policies.csv`에 미사용·참고용으로만 남아 있다(추출·채점 대상 아님). 학생은 자격(거주·연령·취업·기업규모·월소득·연소득·무주택·학력·혼인)만 추출한다. 포스터에 명시 안 된 자격 칸은 **빈칸이 정답**이다(제약 없음). **회원 명단으로 확인 불가한 정책(`matchable=N`, 예: YP09)의 월소득상한·연소득상한 등 자격 칸도 빈칸이 정답** — 억지로 숫자를 채우면 Exact 비교에서 오답이다. `matchable`은 정책표에 노출하지 않는다(운영 전용). 채점은 `무관`≡빈칸, 무주택 `필요`≡`Y`/`예`/`O`로 정규화한다.
 
-### Part 2 — `targeting_template.xlsx` · 시트 `타게팅`
+### Part 2 — `2_추천리스트_제출용.xlsx` · 시트 `타게팅`
 행 단위 = **(회원 × 추천정책) 1조합**. 자격 조건(나이·거주·취업·기업규모·월소득·연소득·무주택·학력·혼인)을 모두 통과한 조합만 기록(신청 날짜는 보지 않음). 어떤 정책에도 안 맞는 회원은 적지 않는다. **`matchable=N` 정책은 어떤 회원도 통과시키지 않으므로 추천 0건이 정답**이다.
 
 | 컬럼 | 형식 | 채점유형 |
 |---|---|---|
-| `회원ID` | `members.xlsx`의 식별자 (`M0001`…) | Set |
+| `회원ID` | `2_회원명단.xlsx`의 식별자 (`M0001`…) | Set |
 | `추천정책ID` | `policies.csv`의 `policy_id`(`YP01`…) 중 **`matchable != N` 정책만**(날짜 무관) | Set |
 
 > 채점은 **(회원ID, 추천정책ID) 튜플의 집합**으로 한다. **행 순서 무관**, 중복 행은 1개로 간주.
@@ -93,7 +93,7 @@ grade.py
 
 ## 4. 정답키 생성·관리
 
-- 정답키(`answer_key/policy_table_answer.xlsx`, `answer_key/targeting_answer.xlsx`)와 제공 데이터(`../data/`)는 **단일 입력 [`answer_key/policies.csv`](answer_key/policies.csv)** 에서 같은 스크립트로 나온다 → 정책·회원DB·정답이 항상 정합. (포스터 파일은 운영자가 `data/policies/`에 직접 넣는다 — 코드 생성 아님)
+- 정답키(`answer_key/1_정책정리표_정답.xlsx`, `answer_key/2_추천리스트_정답.xlsx`)와 제공 데이터(`../데이터/`)는 **단일 입력 [`answer_key/policies.csv`](answer_key/policies.csv)** 에서 같은 스크립트로 나온다 → 정책·회원DB·정답이 항상 정합. (포스터 파일은 운영자가 `데이터/1_포스터/`에 직접 넣는다 — 코드 생성 아님)
 - 정책을 바꾸려면 **`policies.csv`만 수정**하고 생성 스크립트를 다시 돌려 **데이터와 정답키를 동시 갱신**한다(생성물 수기 편집 금지). CSV 작성법은 [`answer_key/INPUT_GUIDE.md`](answer_key/INPUT_GUIDE.md).
 - 생성기: [`answer_key/build_dataset.py`](answer_key/build_dataset.py) — `policies.csv` 읽기 → 회원 합성(경계 회원 자동 삽입) + 제출양식 + 정답키 + 매칭 정답을 일괄 산출. 매칭 대상 = `matchable != N` 인 모든 정책(날짜 무관). 기준일 `ASSIGN_DATE = 2026-06-28` 상수 고정(`datetime.now()` 미사용) — **만 나이 계산에만** 쓰고 날짜 필터에는 쓰지 않는다.
 
@@ -102,8 +102,8 @@ grade.py
 ```bash
 # 학생 제출물 채점
 python eval/grade.py \
-  --part1 data/policy_table_template.xlsx \
-  --part2 data/targeting_template.xlsx \
+  --part1 데이터/1_정책정리표_제출용.xlsx \
+  --part2 데이터/2_추천리스트_제출용.xlsx \
   --answer-dir eval/answer_key
 # → 콘솔 표 + result.json (영역별 점수·FP/FN 목록)
 ```

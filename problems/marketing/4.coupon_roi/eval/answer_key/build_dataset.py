@@ -20,13 +20,13 @@
     · round_boundary(Y/N): Y면 정상매출이 ...5로 끝나 공헌이익(매출×0.3)이 X.5원 반올림 경계에 옴.
 
 [출력]
-  데이터/GA4_주문기록.xlsx                  GA4 주문 로그(1행=1주문):
+  데이터/1_GA4_주문기록.xlsx                  GA4 주문 로그(1행=1주문):
                   주문ID,쿠폰코드,유입채널,주문상태(결제완료/취소),매출액_원,할인액_원,주문일
-  데이터/쿠폰별_성과표_작성용.xlsx          Part1 제출 양식(식별칸만, 빈 표 + '안내')
-  데이터/전체요약_작성용.xlsx               Part2 제출 양식(빈 1행 + '안내')
-  데이터/정리된_쿠폰성과표_참고용.xlsx      ★분리형: Part2 입력용 '정답 쿠폰별 집계표'
-  eval/answer_key/coupon_roi_answer.xlsx   Part1 정답(쿠폰별 집계표)
-  eval/answer_key/summary_answer.xlsx      Part2 정답(전체 요약 1행)
+  데이터/1_쿠폰별_성과표_제출용.xlsx          Part1 제출 양식(식별칸만, 빈 표 + '안내')
+  데이터/2_전체요약_제출용.xlsx               Part2 제출 양식(빈 1행 + '안내')
+  데이터/2_정리된_쿠폰성과표_참고용.xlsx      ★분리형: Part2 입력용 '정답 쿠폰별 집계표'
+  eval/answer_key/1_쿠폰별_성과표_정답.xlsx   Part1 정답(쿠폰별 집계표)
+  eval/answer_key/2_전체요약_정답.xlsx      Part2 정답(전체 요약 1행)
 
 [기여 규칙 / 집계 규칙 (rulebook — 안내시트에 명시)]
   · 쿠폰 성과 인정 주문 = 주문상태 '결제완료'만. '취소' 주문은 매출·할인 모두 제외.
@@ -407,9 +407,9 @@ def build_metrics(path, order, metrics, answer):
     g.title = "안내"
     guide = [
         ["항목", "설명"],
-        ["이 표는 무엇인가요", "쿠폰 1개가 1줄입니다. 데이터/GA4_주문기록.xlsx 의 주문들을 "
+        ["이 표는 무엇인가요", "쿠폰 1개가 1줄입니다. 데이터/1_GA4_주문기록.xlsx 의 주문들을 "
                           "같은 쿠폰코드끼리 묶어, 쿠폰마다 성과를 계산해 적는 표예요."],
-        ["무엇을 보고 채우나요", "데이터/GA4_주문기록.xlsx (주문 1건 = 1줄). 같은 쿠폰코드끼리 "
+        ["무엇을 보고 채우나요", "데이터/1_GA4_주문기록.xlsx (주문 1건 = 1줄). 같은 쿠폰코드끼리 "
                           "묶어서 건수와 금액을 합치면 됩니다."],
         ["★가장 중요 — 어떤 주문을 세나요", "주문상태가 '결제완료'인 주문만 그 쿠폰의 성과로 셉니다. "
                           "'취소'된 주문의 매출·할인은 빼고 계산하세요. 취소를 같이 세면 적자 쿠폰이 흑자처럼 보입니다."],
@@ -458,7 +458,7 @@ def build_summary(path, summary, answer):
     guide = [
         ["항목", "설명"],
         ["이 표는 무엇인가요", "전체 요약은 딱 1줄입니다. 모든 쿠폰을 합친 회사 전체 성과를 적어요."],
-        ["무엇을 보고 채우나요", "데이터/정리된_쿠폰성과표_참고용.xlsx (미리 정리해 둔 쿠폰별 성과표). "
+        ["무엇을 보고 채우나요", "데이터/2_정리된_쿠폰성과표_참고용.xlsx (미리 정리해 둔 쿠폰별 성과표). "
                           "1단계 표를 틀렸어도 이 파일만 보고 풀 수 있습니다."],
         ["총사용건수/총매출/총할인", "모든 쿠폰의 사용건수/매출합계/할인합계를 각각 전부 더한 값"],
         ["총공헌이익/총순이익", "모든 쿠폰의 공헌이익/순이익을 각각 전부 더한 값"],
@@ -511,7 +511,7 @@ def main():
           f"전체ROI(가중) {summary['전체ROI']} / 적자쿠폰 {summary['적자쿠폰수']}개")
 
     # raw GA4 로그(학생 입력 원본)
-    write_table(DATA / "GA4_주문기록.xlsx", "주문", LOG_COLS, log_rows)
+    write_table(DATA / "1_GA4_주문기록.xlsx", "주문", LOG_COLS, log_rows)
 
     # 빈 양식·given·정답 모두 spec 순서(미사용 포함)로 쿠폰 행을 깐다.
     full_order = [c["coupon_id"] for c in specs]
@@ -523,14 +523,14 @@ def main():
         else:  # 미사용 쿠폰(결제완료 0건) — 0/0.0/빈칸 으로 채움
             full_metrics[cid] = dict(사용건수=0, 매출합계=0, 할인합계=0, 공헌이익=0,
                                      순이익=0, ROI=0.0, 주채널="", 적자여부="")
-    build_metrics(DATA / "쿠폰별_성과표_작성용.xlsx", full_order, full_metrics, answer=False)
-    build_metrics(ANS  / "coupon_roi_answer.xlsx",   full_order, full_metrics, answer=True)
+    build_metrics(DATA / "1_쿠폰별_성과표_제출용.xlsx", full_order, full_metrics, answer=False)
+    build_metrics(ANS  / "1_쿠폰별_성과표_정답.xlsx",   full_order, full_metrics, answer=True)
     # 분리형: Part2 입력용 정답 집계표 = Part1 정답과 동일 내용
-    build_metrics(DATA / "정리된_쿠폰성과표_참고용.xlsx", full_order, full_metrics, answer=True)
+    build_metrics(DATA / "2_정리된_쿠폰성과표_참고용.xlsx", full_order, full_metrics, answer=True)
     # Part2 제출양식(빈) + 정답  — 요약은 full_metrics 기준(미사용 포함)
     full_summary = summarize(full_order, full_metrics)
-    build_summary(DATA / "전체요약_작성용.xlsx", full_summary, answer=False)
-    build_summary(ANS  / "summary_answer.xlsx",   full_summary, answer=True)
+    build_summary(DATA / "2_전체요약_제출용.xlsx", full_summary, answer=False)
+    build_summary(ANS  / "2_전체요약_정답.xlsx",   full_summary, answer=True)
     print("[4/4] 엑셀 산출 완료: GA4 로그 / 집계양식+given / 요약양식 / 정답키 2")
 
     print("=" * 60)

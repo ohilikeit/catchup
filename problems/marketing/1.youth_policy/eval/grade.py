@@ -4,8 +4,8 @@
 
 사용:
   python eval/grade.py \
-    --part1 data/policy_table_template.xlsx \
-    --part2 data/targeting_template.xlsx \
+    --part1 데이터/1_정책정리표_제출용.xlsx \
+    --part2 데이터/2_추천리스트_제출용.xlsx \
     --answer-dir eval/answer_key
 
 출력: 콘솔 표 + result.json (영역별 점수 / FP·FN 목록)
@@ -149,14 +149,14 @@ def main():
     ap.add_argument("--part1", required=True)
     ap.add_argument("--part2", required=True)
     ap.add_argument("--answer-dir", required=True)
-    ap.add_argument("--members", default=None, help="회원 DB(유령ID 검사용). 기본 data/members.xlsx")
+    ap.add_argument("--members", default=None, help="회원 DB(유령ID 검사용). 기본 데이터/2_회원명단.xlsx")
     args = ap.parse_args()
 
     adir = Path(args.answer_dir)
     p1_sub = load_sheet(args.part1, "정책정리")
-    p1_ans = load_sheet(adir/"policy_table_answer.xlsx", "정책정리")
+    p1_ans = load_sheet(adir/"1_정책정리표_정답.xlsx", "정책정리")
     p2_sub = load_sheet(args.part2, "타게팅")
-    p2_ans = load_sheet(adir/"targeting_answer.xlsx", "타게팅")
+    p2_ans = load_sheet(adir/"2_추천리스트_정답.xlsx", "타게팅")
 
     # 추천 가능 정책 = matchable!=N 인 모든 정책(날짜 무관). 판별불가(matchable=N) 정책은
     # policies.csv에서 읽어 제외 → 그 정책 추천을 무결성 위반으로 잡는다(정책표엔 matchable이 없으므로).
@@ -170,7 +170,7 @@ def main():
     except Exception:
         pass
     valid_policies = {norm_str(r["정책ID"]) for r in p1_ans} - unmatchable
-    members_path = args.members or (Path(args.part2).resolve().parents[0]/"members.xlsx")
+    members_path = args.members or (Path(args.part2).resolve().parents[0]/"2_회원명단.xlsx")
     try:
         valid_members = {norm_str(r["회원ID"]) for r in load_sheet(members_path, "회원")}
     except Exception:

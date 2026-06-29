@@ -34,6 +34,7 @@
 - **`build_reconcile`/`build_exception` 골격**(L337–369 / L372–412) — '안내' 시트(항목/설명 2열) + 데이터 시트 + 스타일·freeze·예시행. **골격은 G**, 안내 텍스트(`guide=[...]` L341–353 / L376–393)·컬럼 리스트는 S(§2⑤).
 - **`recon_row`의 `answer` 분기 패턴**(L322–334) — `answer=False`면 식별칸만, `True`면 정답 채움. **한 함수로 빈양식·정답·given을 동시에 찍는** 비대칭 차단 패턴(L445–448). 칸 내용은 S, 분기 패턴은 G.
 - **`main` 파이프라인**(L418–460) — 로드→합성→cross_check→정답 도출(L431–438)→엑셀 산출(L441–451)→요약 print. **흐름은 G**(파일명·시트명만 따라옴).
+  > 📛 **학생 노출 네이밍**(`doc-templates.md §0.1`): 이 엔진이 찍는 학생 파일·폴더명은 한국어 역할명으로 둔다(`data/`→`데이터/`, `*_template.xlsx`→`*_제출용.xlsx`, `*_given.xlsx`→`*_참고용.xlsx`). 안내시트 텍스트·problem.md도 쉬운 말(임계 ±1·정규화·Set-F1 등 전문어 금지 — 판정 의미·유일 정답은 보존, 실데이터 컬럼명은 예외). 파일명을 정하면 그 이름을 build 출력 경로·docstring·안내시트·README/INPUT_GUIDE/evaluation·grade 사용예시까지 동기화하고, 재생성→자기채점 100점으로 확인.
 - **`grade.py` 거의 전부** — `norm_str/int`(L29–43)·`load_sheet`(L59–71)·`grade_part1` 셀 Exact 루프(L85–108)·`grade_part2` 집합 F1(L124–142)·`main`/CLI/result.json(L156–191). **바꾸는 건 §2⑦의 `RECON_FIELDS`·`norm_vio` 별칭·`VIOLATIONS`·배점뿐**, 나머지는 채점 엔진으로 그대로 쓴다.
 
 ---

@@ -34,6 +34,7 @@
 - **`load_policies` 골격**(L172–221) — `DictReader`(utf-8-sig) + fail-loud 검증 루프 + 행 dict 빌드. **루프 구조·fail-loud 메커니즘은 G**, 필드 스키마·허용값(L189–198)은 S(§2①).
 - **엑셀 스타일·`write_members`·`style_header`**(L546–574) — `HDR`/`HDRFILL`/`GUIDE` 스타일, 헤더 채색, freeze. 그대로.
 - **`main` 파이프라인**(L692–723) — 로드→합성→매칭 정답 계산(L700–705)→엑셀 5개 출력→요약 print. **흐름은 G**(파일명 인자만 따라옴).
+  > 📛 **학생 노출 네이밍**(`doc-templates.md §0.1`): 이 엔진이 찍는 학생 파일·폴더명은 한국어 역할명으로 둔다(`data/`→`데이터/`, `members.xlsx`→`회원명단.xlsx`, `*_template.xlsx`→`*_제출용.xlsx`, 분리형 정답표 `*_given.xlsx`→`*_참고용.xlsx`). 운영자 배치 포스터 폴더(`data/<source>/`)도 `데이터/<소스>/`. 안내시트 텍스트·problem.md도 쉬운 말(축·F1·matchable 등 전문어 금지 — 판정 의미·유일 정답은 보존, 실데이터 컬럼명은 예외). 파일명을 정하면 그 이름을 build 출력·docstring·안내시트·README/INPUT_GUIDE/evaluation·grade 사용예시까지 동기화하고, 재생성→자기채점 100점으로 확인.
 - **`grade.py` 거의 전부** — `norm_str/date/int/bool`(L19–43)·`load_sheet`(L57)·`grade_part1` 셀 Exact 루프(L76–98)·`grade_part2` 집합 F1(L101–133)·`main`/CLI/result.json(L147–200). **바꾸는 건 §2⑦의 `P1_FIELDS`·축별 norm·배점·matchable 처리뿐**, 나머지는 채점 엔진으로 그대로 쓴다.
 
 ---

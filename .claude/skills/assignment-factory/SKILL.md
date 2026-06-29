@@ -32,6 +32,7 @@ description: >-
 5. **단일 입력 → 재현 가능한 생성**: 같은 입력 CSV + 같은 시드/기준일 = 항상 같은 데이터·정답.
 6. **이중 채점 분리**: 과정(채팅 로그 5역량 — 도메인 무관, 이 스킬 범위 밖) + 결과(제출 xlsx — 결정적). 함정을 심어 *검증 안 하면 결과 점수가 떨어지게* 한다.
 7. **적대적·독립 검증**: 생성 코드를 재사용하지 않는 독립 재계산 + 적대 리뷰로 자기충족 채점의 허점을 막는다.
+8. **학생 노출물은 비개발자 언어**: 학생이 보는 모든 이름(폴더·파일·시트)과 안내문은 한국어 **역할명** + 쉬운 말이다. 영어 식별자·개발자 약어(`data`·`template`·`given`·`export`)·전문용어(group by·분모0·가중평균·F1)를 학생 표면에 노출하지 않는다(의미는 풀어서 보존). `eval/`(출제·채점 인프라)만 영어 식별자를 유지하되, eval이 **학생 파일을 참조하는 모든 지점**(생성기 출력 경로·안내시트 텍스트·README/INPUT_GUIDE/evaluation 경로·grade 사용예시)은 학생 파일명과 **반드시 동기화**한다(깨지면 재생성·채점이 멈춘다). 상세·검증법: `references/doc-templates.md §0.1`.
 
 ## 기본값 (사용자가 안 바꾸면 이대로)
 
@@ -39,7 +40,7 @@ description: >-
 - **단계 구조**: **분리형(decouple)**. Part1(추출) 실패가 Part2(매칭)로 전이되지 않도록, **Part2에는 정답 정책표를 별도 입력으로 제공**한다. 각 단계가 자기 역량으로만 채점된다.
 - **멀티모달**: **운영자 수동 배치**. 실제 포스터/PDF는 코드가 만들지 않는다. 대신 "무엇을 어디서 가져올지" **검색 쿼리·소싱 가이드라인**을 제공한다(`references/multimodal-sourcing.md`).
 - **데이터 규모**: **500~1,000명 사이 유동**(채점 속도·변별 균형). 기본 800, 필요 시 조절.
-- **학생 수준**: 비개발자. `problem.md`는 쉬운 업무 브리프, 정확한 판정 규칙·칸 형식은 엑셀 '안내' 시트로 이전.
+- **학생 수준**: 비개발자. `problem.md`는 쉬운 업무 브리프, 정확한 판정 규칙·칸 형식은 엑셀 '안내' 시트로 이전. **학생이 보는 폴더·파일·시트 이름은 한국어 역할명**(예: `데이터/`, `쿠폰별_성과표_제출용.xlsx`, `정리된_쿠폰성과표_참고용.xlsx`)으로 짓고, problem.md엔 **폴더트리**를 그려 어디에 뭐가 있는지 한눈에 보이게 한다. 안내 시트도 개발자 용어 대신 쉬운 말로(계산 규칙의 의미·유일 정답은 보존). 근거: `references/doc-templates.md §0.1`.
 
 ## 파이프라인 (이 순서로 진행 — 상세는 `references/pipeline.md`)
 
@@ -52,13 +53,13 @@ description: >-
 - **S4 단일 입력 설계** — `<input>.csv` 헤더 + `INPUT_GUIDE.md` + fail-loud 검증 규칙.
 - **S5~S6 생성·결함 주입** — 라우팅된 엔진을 새 스키마로 적응시킨다. **매칭이면 `references/matching-engine-guide.md`**(축 카탈로그·합성 풀·정규화·3군데 동반 수정), **검증/감사면 `references/audit-engine-guide.md`**(cases.csv 시나리오·3소스 결함 주입·rulebook·derive↔expected 한 쌍·Set-F1), **집계/분석이면 `references/aggregate-engine-guide.md`**(spec.csv 시나리오·로그 합성·regroup/summarize 가중집계·분모0/반올림경계 노브·cross_check·4군데 동반 수정), **취합/통합이면 `references/merge-engine-guide.md`**(orders.csv canonical↔소스분배·형식 렌더↔파서 역함수·consolidate↔expected 한 쌍·dedup/우선순위·행집합 F1+셀 Exact), **분류/라벨링이면 `references/classify-engine-guide.md`**(items.csv 시나리오·규칙북(키워드·우선순위)·텍스트 합성 어구·derive_labels↔expected 한 쌍·cross_check·어휘 disjoint·모호함을 규칙으로 결정화·라벨집합 4군데 동반 수정).
 - **S7 채점기** — 매칭은 `engines/matching/grade.py`의 `P1_FIELDS`·배점·matchable, 검증은 `engines/audit/grade.py`의 `RECON_FIELDS`·`VIOLATIONS`·`norm_vio`·배점, 집계는 `engines/aggregate/grade.py`의 INT/FLOAT 필드·`FLOAT_TOL`·시트명·배점, 취합은 `engines/merge/grade.py`의 `STD_FIELDS`·`norm_date`/`norm_channel`·배점, 분류는 `engines/classify/grade.py`의 `TYPE_LABELS`/`SENTI_LABELS`·alias dict·`grade_axis`(다클래스 macro-F1+혼동행렬)·축 배선·배점을 새 스키마로 맞춘다.
-- **S8 eval 4문서 + S9 problem.md** — `references/doc-templates.md`(README 5구성 / intention / evaluation / INPUT_GUIDE 골격 + 비개발자 problem.md 5규칙).
+- **S8 eval 4문서 + S9 problem.md** — `references/doc-templates.md`(README 5구성 / intention / evaluation / INPUT_GUIDE 골격 + 비개발자 problem.md 4규칙). **학생 노출 파일·폴더·시트명과 안내문은 `§0.1` 네이밍·톤 규칙을 따른다**(한국어 역할명 `데이터/`·`…_제출용/_참고용.xlsx`, problem.md 폴더트리, 쉬운 안내, eval 참조 동기화).
 - **S10 검증(필수)** — `verify/independent_recompute.md`(생성코드 미재사용 재계산 대조) + `verify/adversarial_prompts.md`(Codex/code-reviewer 적대 리뷰) + `references/checklist.md` 발행 게이트. **셋 다 통과 못 하면 발행 금지.**
 
 ## 산출물 위치·형태
 
 `problems/<직무>/<번호>.<슬러그>/` 아래에 깐다. 정확한 트리·파일별 책임은 `references/doc-templates.md` 상단 참조. 핵심:
-`problem.md` + `data/{<source>/, members.xlsx, <p1>_template.xlsx, <p2>_template.xlsx}` + `eval/{README.md, intention.md, evaluation.md, grade.py, answer_key/{INPUT_GUIDE.md, <input>.csv, build_dataset.py, *_answer.xlsx}}`.
+`problem.md` + `데이터/{1_<소스>/, 2_회원명단.xlsx, N_<역할>_제출용.xlsx ×2, 2_<역할>_참고용.xlsx}` + `eval/{README.md, intention.md, evaluation.md, grade.py, answer_key/{INPUT_GUIDE.md, <input>.csv, build_dataset.py, <N>_<역할>_정답.xlsx}}`. 학생 폴더·파일명은 한국어 역할명 + 문제번호 prefix `N_`, 정답키는 `_제출용→_정답`(§0.1), `eval/`의 다른 식별자는 영어 유지.
 
 > 채점기 위치 주의: 레퍼런스에서 `grade.py`는 `eval/grade.py`(answer_key 아님)이고 정답키만 `eval/answer_key/`다. 이 배치를 따른다.
 
@@ -74,7 +75,7 @@ description: >-
 | `references/aggregate-engine-guide.md` | S5~S7 (집계/분석) — `engines/aggregate/`을 새 집계 테마로 적응(spec.csv 시나리오·로그→regroup/summarize 가중집계·분모0/반올림경계·cross_check·수치 Computed ±ε) |
 | `references/merge-engine-guide.md` | S5~S7 (취합/통합) — `engines/merge/`을 새 취합 테마로 적응(orders.csv canonical↔소스분배·형식 렌더↔파서 역함수·consolidate↔expected·dedup/우선순위·행집합 F1+셀 Exact) |
 | `references/classify-engine-guide.md` | S5~S7 (분류/라벨링) — `engines/classify/`을 새 분류 테마로 적응(items.csv 시나리오·규칙북(키워드·우선순위)·텍스트 합성 어구·derive_labels↔expected·cross_check·어휘 disjoint·모호함을 규칙으로 결정화·다클래스 macro-F1+혼동행렬) |
-| `references/doc-templates.md` | S8~S9 — eval 4문서 골격 + problem.md 5규칙(비개발자) |
+| `references/doc-templates.md` | S8~S9 — eval 4문서 골격 + problem.md 4규칙(비개발자) + §0.1 학생 노출 네이밍·톤(한국어 역할명·폴더트리·쉬운 안내·eval 동기화) |
 | `references/multimodal-sourcing.md` | S2 — 포스터/PDF를 어디서 어떤 쿼리로 가져올지 + 운영자 배치 체크리스트 |
 | `references/checklist.md` | S10 — 발행 전 통과 게이트(G1~G10 결정성 + 불변식 + B1~B8 결함 + 이중채점) |
 | `engines/matching/` | S5~S7 — 검증된 매칭 엔진(build_dataset.py·grade.py)과 예시 입력(policies.example.csv) |

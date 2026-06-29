@@ -35,6 +35,7 @@
 - **엑셀 스타일·`style_header`·`write_voc`**(L274–301) — `HDR`/`HDRFILL`/`GUIDE` 스타일, 헤더 채색, freeze, 열너비. 그대로. `VOC_COLS=["item_id","text"]`(L278)는 학생 입력 스키마라 구조(라벨 없음 — 학생이 채울 것).
 - **`build_submission`의 `answer` 분기 패턴**(L304–351) — `answer=False`면 라벨 빈칸(L348), `True`면 도출 라벨 채움(L345–346). **한 함수로 빈양식·정답을 동시에 찍는** 비대칭 차단 패턴(L381–382). 안내시트(`guide=[...]` L309–330)·`SUBMIT_COLS`(L279)는 S(§2⑤), 분기 패턴·스타일은 G.
 - **`main` 파이프라인**(L357–391) — disjoint 단언→로드→텍스트 합성→cross_check→정답 도출(규칙 재적용 L373–377)→엑셀 3개 산출(L380–382)→분포 요약 print. **흐름은 G**(파일명·시트명만 따라옴).
+  > 📛 **학생 노출 네이밍**(`doc-templates.md §0.1`): 이 엔진이 찍는 학생 파일·폴더명은 한국어 역할명으로 둔다(`data/`→`데이터/`, `*_template.xlsx`→`*_제출용.xlsx`). 분류는 단일 산출이라 `_참고용`(분리형 Part2 입력)이 없을 수 있다. 안내시트 텍스트·problem.md도 쉬운 말(macro-F1·혼동행렬·disjoint 등 전문어 금지 — 라벨 규칙·유일 정답은 보존, 실데이터 컬럼명은 예외). 파일명을 정하면 그 이름을 build 출력 경로·docstring·안내시트·README/INPUT_GUIDE/evaluation·grade 사용예시까지 동기화하고, 재생성→자기채점 100점으로 확인.
 - **`grade.py` 거의 전부** — `norm_str`(L34–37)·`load_sheet`(L78–90)·**`grade_axis` macro-F1+혼동행렬 핵심 루프**(L94–140)·`fmt_confusion`(L143–151)·`main`/CLI/result.json(L169–225). **바꾸는 건 §2⑦의 `TYPE_LABELS`/`SENTI_LABELS`·alias dict·`score` 배점·축 개수뿐**, 채점 프리미티브 몸통은 그대로 쓴다(§4).
 
 ---

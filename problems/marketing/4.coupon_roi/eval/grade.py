@@ -4,14 +4,14 @@
 
 사용:
   python eval/grade.py \
-    --part1 데이터/쿠폰별_성과표_작성용.xlsx \
-    --part2 데이터/전체요약_작성용.xlsx \
+    --part1 데이터/1_쿠폰별_성과표_제출용.xlsx \
+    --part2 데이터/2_전체요약_제출용.xlsx \
     --answer-dir eval/answer_key
 
 자기채점(정답키 자기검증, 100점 기대):
   python eval/grade.py \
-    --part1 eval/answer_key/coupon_roi_answer.xlsx \
-    --part2 eval/answer_key/summary_answer.xlsx \
+    --part1 eval/answer_key/1_쿠폰별_성과표_정답.xlsx \
+    --part2 eval/answer_key/2_전체요약_정답.xlsx \
     --answer-dir eval/answer_key
 
 배점: Part1 쿠폰별 집계표 55 / Part2 전체 요약 35 / 무결성 10.
@@ -241,9 +241,9 @@ def main():
 
     adir = Path(args.answer_dir)
     p1_sub = load_sheet(args.part1, "집계표")
-    p1_ans = load_sheet(adir / "coupon_roi_answer.xlsx", "집계표")
+    p1_ans = load_sheet(adir / "1_쿠폰별_성과표_정답.xlsx", "집계표")
     p2_sub = load_sheet(args.part2, "전체요약")
-    p2_ans = load_sheet(adir / "summary_answer.xlsx", "전체요약")
+    p2_ans = load_sheet(adir / "2_전체요약_정답.xlsx", "전체요약")
 
     r1 = grade_part1(p1_sub, p1_ans)
     r2 = grade_part2(p2_sub, p2_ans)
