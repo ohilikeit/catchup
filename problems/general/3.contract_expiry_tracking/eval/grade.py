@@ -4,14 +4,14 @@
 
 사용:
   python eval/grade.py \
-    --part1 data/contract_ledger_template.xlsx \
-    --part2 data/expiry_targets_template.xlsx \
+    --part1 데이터/1_계약대장_제출용.xlsx \
+    --part2 데이터/2_만료대상_제출용.xlsx \
     --answer-dir eval/answer_key
 
 자기채점(정답키 자기검증, 100점 기대):
   python eval/grade.py \
-    --part1 eval/answer_key/contract_ledger_answer.xlsx \
-    --part2 eval/answer_key/expiry_targets_answer.xlsx \
+    --part1 eval/answer_key/1_계약대장_정답.xlsx \
+    --part2 eval/answer_key/2_만료대상_정답.xlsx \
     --answer-dir eval/answer_key
 
 배점: Part1 계약대장 셀 Exact 50 / Part2 대상표 Set-F1 40 / 무결성 10.
@@ -205,9 +205,9 @@ def main():
 
     adir = Path(args.answer_dir)
     p1_sub = load_sheet(args.part1, "계약대장")
-    p1_ans = load_sheet(adir / "contract_ledger_answer.xlsx", "계약대장")
+    p1_ans = load_sheet(adir / "1_계약대장_정답.xlsx", "계약대장")
     p2_sub = load_sheet(args.part2, "대상목록")
-    p2_ans = load_sheet(adir / "expiry_targets_answer.xlsx", "대상목록")
+    p2_ans = load_sheet(adir / "2_만료대상_정답.xlsx", "대상목록")
 
     valid_keys = {ledgerkey(r) for r in p1_ans}
 

@@ -5,7 +5,7 @@
 
 ## §1 제출물 스키마
 
-### Part 1 — 계약대장 (`contract_ledger_template.xlsx`, '계약대장' 시트)
+### Part 1 — 계약대장 (`1_계약대장_제출용.xlsx`, '계약대장' 시트)
 
 행 단위 = 계약 1건. 키 = `계약번호`(미리 채워짐, 채점 안 함). 정답은 모두 `contracts.csv` 값에서 나온다.
 
@@ -21,7 +21,7 @@
 | `자동갱신` | `Y`\|`N` | Exact (Y/N 정규화) |
 | `갱신통지일` | 정수(일). 자동갱신=N이면 **빈칸** | Exact (숫자 정규화, 빈칸≠0) |
 
-### Part 2 — 만료·갱신 대상표 (`expiry_targets_template.xlsx`, '대상목록' 시트)
+### Part 2 — 만료·갱신 대상표 (`2_만료대상_제출용.xlsx`, '대상목록' 시트)
 
 행 단위 = `(계약번호, 대상유형)` 1조합. **튜플 집합**(행 순서 무관·중복 1개 간주). `사유`는 참고용
 (채점 안 함). 예시행(`예시…`)은 무시.
@@ -85,8 +85,8 @@ grade.py
 
 ```bash
 python eval/grade.py \
-  --part1 data/contract_ledger_template.xlsx \
-  --part2 data/expiry_targets_template.xlsx \
+  --part1 데이터/1_계약대장_제출용.xlsx \
+  --part2 데이터/2_만료대상_제출용.xlsx \
   --answer-dir eval/answer_key
 # → 콘솔 표 + result.json (영역별 점수·FP/FN 목록)
 ```

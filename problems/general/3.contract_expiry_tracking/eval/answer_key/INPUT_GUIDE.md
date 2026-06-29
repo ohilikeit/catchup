@@ -66,7 +66,7 @@ else:
 
 ## §5 계약서 PDF 배치 (멀티모달)
 
-- 계약서 PDF는 `build_dataset.py`가 `data/contracts/<contract_id>.pdf`로 **직접 합성**한다(양식 4종
+- 계약서 PDF는 `build_dataset.py`가 `데이터/1_계약서/<contract_id>.pdf`로 **직접 합성**한다(양식 4종
   순환 + 표기 변형). 실제 회사 계약서는 기밀이라 넣지 않는다.
 - 더 사실적인 멀티모달을 원하면, 운영자가 그 PDF를 실제 계약서 스캔/이미지로 **교체**할 수 있다.
   단 그 경우 PDF 내용과 `contracts.csv`의 값(계약명·날짜·금액·자동갱신·통지일)을 **글자 그대로
@@ -79,12 +79,12 @@ else:
 # 1) contracts.csv 를 실제/원하는 계약으로 채운다 (헤더 유지, §4 모순 금지)
 # 2) 데이터·정답 동시 생성
 python eval/answer_key/build_dataset.py
-#    → data/contracts/*.pdf, contract_ledger_template/given.xlsx, expiry_targets_template.xlsx
-#    → eval/answer_key/contract_ledger_answer.xlsx, expiry_targets_answer.xlsx
+#    → 데이터/1_계약서/*.pdf, 1_계약대장_제출용.xlsx, 2_계약대장_참고용.xlsx, 2_만료대상_제출용.xlsx
+#    → eval/answer_key/1_계약대장_정답.xlsx, 2_만료대상_정답.xlsx
 # 3) 자기채점(정답키 자기검증 — 100점 기대)
 python eval/grade.py \
-  --part1 eval/answer_key/contract_ledger_answer.xlsx \
-  --part2 eval/answer_key/expiry_targets_answer.xlsx \
+  --part1 eval/answer_key/1_계약대장_정답.xlsx \
+  --part2 eval/answer_key/2_만료대상_정답.xlsx \
   --answer-dir eval/answer_key
 ```
 

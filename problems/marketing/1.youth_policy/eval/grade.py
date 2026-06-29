@@ -68,9 +68,9 @@ def load_sheet(path, sheet):
 # ---- Part 1: 정책 정리표 (셀 단위) -----------------------------------------
 # 신청 날짜는 보지 않는다(자격만). 날짜 칸(신청시작/마감/마감2주이내여부)은 채점하지 않는다.
 P1_FIELDS = {
-    "연령_min": norm_int, "연령_max": norm_int, "거주지요건": norm_str,
+    "연령_최소": norm_int, "연령_최대": norm_int, "거주지요건": norm_str,
     "취업요건": norm_constraint, "기업규모요건": norm_constraint,
-    "소득상한_월_원": norm_int, "연소득상한_원": norm_int, "무주택요건": norm_house,
+    "월소득상한(원)": norm_int, "연소득상한(원)": norm_int, "무주택요건": norm_house,
     "학력요건": norm_constraint, "혼인요건": norm_constraint,
 }
 def grade_part1(sub, ans):

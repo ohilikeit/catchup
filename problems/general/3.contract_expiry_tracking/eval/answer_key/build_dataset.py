@@ -24,12 +24,12 @@
     · 금액미기재(Y/N) : Y면 계약서에 금액 조항 없음 → 계약대장 금액칸은 빈칸이 정답.
 
 [출력]
-  data/contracts/<contract_id>.pdf          계약서 PDF (양식 4종 순환 + 표기변형) — 학생 입력
-  data/contract_ledger_template.xlsx        Part1 제출 양식(식별칸=계약번호만, 빈 표 + '안내')
-  data/contract_ledger_given.xlsx           ★분리형: Part2 입력용 '정답 계약대장'(올바른 추출)
-  data/expiry_targets_template.xlsx         Part2 제출 양식(빈 표 + '안내' + 예시행)
-  eval/answer_key/contract_ledger_answer.xlsx   Part1 정답(계약대장)
-  eval/answer_key/expiry_targets_answer.xlsx    Part2 정답(만료·갱신 대상표 — 대상 전부)
+  데이터/1_계약서/<contract_id>.pdf          계약서 PDF (양식 4종 순환 + 표기변형) — 학생 입력
+  데이터/1_계약대장_제출용.xlsx              Part1 제출 양식(식별칸=계약번호만, 빈 표 + '안내')
+  데이터/2_계약대장_참고용.xlsx              ★분리형: Part2 입력용 '정답 계약대장'(올바른 추출)
+  데이터/2_만료대상_제출용.xlsx              Part2 제출 양식(빈 표 + '안내' + 예시행)
+  eval/answer_key/1_계약대장_정답.xlsx       Part1 정답(계약대장)
+  eval/answer_key/2_만료대상_정답.xlsx       Part2 정답(만료·갱신 대상표 — 대상 전부)
 
 [갱신 규칙 (rulebook — 안내시트에 명시)]
   기준일 ASSIGN_DATE = 2026-06-28. 잔여일수 = (종료일 - 기준일).
@@ -73,8 +73,8 @@ from reportlab.platypus import (
 # 경로 / 기준일 / 시드 (결정성 3종의 ①②)
 # ----------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parents[2]          # .../3.contract_expiry_tracking
-DATA = ROOT / "data"
-CONTRACTS_DIR = DATA / "contracts"
+DATA = ROOT / "데이터"
+CONTRACTS_DIR = DATA / "1_계약서"
 ANS = ROOT / "eval" / "answer_key"
 CSV_PATH = ANS / "contracts.csv"
 DATA.mkdir(parents=True, exist_ok=True)
@@ -617,8 +617,8 @@ def build_ledger(path, txns, answer):
     guide = [
         ["항목", "설명"],
         ["오늘(기준일)", "2026-06-28 (계약 만료까지 남은 날을 셀 때 이 날짜를 기준으로 한다)"],
-        ["행 단위", "계약 1건 = data/contracts/ 의 계약서 PDF 1개. 계약번호가 미리 채워져 있음"],
-        ["입력", "data/contracts/<계약번호>.pdf — 양식이 제각각인 계약서. 여기서 값을 읽어 옮긴다"],
+        ["행 단위", "계약 1건 = 데이터/1_계약서/ 의 계약서 PDF 1개. 계약번호가 미리 채워져 있음"],
+        ["입력", "데이터/1_계약서/<계약번호>.pdf — 양식이 제각각인 계약서. 여기서 값을 읽어 옮긴다"],
         ["채점 칸", "계약명·거래상대방·계약유형·시작일·종료일·계약금액·자동갱신·갱신통지일 (8칸, 셀 단위)"],
         ["계약명/거래상대방", "계약서에 적힌 그대로 옮긴다(앞뒤 공백은 무시됨)"],
         ["계약유형", "임대 · 용역 · 구독 · 유지보수 · 라이선스 중 하나"],
@@ -656,7 +656,7 @@ def build_targets(path, target_rows, answer):
         ["항목", "설명"],
         ["오늘(기준일)", "2026-06-28 (이 날짜를 기준으로 만료까지 남은 날을 센다)"],
         ["행 단위", "대상 1건 = (계약번호, 대상유형). 어디에도 해당 안 되는 계약은 적지 않는다"],
-        ["입력", "data/contract_ledger_given.xlsx (★제공된 정답 계약대장). 1단계 추출을 틀려도 2단계는 영향 없음"],
+        ["입력", "데이터/2_계약대장_참고용.xlsx (★제공된 정답 계약대장). 1단계 추출을 틀려도 2단계는 영향 없음"],
         ["채점 칸", "계약번호, 대상유형 (2칸 집합 채점). 사유는 참고용(채점 안 함)"],
         ["대상유형", "허용값: 만료경과 · 만료임박 · 자동연장주의"],
         ["── 판정 규칙 ──", "남은날 = 종료일 − 2026-06-28. 아래를 적용해 해당하는 계약만 올린다(한 계약이 여러 유형이면 행도 여러 개)"],
@@ -718,12 +718,12 @@ def main():
     for t in txns:
         render_contract_pdf(t)
     # Part1 계약대장: 빈 양식 + 정답 + (분리형) 정답대장 given
-    build_ledger(DATA / "contract_ledger_template.xlsx", txns, answer=False)
-    build_ledger(ANS / "contract_ledger_answer.xlsx", txns, answer=True)
-    build_ledger(DATA / "contract_ledger_given.xlsx", txns, answer=True)
+    build_ledger(DATA / "1_계약대장_제출용.xlsx", txns, answer=False)
+    build_ledger(ANS / "1_계약대장_정답.xlsx", txns, answer=True)
+    build_ledger(DATA / "2_계약대장_참고용.xlsx", txns, answer=True)
     # Part2 대상표: 빈 양식 + 정답
-    build_targets(DATA / "expiry_targets_template.xlsx", target_rows, answer=False)
-    build_targets(ANS / "expiry_targets_answer.xlsx", target_rows, answer=True)
+    build_targets(DATA / "2_만료대상_제출용.xlsx", target_rows, answer=False)
+    build_targets(ANS / "2_만료대상_정답.xlsx", target_rows, answer=True)
     print(f"[4/4] 산출 완료: 계약서 PDF {len(txns)}개 / 계약대장 양식+정답+given / 대상표 양식+정답")
 
     print("=" * 60)

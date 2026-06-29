@@ -81,7 +81,7 @@ def recompute():
 
 
 def load_ledger_answer():
-    wb = openpyxl.load_workbook(ANS / "contract_ledger_answer.xlsx", data_only=True)
+    wb = openpyxl.load_workbook(ANS / "1_계약대장_정답.xlsx", data_only=True)
     ws = wb["계약대장"]
     rows = list(ws.iter_rows(values_only=True))
     head = [str(h).strip() for h in rows[0]]
@@ -103,7 +103,7 @@ def load_ledger_answer():
 
 
 def load_target_answer():
-    wb = openpyxl.load_workbook(ANS / "expiry_targets_answer.xlsx", data_only=True)
+    wb = openpyxl.load_workbook(ANS / "2_만료대상_정답.xlsx", data_only=True)
     ws = wb["대상목록"]
     s = set()
     for r in list(ws.iter_rows(values_only=True))[1:]:
