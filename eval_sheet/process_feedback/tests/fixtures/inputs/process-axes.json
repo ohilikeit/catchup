@@ -1,0 +1,7 @@
+{
+  "문제정의":   { "score": 9.0, "cohortAvg": 8.5, "delta":  0.5 },
+  "AI출력검토": { "score": 8.4, "cohortAvg": 8.0, "delta":  0.4 },
+  "실행환경관리": { "score": 7.0, "cohortAvg": 7.6, "delta": -0.6 },
+  "완성및가치": { "score": 8.4, "cohortAvg": 8.0, "delta":  0.4 },
+  "불확실성관리": { "score": 7.9, "cohortAvg": 8.0, "delta": -0.1 }
+}

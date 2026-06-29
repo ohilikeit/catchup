@@ -1,0 +1,27 @@
+{
+  "attemptId": "att_demo",
+  "problem": "general/3.contract_expiry_tracking",
+  "total_turns": 18,
+  "overcome_종료일": true,
+  "has_blank_금액": false,
+  "mixed_format_unified": false,
+  "boundary_in_fpfn": false,
+  "sample_before_bulk": false,
+  "first_change_is_bulk": false,
+  "verify_utterance_late": false,
+  "rule_restated": true,
+  "per_item_processing": false,
+  "manual_edit_ratio": 0.1,
+  "rewrite_cadence": 1,
+  "norm_failed_cells": 0,
+  "windows": {
+    "DERIVE_FIELD": [[6, [6, 9]]]
+  },
+  "cellDelta": {
+    "DERIVE_FIELD": [
+      {"계약": "CT-2024-018", "필드": "종료일", "before": "", "after": "2026-03-01",
+       "정답": "2026-03-01", "formula": null, "formulaReadReliable": false,
+       "ref": "after#9.종료일.CT-2024-018"}
+    ]
+  }
+}
