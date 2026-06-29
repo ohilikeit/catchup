@@ -7,8 +7,8 @@
 
 ## 1. 제출물 스키마 (정답이 결정되는 형식)
 
-### Part 1 — `coupon_roi_template.xlsx` · 시트 `집계표`
-행 단위 = **쿠폰 1건** (`GA4_주문export.xlsx`에 등장하는 모든 `쿠폰코드` + 미사용 쿠폰 포함, 양식에 미리 제공). 정답은 모두 GA4 로그를 `쿠폰코드`로 그룹바이하되 **'결제완료'만** 세어 도출한다. 컬럼 순서: `쿠폰코드,사용건수,매출합계,할인합계,공헌이익,순이익,ROI,주채널,적자여부`.
+### Part 1 — `쿠폰별_성과표_작성용.xlsx` · 시트 `집계표`
+행 단위 = **쿠폰 1건** (`GA4_주문기록.xlsx`에 등장하는 모든 `쿠폰코드` + 미사용 쿠폰 포함, 양식에 미리 제공). 정답은 모두 GA4 로그를 `쿠폰코드`로 그룹바이하되 **'결제완료'만** 세어 도출한다. 컬럼 순서: `쿠폰코드,사용건수,매출합계,할인합계,공헌이익,순이익,ROI,주채널,적자여부`.
 
 | 컬럼 | 형식 / 허용값 | 채점유형 |
 |---|---|---|
@@ -23,8 +23,8 @@
 
 > `쿠폰코드`는 제출 양식에 **미리 채워져 제공**된다(채점 대상 아님). **미사용 쿠폰(결제완료 0건)은 건수·합계·이익=`0`, ROI=`0.0`, 주채널·적자여부 빈칸이 정답**(건수·합계는 빈칸이 아닌 `0`). **할인합계=0 쿠폰**은 ROI=`0.0`(0 나눗셈 안 함), 순이익=공헌이익≥0이라 적자 아님(적자여부 빈칸). ROI 칸은 `33.3` 같은 숫자로 적는다(`%`·콤마는 채점 시 제거). 주채널은 `Paid Search` 같은 채널명 그대로(대소문자·공백·흔한 한글 별칭은 정규화로 흡수).
 
-### Part 2 — `summary_template.xlsx` · 시트 `전체요약`
-행 단위 = **전사 요약 단 1행**. 입력은 **제공된 정답 집계표 `coupon_roi_given.xlsx`**(분리형 — Part1을 틀려도 Part2는 영향 없음). 컬럼 순서: `총사용건수,총매출,총할인,총공헌이익,총순이익,전체ROI,적자쿠폰수`.
+### Part 2 — `전체요약_작성용.xlsx` · 시트 `전체요약`
+행 단위 = **전사 요약 단 1행**. 입력은 **제공된 정답 집계표 `정리된_쿠폰성과표_참고용.xlsx`**(분리형 — Part1을 틀려도 Part2는 영향 없음). 컬럼 순서: `총사용건수,총매출,총할인,총공헌이익,총순이익,전체ROI,적자쿠폰수`.
 
 | 컬럼 | 형식 / 허용값 | 채점유형 |
 |---|---|---|
@@ -84,9 +84,9 @@ grade.py
 
 ## 4. 정답키 생성·관리
 
-- 정답키(`answer_key/coupon_roi_answer.xlsx`, `answer_key/summary_answer.xlsx`)와 제공 데이터(`../data/`)는 **단일 입력 [`answer_key/spec.csv`](answer_key/spec.csv)** 에서 같은 스크립트로 나온다 → GA4 로그·집계표·요약·정답이 항상 정합.
+- 정답키(`answer_key/coupon_roi_answer.xlsx`, `answer_key/summary_answer.xlsx`)와 제공 데이터(`../데이터/`)는 **단일 입력 [`answer_key/spec.csv`](answer_key/spec.csv)** 에서 같은 스크립트로 나온다 → GA4 로그·집계표·요약·정답이 항상 정합.
 - 쿠폰을 바꾸려면 **`spec.csv`만 수정**하고 `build_dataset.py`를 다시 돌려 **데이터와 정답키를 동시 갱신**한다(생성물 수기 편집 금지). CSV 작성법은 [`answer_key/INPUT_GUIDE.md`](answer_key/INPUT_GUIDE.md).
-- 생성기 책임: `spec.csv` 읽기(zero_type·취소 일관성·주채널·매출↔이익 **fail-loud 검증**) → 1행=1주문 GA4 로그 합성(결제완료+취소) → `regroup_metrics`로 '결제완료'만 재집계 → `cross_check`(재집계==spec, 주채널 argmax strict, 반올림 경계 실재) → 제출양식·`coupon_roi_given.xlsx`·정답키 산출. 기준일 `ASSIGN_DATE = 2026-06-28`·`random.seed(20260628)` 상수 고정(`datetime.now()` 미사용; 주문일 합성용으로만, 채점엔 미사용).
+- 생성기 책임: `spec.csv` 읽기(zero_type·취소 일관성·주채널·매출↔이익 **fail-loud 검증**) → 1행=1주문 GA4 로그 합성(결제완료+취소) → `regroup_metrics`로 '결제완료'만 재집계 → `cross_check`(재집계==spec, 주채널 argmax strict, 반올림 경계 실재) → 제출양식·`정리된_쿠폰성과표_참고용.xlsx`·정답키 산출. 기준일 `ASSIGN_DATE = 2026-06-28`·`random.seed(20260628)` 상수 고정(`datetime.now()` 미사용; 주문일 합성용으로만, 채점엔 미사용).
 - **정답 도출 철학**: spec.csv의 숫자를 그대로 베끼지 않고, 합성한 GA4 로그를 **다시 그룹바이**해 지표를 계산한다 → 독립검증·결정성 성립.
 
 ## 5. 채점 실행
@@ -94,8 +94,8 @@ grade.py
 ```bash
 # 학생 제출물 채점
 python eval/grade.py \
-  --part1 data/coupon_roi_template.xlsx \
-  --part2 data/summary_template.xlsx \
+  --part1 데이터/쿠폰별_성과표_작성용.xlsx \
+  --part2 데이터/전체요약_작성용.xlsx \
   --answer-dir eval/answer_key
 # → 콘솔 표 + result.json (영역별 점수·필드별 정확도·오답 상세)
 

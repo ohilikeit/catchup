@@ -2,7 +2,7 @@
 
 이 과제의 **모든 데이터·정답은 단일 입력 파일 `spec.csv` 하나에서 생성**된다.
 `spec.csv`를 쿠폰 명세로 채우고 `build_dataset.py`를 재실행하면, GA4 주문 로그·제출
-양식·`coupon_roi_given.xlsx`·정답키가 **항상 정합하게 함께 갱신**된다. 수기로 엑셀을
+양식·`정리된_쿠폰성과표_참고용.xlsx`·정답키가 **항상 정합하게 함께 갱신**된다. 수기로 엑셀을
 고치지 말 것.
 
 > ⚠️ **현재 들어 있는 `spec.csv`는 이커머스 쿠폰 포트폴리오를 본뜬 샘플 겸 템플릿(44건)이다.**
@@ -94,14 +94,14 @@ lands_on_margin(rev)  # 끝자리 5 → half-up과 truncate가 1원 차로 갈�
 # 1) spec.csv 를 실제 쿠폰 수치로 채운다 (헤더 유지, 일관성 규칙 지킴)
 # 2) 데이터·정답 동시 생성
 python3 eval/answer_key/build_dataset.py
-#    → data/GA4_주문export.xlsx
-#    → data/coupon_roi_template.xlsx, data/summary_template.xlsx
-#    → data/coupon_roi_given.xlsx  (Part2 입력용 정답 집계표 = 분리형)
+#    → 데이터/GA4_주문기록.xlsx
+#    → 데이터/쿠폰별_성과표_작성용.xlsx, 데이터/전체요약_작성용.xlsx
+#    → 데이터/정리된_쿠폰성과표_참고용.xlsx  (Part2 입력용 정답 집계표 = 분리형)
 #    → eval/answer_key/coupon_roi_answer.xlsx, summary_answer.xlsx
 # 3) 학생 제출물 채점 (P1 셀 비교 + P2 요약 1행)
 python3 eval/grade.py \
-  --part1 data/coupon_roi_template.xlsx \
-  --part2 data/summary_template.xlsx \
+  --part1 데이터/쿠폰별_성과표_작성용.xlsx \
+  --part2 데이터/전체요약_작성용.xlsx \
   --answer-dir eval/answer_key
 ```
 

@@ -4,8 +4,8 @@
 
 사용:
   python eval/grade.py \
-    --part1 data/coupon_roi_template.xlsx \
-    --part2 data/summary_template.xlsx \
+    --part1 데이터/쿠폰별_성과표_작성용.xlsx \
+    --part2 데이터/전체요약_작성용.xlsx \
     --answer-dir eval/answer_key
 
 자기채점(정답키 자기검증, 100점 기대):
