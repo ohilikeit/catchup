@@ -79,7 +79,7 @@ else:
 # 1) contracts.csv 를 실제/원하는 계약으로 채운다 (헤더 유지, §4 모순 금지)
 # 2) 데이터·정답 동시 생성
 python eval/answer_key/build_dataset.py
-#    → 데이터/1_계약서/*.pdf, 1_계약대장_제출용.xlsx, 2_계약대장_참고용.xlsx, 2_만료대상_제출용.xlsx
+#    → 데이터/1_계약서/*.pdf, 1_계약대장_제출용.xlsx, 2_만료대상_제출용.xlsx
 #    → eval/answer_key/1_계약대장_정답.xlsx, 2_만료대상_정답.xlsx
 # 3) 자기채점(정답키 자기검증 — 100점 기대)
 python eval/grade.py \
