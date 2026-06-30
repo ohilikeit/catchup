@@ -70,7 +70,8 @@ def load_sheet(path, sheet):
 P1_FIELDS = {
     "연령_최소": norm_int, "연령_최대": norm_int, "거주지요건": norm_str,
     "취업요건": norm_constraint, "기업규모요건": norm_constraint,
-    "월소득상한(원)": norm_int, "연소득상한(원)": norm_int, "무주택요건": norm_house,
+    "월소득상한(원)": norm_int, "월소득_중위소득기준(%)": norm_int,
+    "연소득상한(원)": norm_int, "무주택요건": norm_house,
     "학력요건": norm_constraint, "혼인요건": norm_constraint,
 }
 def grade_part1(sub, ans):

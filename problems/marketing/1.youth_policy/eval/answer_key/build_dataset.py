@@ -6,9 +6,13 @@
   eval/answer_key/policies.csv   ★ 사용자가 실제 정책 데이터로 채우는 단일 진실 소스.
                                  헤더(정확히):
                                  policy_id,name,field,poster_file,region,age_min,age_max,
-                                 employment,company_size,income_max_month,income_year_max,
-                                 no_house,enroll_status,marital,matchable,apply_start,apply_end
+                                 employment,company_size,income_max_month,income_median_pct,
+                                 income_year_max,no_house,enroll_status,marital,matchable,
+                                 apply_start,apply_end
                                  · company_size : 기업규모 요건(예 '중소기업'). 비면 무관.
+                                 · income_max_month : 본인 월소득 절대 상한(원). 비면 무관.
+                                 · income_median_pct : 가구 기준중위소득 비율(%). 비면 무관.
+                                   상한은 회원 '가구원수'별로 달라진다(median_cap). income_max_month와 별개 축.
                                  · income_year_max : 연 소득 상한(원). 비면 무관(월소득과 별개 축).
                                  · matchable : 'Y'(기본)|'N'. N=회원 명단으로 자격을 확인 불가한
                                    정책 → 아무에게도 추천하지 않음(매칭 0건, 의도된 결함).
@@ -82,6 +86,25 @@ COMPANY_POOL = ["중소기업", "중소기업", "중견기업", "대기업", "�
 # 연소득(원)(income_year_max 축) — 월소득과 별개 축
 INCOME_YEAR_POOL = [0, 18_000_000, 28_000_000, 36_000_000, 45_000_000,
                     52_000_000, 60_000_000, 75_000_000, 90_000_000]
+
+# 가구원수별 '기준 중위소득'(월, 원) — 2025년 보건복지부 고시값. 고정 상수(결정성 1급).
+# income_median_pct 축은 '월소득 절대상한'과 달리 가구원수에 따라 상한이 달라진다
+# (예: 중위소득 150% 상한 = 이 표의 값 × 1.5). 회원 '가구원수' 컬럼과 짝을 이룬다.
+MEDIAN_INCOME = {1: 2_392_013, 2: 3_932_658, 3: 5_025_353, 4: 6_097_773,
+                 5: 7_108_192, 6: 8_064_805, 7: 8_988_428}
+
+
+def median_income(household):
+    """가구원수 → 기준 중위소득(월, 원). 7인 초과는 1인 증가당 (7인-6인)만큼 가산(복지부 산식)."""
+    if household in MEDIAN_INCOME:
+        return MEDIAN_INCOME[household]
+    step = MEDIAN_INCOME[7] - MEDIAN_INCOME[6]
+    return MEDIAN_INCOME[7] + step * (household - 7)
+
+
+def median_cap(household, pct):
+    """가구원수 household, 비율 pct(%) → 월 소득 상한(원, 원단위 반올림 = 0.5 올림)."""
+    return (median_income(household) * pct + 50) // 100
 
 
 # ----------------------------------------------------------------------------
@@ -192,10 +215,10 @@ def load_policies():
             matchable = ((r.get("matchable") or "").strip().upper() or "Y")
             if matchable not in ("Y", "N"):
                 sys.exit(f"[중단] {pid}: matchable '{matchable}'는 허용되지 않음(Y|N).")
-            if matchable == "N" and (int_or_none(r.get("income_max_month")) is not None
-                                     or int_or_none(r.get("income_year_max")) is not None):
-                sys.exit(f"[중단] {pid}: matchable=N(판별불가) 정책엔 월/연 소득 상한을 비워 두세요 "
-                         f"(정답표의 그 칸은 빈칸이어야 하는데 값이 채워져 자기모순).")
+            # matchable=N 정책도 회원 명단으로 '측정 가능한' 자격(거주지·연령·본인 월소득 등)은
+            # 정책표에 남길 수 있다 — 추천 0건을 만드는 '확인 불가 게이트'는 회원 컬럼이 아예 없는
+            # 항목(부모/배우자 소득·자산, 학자금대출 보유, 자녀 수 등)이기 때문이다. 따라서 소득 칸을
+            # 강제로 비우지 않는다(matchable=N → member_passes가 즉시 False라 어차피 0 추천).
             rows.append(dict(
                 id=pid,
                 name=(r.get("name") or "").strip(),
@@ -208,6 +231,7 @@ def load_policies():
                 employment=emp_raw,
                 company_size=((r.get("company_size") or "").strip()),   # 비면 무관
                 income_max=int_or_none(r.get("income_max_month")),
+                income_median_pct=int_or_none(r.get("income_median_pct")),  # 가구 기준중위소득 %, 비면 무관
                 income_year_max=int_or_none(r.get("income_year_max")),   # 연소득 상한(원), 비면 무관
                 no_house=((r.get("no_house") or "").strip().upper() == "Y"),
                 enroll=((r.get("enroll_status") or "").strip() or "무관"),    # 무관|재학|졸업
@@ -405,14 +429,15 @@ def plant_boundaries(p):
     piy = passing_income_year(p)             # 연소득 통과값(income_year_max 이하)
 
     def m(age, addr, owned, emp=None, income=None, enroll=pe, marital=pm, birth=None,
-          company=None, income_year=None):
+          company=None, income_year=None, household=None):
         eff_emp = emp or pemp
         # 다른 axis 통과값에 기업규모/연소득 포함: 미취업이면 '없음', 아니면 통과 회사값.
         if company is None:
             company = "없음" if eff_emp == "미취업" else pco
         add_member(age, addr, eff_emp, base_inc if income is None else income,
                    owned, enroll=enroll, marital=marital, birth=birth,
-                   company=company, income_year=piy if income_year is None else income_year)
+                   company=company, income_year=piy if income_year is None else income_year,
+                   household=household)
 
     # (A) 나이 경계: age_min-1 / age_min / age_max / age_max+1 (정의된 방향만)
     age_targets = []
@@ -437,6 +462,14 @@ def plant_boundaries(p):
     if p["income_max"] is not None:
         for inc in (p["income_max"], p["income_max"] + 1):
             m(base_age, matching_address(p), "아니오", income=inc)
+
+    # (B') 가구 중위소득 경계: 가구원수별로 상한이 달라진다 → 여러 가구원수에서 통과/탈락을 심는다.
+    #      같은 월소득이라도 가구원수가 작으면 탈락·크면 통과(가구원수에 따른 금액 계산을 강제).
+    if p["income_median_pct"] is not None:
+        for hh in (1, 3):
+            cap = median_cap(hh, p["income_median_pct"])
+            m(base_age, matching_address(p), "아니오", income=cap, household=hh)       # 통과
+            m(base_age, matching_address(p), "아니오", income=cap + 1, household=hh)   # 탈락
 
     # (C) 지역: 일치 1 + 불일치 1 (다른 axis는 통과)
     m(base_age, base_addr, "아니오")
@@ -525,6 +558,10 @@ def member_passes(m, p):
         return False
     if p["income_max"] is not None and (m["월소득(원)"] or 0) > p["income_max"]:
         return False
+    if p["income_median_pct"] is not None:
+        cap = median_cap(m["가구원수"] or 1, p["income_median_pct"])
+        if (m["월소득(원)"] or 0) > cap:
+            return False
     if p["income_year_max"] is not None and (m["연소득(원)"] or 0) > p["income_year_max"]:
         return False
     if p["no_house"] and m["주택소유여부"] != "아니오":
@@ -551,7 +588,8 @@ MEMBER_COLS = ["회원ID", "이름", "생년월일", "성별", "거주지", "취
                "월소득(원)", "연소득(원)", "최종학력", "재학상태", "혼인여부",
                "주택소유여부", "가구원수", "이메일", "가입일"]
 P1COLS = ["정책ID", "정책명", "분야", "거주지요건", "연령_최소", "연령_최대", "취업요건",
-          "기업규모요건", "월소득상한(원)", "연소득상한(원)", "무주택요건", "학력요건", "혼인요건"]
+          "기업규모요건", "월소득상한(원)", "월소득_중위소득기준(%)", "연소득상한(원)",
+          "무주택요건", "학력요건", "혼인요건"]
 
 
 def style_header(ws, ncol):
@@ -578,7 +616,7 @@ def p1_row(p, answer):
     """Part1 행. answer=False면 식별칸(ID/명/분야)만, True면 정답 채움.
        신청 날짜는 보지 않는다 — 자격 10칸(거주/연령/취업/기업규모/월소득/연소득/무주택/학력/혼인)만."""
     if not answer:
-        return [p["id"], p["name"], p["field"]] + [""] * 10
+        return [p["id"], p["name"], p["field"]] + [""] * 11
     return [
         p["id"], p["name"], p["field"],
         p["region_raw"],
@@ -587,6 +625,7 @@ def p1_row(p, answer):
         p["employment"] if p["employment"] != "무관" else "",
         p["company_size"] if p["company_size"] else "",
         p["income_max"] if p["income_max"] is not None else "",
+        p["income_median_pct"] if p["income_median_pct"] is not None else "",
         p["income_year_max"] if p["income_year_max"] is not None else "",
         "필요" if p["no_house"] else "",
         p["enroll"] if p["enroll"] != "무관" else "",
@@ -603,12 +642,13 @@ def build_p1(path, policies, answer):
         ["행 단위", "정책 1건 (데이터/1_포스터/ 의 공고문 전부)"],
         ["입력", "데이터/1_포스터/ 의 실제 정책 포스터·공고문(PDF·이미지)"],
         ["★날짜 안 봄", "신청 날짜(신청시작·신청마감)는 보지 않는다. 마감일이 언제든 무관 — 자격 조건만 추출한다"],
-        ["채점 칸", "거주지요건, 연령_최소/연령_최대, 취업요건, 기업규모요건, 월소득상한(원), 연소득상한(원), 무주택요건, 학력요건, 혼인요건"],
+        ["채점 칸", "거주지요건, 연령_최소/연령_최대, 취업요건, 기업규모요건, 월소득상한(원), 월소득_중위소득기준(%), 연소득상한(원), 무주택요건, 학력요건, 혼인요건"],
         ["거주지요건", "허용값: '전국' 또는 '서울특별시' 또는 '서울특별시 관악구'(시도/자치구). 포스터 그대로. 예: 전국"],
         ["연령_최소/연령_최대", "형식: 만 나이 정수. 포스터에 하한/상한 없으면 빈칸. 예: 19 / 34"],
         ["취업요건", "허용값: '무관'·'미취업'·'재직'(미취업/재직 모두 단기근로 허용). 무관이면 빈칸. 예: 재직"],
         ["기업규모요건", "허용값: 포스터의 기업규모 문구 그대로(예: '중소기업'). 무관/언급 없으면 빈칸. 예: 중소기업"],
-        ["월소득상한(원)", "형식: 월 소득 상한(원, 정수). 포스터에 없으면 빈칸 (0과 빈칸은 다름). 예: 3588020"],
+        ["월소득상한(원)", "형식: 본인 월소득 절대 상한(원, 정수). 포스터에 '본인 월소득 ○○만원 이하'처럼 금액이 명시될 때만. 없으면 빈칸 (0과 빈칸은 다름). 예: 2550000"],
+        ["월소득_중위소득기준(%)", "포스터 소득요건이 '(가구) 기준 중위소득 ○○% 이하'면 그 퍼센트 숫자만 적는다. 가구원수별 실제 금액은 Part2에서 계산(2_추천리스트의 '소득기준표' 참고). 없으면 빈칸. 예: 150"],
         ["연소득상한(원)", "형식: 연 소득 상한(원, 정수). 월소득과 별개 축. 포스터에 없으면 빈칸. 예: 75000000"],
         ["무주택요건", "허용값: '필요' 또는 빈칸. 예: 필요"],
         ["학력요건", "허용값: '재학'(대학·대학원 재학/휴학)·'졸업'(졸업 후)·빈칸(무관). 예: 재학"],
@@ -636,7 +676,7 @@ def build_p1(path, policies, answer):
     wb.save(path)
 
 
-def build_p2(path, matches, answer):
+def build_p2(path, matches, answer, median_pcts=()):
     wb = openpyxl.Workbook()
     g = wb.active
     g.title = "안내"
@@ -655,8 +695,12 @@ def build_p2(path, matches, answer):
                   "시도+자치구(예 서울특별시 관악구)=그 자치구 거주자. 회원 주소 표기가 제각각이어도 시·도와 자치구로 판단"],
         ["취업", "취업요건 '미취업'=회원 취업상태가 미취업 또는 단기근로 / '재직'=재직 또는 단기근로 / 빈칸=모두 통과"],
         ["기업규모", "기업규모요건이 있으면(예 중소기업) 회원 기업규모가 그 값과 같아야 통과 / 빈칸=모두"],
-        ["월소득", "월소득상한(원)이 있으면 회원 월소득(원)이 그 이하(같으면 통과) / 빈칸=모두"],
+        ["월소득(본인상한)", "월소득상한(원)이 있으면 회원 월소득(원)이 그 이하(같으면 통과) / 빈칸=모두"],
+        ["월소득(중위소득%)", "정책에 '월소득_중위소득기준(%)'가 있으면, 회원 '가구원수'에 해당하는 상한 금액 이하라야 통과(같으면 통과). "
+                          "상한 = 이 파일 '소득기준표' 시트에서 그 가구원수·그 % 칸의 금액. 가구원수가 크면 상한도 커진다 / 빈칸=모두"],
         ["연소득", "연소득상한(원)이 있으면 회원 연소득(원)이 그 이하(같으면 통과). 월소득과 별개 / 빈칸=모두"],
+        ["★소득기준표", "이 파일의 '소득기준표' 시트에 가구원수별 기준 중위소득(월)과 비율별(예 150%) 상한 금액이 계산돼 있다. "
+                     "중위소득 % 정책은 회원 가구원수로 이 표를 찾아 상한을 정한다(직접 계산: 기준중위소득×%÷100, 원단위 반올림)"],
         ["무주택", "무주택요건이 '필요'면 회원 주택소유여부가 '아니오' / 빈칸=모두"],
         ["학력", "학력요건 '재학'=회원 재학상태가 재학 또는 휴학 / '졸업'=졸업 / 빈칸=모두"],
         ["혼인", "혼인요건 '신혼부부'=회원 혼인여부 기혼 / '미혼'=미혼 / 빈칸=모두"],
@@ -683,6 +727,23 @@ def build_p2(path, matches, answer):
     else:
         s.append(["예시M0001", "YP01"])
     s.freeze_panes = "A2"
+
+    # 소득기준표 — 가구 중위소득 % 정책의 가구원수별 월 상한(참고 표, 학생이 그대로 사용).
+    pcts = sorted(median_pcts)
+    if pcts:
+        t = wb.create_sheet("소득기준표")
+        header = ["가구원수", "기준중위소득(월,원)"] + [f"중위소득{pct}%_월상한(원)" for pct in pcts]
+        t.append(header)
+        style_header(t, len(header))
+        for hh in range(1, 8):
+            t.append([hh, median_income(hh)] + [median_cap(hh, pct) for pct in pcts])
+        t.append(["8인 이상", "1인 늘 때마다 (7인-6인)만큼 가산"]
+                 + ["가구원수로 직접 계산: 기준중위소득×%÷100, 원단위 반올림" if i == 0 else ""
+                    for i in range(len(pcts))])
+        t.freeze_panes = "A2"
+        t.column_dimensions["A"].width = 12
+        for col in ("B", "C", "D", "E", "F"):
+            t.column_dimensions[col].width = 24
     wb.save(path)
 
 
@@ -706,11 +767,14 @@ def main():
     print(f"[3/4] 매칭 {len(matches)}건 "
           f"(대상 정책 {len(targets)}개, 회원 {len(set(x[0] for x in matches))}명 발송)")
 
+    median_pcts = sorted({p["income_median_pct"] for p in policies
+                          if p["income_median_pct"] is not None})
+
     write_members(members)
     build_p1(DATA / "1_정책정리표_제출용.xlsx", policies, answer=False)
     build_p1(ANS  / "1_정책정리표_정답.xlsx",   policies, answer=True)
-    build_p2(DATA / "2_추천리스트_제출용.xlsx", matches, answer=False)
-    build_p2(ANS  / "2_추천리스트_정답.xlsx",   matches, answer=True)
+    build_p2(DATA / "2_추천리스트_제출용.xlsx", matches, answer=False, median_pcts=median_pcts)
+    build_p2(ANS  / "2_추천리스트_정답.xlsx",   matches, answer=True,  median_pcts=median_pcts)
     print("[4/4] 엑셀 산출 완료: members / 제출양식 2 / 정답키 2")
 
     # ── 생성 요약 ───────────────────────────────────────────────────────────
