@@ -1,21 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-VOC 3축 분류 + 채널별 교차집계 과제 — 채점 스크립트
-(분류 아키타입: 다클래스 macro-F1 + 혼동행렬 / 교차집계: 셀 Exact)
+VOC 3축 분류 과제 — 채점 스크립트
+(분류 아키타입: 다클래스 macro-F1 + 혼동행렬 / 단일 산출)
 
 사용:
   python3 eval/grade.py \
-    --part1 데이터/1_분류표_제출용.xlsx \
-    --part2 데이터/2_채널별집계_제출용.xlsx \
+    --submission 데이터/1_분류표_제출용.xlsx \
     --answer-dir eval/answer_key
 
 자기채점(정답키 자기검증, 100점 기대):
   python3 eval/grade.py \
-    --part1 eval/answer_key/1_분류표_정답.xlsx \
-    --part2 eval/answer_key/2_채널별집계_정답.xlsx \
+    --submission eval/answer_key/1_분류표_정답.xlsx \
     --answer-dir eval/answer_key
 
-배점: 문의유형 macro-F1 25 / 감성 macro-F1 20 / 위험 macro-F1 20 / 교차집계 Exact 30 / 무결성 5.
+배점: 문의유형 macro-F1 40 / 감성 macro-F1 30 / 위험 macro-F1 25 / 무결성 5.
 """
 import argparse, json, re
 from pathlib import Path
@@ -26,9 +24,6 @@ TYPE_LABELS  = ["환불취소", "배송지연", "제품하자", "사용문의", 
 SENTI_LABELS = ["긍정", "부정", "중립"]
 RISK_LABELS  = ["위험", "일반"]
 INVALID = "(무효)"   # 라벨집합 외 값/빈칸 센티넬
-
-CHANNELS = ["앱리뷰", "고객센터메일", "전화상담", "문의게시판", "SNS"]
-CROSS_COLS = TYPE_LABELS + ["위험건수"]
 
 
 # ---- 정규화 ----------------------------------------------------------------
@@ -90,22 +85,6 @@ def norm_risk(v):
     if low in RISK_ALIAS:
         return RISK_ALIAS[low]
     return r if r in RISK_LABELS else INVALID
-
-
-def norm_int(v):
-    """카운트 셀 정규화. 콤마/공백 제거 후 정수면 int, 아니면 None(무효)."""
-    if v is None:
-        return None
-    sv = re.sub(r"[,\s]", "", str(v))
-    if sv == "":
-        return None
-    try:
-        f = float(sv)
-    except ValueError:
-        return None
-    if f != int(f):
-        return None
-    return int(f)
 
 
 def load_sheet(path, sheet):
@@ -176,75 +155,31 @@ def fmt_confusion(conf, labels):
     return "\n".join(lines)
 
 
-# ---- 교차집계(채널×유형 + 위험건수) Exact ---------------------------------
-def load_crosstab(path):
-    """{채널: {칼럼명: 원시값}}. 채널 행(A열) 기준."""
-    wb = openpyxl.load_workbook(path, data_only=True)
-    ws = wb["교차집계"] if "교차집계" in wb.sheetnames else wb[wb.sheetnames[-1]]
-    rows = list(ws.iter_rows(values_only=True))
-    if not rows:
-        return {}
-    head = [norm_str(h) for h in rows[0]]
-    out = {}
-    for r in rows[1:]:
-        if all(c is None or str(c).strip() == "" for c in r):
-            continue
-        ch = norm_str(r[0])
-        if not ch:
-            continue
-        out[ch] = {head[i]: r[i] for i in range(1, len(head)) if i < len(r)}
-    return out
-
-
-def grade_crosstab(ans_tab, sub_tab):
-    """정답키 셀 전부(채널×칼럼)를 Exact 대조. 반환 correct/total + 무효셀."""
-    total = correct = invalid = 0
-    mismatches = []
-    for ch in CHANNELS:
-        ach = ans_tab.get(ch, {})
-        sch = {norm_str(k): v for k, v in sub_tab.get(norm_str(ch), {}).items()}
-        for col in CROSS_COLS:
-            total += 1
-            gold = norm_int(ach.get(col))
-            got = norm_int(sch.get(norm_str(col)))
-            if got is None:
-                invalid += 1
-                mismatches.append({"채널": ch, "칼럼": col, "정답": gold, "제출": "(무효)"})
-            elif got == gold:
-                correct += 1
-            else:
-                mismatches.append({"채널": ch, "칼럼": col, "정답": gold, "제출": got})
-    return {"correct": correct, "total": total, "invalid": invalid, "mismatches": mismatches}
-
-
 # ---- 배점 -----------------------------------------------------------------
-# 유형 25 / 감성 20 / 위험 20 / 교차집계 30 / 무결성 5.
-def score(rt, rs, rr, ct, ghost_n):
-    s_type = rt["macro_f1"] * 25
-    s_senti = rs["macro_f1"] * 20
-    s_risk = rr["macro_f1"] * 20
-    s_cross = (ct["correct"] / ct["total"] * 30) if ct["total"] else 0.0
-    viol = rt["invalid_count"] + rs["invalid_count"] + rr["invalid_count"] + ct["invalid"] + ghost_n
+# 유형 40 / 감성 30 / 위험 25 / 무결성 5.
+def score(rt, rs, rr, ghost_n):
+    s_type = rt["macro_f1"] * 40
+    s_senti = rs["macro_f1"] * 30
+    s_risk = rr["macro_f1"] * 25
+    viol = rt["invalid_count"] + rs["invalid_count"] + rr["invalid_count"] + ghost_n
     s_int = max(0, 5 - viol * 0.5)
     return {
-        "유형_macroF1(25)": round(s_type, 1),
-        "감성_macroF1(20)": round(s_senti, 1),
-        "위험_macroF1(20)": round(s_risk, 1),
-        "교차집계_Exact(30)": round(s_cross, 1),
+        "유형_macroF1(40)": round(s_type, 1),
+        "감성_macroF1(30)": round(s_senti, 1),
+        "위험_macroF1(25)": round(s_risk, 1),
         "무결성(5)": round(s_int, 1),
-        "총점(100)": round(s_type + s_senti + s_risk + s_cross + s_int, 1),
+        "총점(100)": round(s_type + s_senti + s_risk + s_int, 1),
     }
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--part1", required=True, help="분류표 제출용 xlsx")
-    ap.add_argument("--part2", required=True, help="채널별집계 제출용 xlsx")
+    ap.add_argument("--submission", required=True, help="분류표 제출용 xlsx")
     ap.add_argument("--answer-dir", required=True)
     args = ap.parse_args()
 
     adir = Path(args.answer_dir)
-    sub = load_sheet(args.part1, "분류")
+    sub = load_sheet(args.submission, "분류")
     ans = load_sheet(adir / "1_분류표_정답.xlsx", "분류")
 
     def key(r):
@@ -264,13 +199,9 @@ def main():
     rs = grade_axis(A_senti, S_senti, item_ids, SENTI_LABELS, norm_senti)
     rr = grade_axis(A_risk, S_risk, item_ids, RISK_LABELS, norm_risk)
 
-    ans_tab = load_crosstab(adir / "2_채널별집계_정답.xlsx")
-    sub_tab = load_crosstab(args.part2)
-    ct = grade_crosstab(ans_tab, sub_tab)
+    sc = score(rt, rs, rr, len(ghost))
 
-    sc = score(rt, rs, rr, ct, len(ghost))
-
-    print("=" * 64); print(" 채점 결과 (VOC 3축 분류 + 채널별 교차집계)")
+    print("=" * 64); print(" 채점 결과 (VOC 3축 분류)")
     print("=" * 64)
     for name, res, labs in [("문의유형", rt, TYPE_LABELS), ("감성", rs, SENTI_LABELS), ("위험", rr, RISK_LABELS)]:
         print(f"[{name}] macro-F1 {res['macro_f1']*100:.1f}%  (라벨 {len(labs)}클래스)")
@@ -283,12 +214,6 @@ def main():
         print("   [혼동행렬]")
         print("   " + fmt_confusion(res["confusion"], labs).replace("\n", "\n   "))
         print("-" * 64)
-    print(f"[교차집계] 정확 {ct['correct']}/{ct['total']} 셀"
-          + (f"  (무효 {ct['invalid']})" if ct["invalid"] else ""))
-    for m in ct["mismatches"][:12]:
-        print(f"   - {m['채널']} / {m['칼럼']}: 정답={m['정답']} 제출={m['제출']}")
-    if len(ct["mismatches"]) > 12:
-        print(f"   … 외 {len(ct['mismatches'])-12}건")
     if ghost:
         print(f"⚠ 유령 item_id(정답에 없음): {len(ghost)}건")
     print("-" * 64)
@@ -296,7 +221,7 @@ def main():
         print(f"  {k:<22} {v}")
     print("=" * 64)
 
-    out = {"문의유형": rt, "감성": rs, "위험": rr, "교차집계": ct, "유령ID": ghost, "score": sc}
+    out = {"문의유형": rt, "감성": rs, "위험": rr, "유령ID": ghost, "score": sc}
     Path("result.json").write_text(json.dumps(out, ensure_ascii=False, indent=2))
     print("→ result.json 저장")
 

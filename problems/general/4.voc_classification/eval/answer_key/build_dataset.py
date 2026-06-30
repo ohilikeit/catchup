@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-VOC(고객의 소리) 3축 분류 + 채널별 교차집계 과제 — 데이터셋/정답 생성기
+VOC(고객의 소리) 3축 분류 과제 — 데이터셋/정답 생성기
 (단일 입력 = items.csv)
 
-[아키타입] 분류(다클래스 macro-F1 + 혼동행렬) + 분리형 교차집계(채널×유형 Exact).
-  "텍스트 → 범주 라벨"을 3축(문의유형·감성·위험)으로 동시에 떨어뜨리고, 그 정답 분류표를
-  별도 입력으로 제공해 채널×유형 건수표(교차집계)를 따로 세게 한다.
+[아키타입] 분류(다클래스 macro-F1 + 혼동행렬) — 단일 산출(분리형 N/A).
+  "텍스트 → 범주 라벨"을 3축(문의유형·감성·위험)으로 동시에 떨어뜨린다. 세 축을 한 시트에
+  동시 산출하는 단일 제출이라 Part1→Part2 전이 차단(분리형)이 무의미하다.
   판별 기준이 "이게 뭐냐(정답 모호)"라 결정성과 충돌 → **모호함을 규칙으로 결정화**한다:
   자유 판단이 아니라 **우선순위 규칙북**(키워드 → 라벨, 위에서부터 첫 매치)으로 모든 텍스트가
   유일 라벨로 떨어진다. 정답은 생성된 text에 규칙북을 **재적용**해 도출(시나리오 의도 라벨을
@@ -15,7 +15,7 @@ VOC(고객의 소리) 3축 분류 + 채널별 교차집계 과제 — 데이터�
   eval/answer_key/items.csv   ★ 시나리오 명세(단일 진실 소스). 헤더(정확히):
     item_id,채널,템플릿,유형,감성,위험,충돌주입,충돌상대,경계케이스
     · item_id   : 고유키(중복 금지).
-    · 채널       : 인입 채널 ∈ {앱리뷰,고객센터메일,전화상담,문의게시판,SNS}. (교차집계용)
+    · 채널       : 인입 채널 ∈ {앱리뷰,고객센터메일,전화상담,문의게시판,SNS}. (VOC 출처 메타 — 채점 미사용)
     · 템플릿     : 문장 조립 힌트(auto). 채점·도출과 무관(가독성만).
     · 유형       : 최종 의도 문의유형 ∈ {환불취소,배송지연,제품하자,사용문의,칭찬감사,기타}.
     · 감성       : 최종 의도 감성 ∈ {긍정,부정,중립}. (충돌이면 부정>긍정이라 부정.)
@@ -28,10 +28,7 @@ VOC(고객의 소리) 3축 분류 + 채널별 교차집계 과제 — 데이터�
   데이터/1_VOC_원문.xlsx           학생 입력(item_id, 채널, text). 라벨 없음.
   데이터/1_분류기준_위험규칙.pdf    규칙북 PDF (상수에서 렌더 — 안내시트와 동일 내용).
   데이터/1_분류표_제출용.xlsx       제출 양식(item_id·채널 채움 + 라벨 3칸 빈칸 + '안내').
-  데이터/2_분류결과_참고용.xlsx     정답 분류표(교차집계 입력 — 학생이 보고 센다).
-  데이터/2_채널별집계_제출용.xlsx   교차집계 양식(채널 채움 + 카운트 빈칸 + '안내').
   eval/answer_key/1_분류표_정답.xlsx       정답 분류표(채점용).
-  eval/answer_key/2_채널별집계_정답.xlsx   정답 교차집계(채점용).
 
 [규칙북 (rulebook — 안내시트/PDF/INPUT_GUIDE에 명시, 정답의 유일 근거)]
   · 문의유형(우선순위, 위에서부터 첫 매치): 1.환불취소 2.배송지연 3.제품하자 4.사용문의 5.칭찬감사 6.기타
@@ -93,7 +90,7 @@ RISK_KEYWORDS = ["소송", "고소", "법적", "변호사", "소비자원", "공
                  "언론", "제보", "명예훼손", "불매", "유출", "해킹", "화상", "부상", "다쳤"]
 RISK_LABELS = ["위험", "일반"]
 
-# ── 채널(교차집계용) ────────────────────────────────────────────────────────
+# ── 채널(VOC 출처 메타 — 채점 미사용, items.csv 입력 검증용) ─────────────────
 CHANNELS = ["앱리뷰", "고객센터메일", "전화상담", "문의게시판", "SNS"]
 
 # ── 자연어 생성 어구(phrase) — 각 어구는 자기 축 키워드만 포함 ─────────────
@@ -367,21 +364,6 @@ def rulebook_sections():
     ]
 
 
-def crosstab_guide_sections():
-    return [
-        ("이 표를 채우는 방법",
-         ["옆 파일 '2_분류결과_참고용.xlsx'의 '분류결과' 시트에는 모든 문의의 정답 분류가 이미 적혀 있습니다.",
-          "그 표를 보고, 채널별로 각 문의유형이 몇 건인지와 위험 문의가 몇 건인지를 세어 적습니다.",
-          "직접 분류하는 게 아니라, 이미 적힌 정답 분류표에서 건수만 세면 됩니다."]),
-        ("어느 칸에 무엇을 적나",
-         ["맨 왼쪽 줄에는 채널 5개가 미리 적혀 있습니다: " + " · ".join(CHANNELS),
-          "그 오른쪽 칸에 문의유형 6개(" + " · ".join(TYPE_ORDER) + ") 각각의 건수를 적습니다.",
-          "맨 오른쪽 '위험건수' 칸에는 그 채널의 위험 문의가 몇 건인지 적습니다.",
-          "예: '앱리뷰' 줄의 '환불취소' 칸 = 참고용 표에서 채널이 앱리뷰이고 문의유형이 환불취소인 줄의 개수.",
-          "숫자만 적습니다(0건이면 0). 빈칸으로 두지 마세요."]),
-    ]
-
-
 # ----------------------------------------------------------------------------
 # 6) 엑셀 산출
 # ----------------------------------------------------------------------------
@@ -431,7 +413,7 @@ def write_voc(path, items, texts):
 
 
 def build_classification(path, items, answers, answer, sheet_name, guide_sections):
-    """분류표(빈 제출용/정답/참고용)를 찍는다. answer=False면 라벨 3칸 빈칸, True면 정답 채움."""
+    """분류표(빈 제출용/정답)를 찍는다. answer=False면 라벨 3칸 빈칸, True면 정답 채움."""
     wb = openpyxl.Workbook()
     g = wb.active
     g.title = "안내"
@@ -449,42 +431,6 @@ def build_classification(path, items, answers, answer, sheet_name, guide_section
     sht.column_dimensions["A"].width = 10
     sht.column_dimensions["B"].width = 14
     sht.freeze_panes = "A2"
-    wb.save(path)
-
-
-def _crosstab_counts(items, answers):
-    """채널×유형 건수 + 채널별 위험건수."""
-    cell = {ch: {t: 0 for t in TYPE_ORDER} for ch in CHANNELS}
-    risk = {ch: 0 for ch in CHANNELS}
-    for c in items:
-        dt, ds, dr = answers[c["item_id"]]
-        cell[c["채널"]][dt] += 1
-        if dr == "위험":
-            risk[c["채널"]] += 1
-    return cell, risk
-
-
-def build_crosstab(path, items, answers, answer, guide_sections):
-    """교차집계(빈 제출용/정답). 행=채널, 열=유형6 + 위험건수."""
-    cell, risk = _crosstab_counts(items, answers)
-    wb = openpyxl.Workbook()
-    g = wb.active
-    g.title = "안내"
-    _write_guide_sheet(g, guide_sections)
-
-    sht = wb.create_sheet("교차집계")
-    cols = ["채널"] + TYPE_ORDER + ["위험건수"]
-    sht.append(cols)
-    style_header(sht, len(cols))
-    for ch in CHANNELS:
-        if answer:
-            sht.append([ch] + [cell[ch][t] for t in TYPE_ORDER] + [risk[ch]])
-        else:
-            sht.append([ch] + ["" for _ in TYPE_ORDER] + [""])
-    sht.column_dimensions["A"].width = 14
-    for i in range(len(cols) - 1):
-        sht.column_dimensions[chr(ord("B") + i)].width = 11
-    sht.freeze_panes = "B2"
     wb.save(path)
 
 
@@ -615,20 +561,10 @@ def main():
     render_rulebook_pdf(DATA / "1_분류기준_위험규칙.pdf")
     build_classification(DATA / "1_분류표_제출용.xlsx", items, answers,
                          answer=False, sheet_name="분류", guide_sections=rulebook_sections())
-    build_classification(DATA / "2_분류결과_참고용.xlsx", items, answers,
-                         answer=True, sheet_name="분류결과",
-                         guide_sections=[("이 표는 무엇인가요",
-                                          ["모든 문의의 정답 분류가 이미 적혀 있는 표입니다(문의유형·감성·위험).",
-                                           "여기서 직접 분류하지 않습니다. '2_채널별집계_제출용.xlsx'를 채울 때",
-                                           "이 표를 보고 채널별 건수만 세면 됩니다."])])
-    build_crosstab(DATA / "2_채널별집계_제출용.xlsx", items, answers,
-                   answer=False, guide_sections=crosstab_guide_sections())
     # 정답키
     build_classification(ANS / "1_분류표_정답.xlsx", items, answers,
                          answer=True, sheet_name="분류", guide_sections=rulebook_sections())
-    build_crosstab(ANS / "2_채널별집계_정답.xlsx", items, answers,
-                   answer=True, guide_sections=crosstab_guide_sections())
-    print("[4/5] 엑셀/PDF 산출 완료: 원문 / 규칙북PDF / 분류표(제출·정답) / 참고용 / 교차집계(제출·정답)")
+    print("[4/5] 엑셀/PDF 산출 완료: 원문 / 규칙북PDF / 분류표(제출·정답)")
 
     # 분포/함정 요약
     conf_t = sum(1 for c in items if c["충돌주입"] == "유형충돌")
@@ -637,7 +573,6 @@ def main():
     weak = sum(1 for c in items if c["경계케이스"] == "약한신호")
     indep_neg = sum(1 for c in items if answers[c["item_id"]][1] == "부정" and answers[c["item_id"]][2] == "일반")
     indep_risk = sum(1 for c in items if answers[c["item_id"]][1] in ("중립", "긍정") and answers[c["item_id"]][2] == "위험")
-    cell, risk = _crosstab_counts(items, answers)
     print("[5/5] 분포 요약")
     print("=" * 64)
     print("  항목 수:", len(items))
@@ -648,8 +583,6 @@ def main():
     print("  충돌: 유형충돌", conf_t, "/ 감성충돌", conf_s)
     print("  경계: 판별불가", undet, "/ 약한신호", weak)
     print("  위험 축독립: (부정&일반)", indep_neg, "/ (중립·긍정&위험)", indep_risk)
-    print("  교차집계 채널×유형(0셀 개수):",
-          sum(1 for ch in CHANNELS for t in TYPE_ORDER if cell[ch][t] == 0), "/ 30")
     print("=" * 64)
 
 
