@@ -1,8 +1,0 @@
-campaign_id,name,channel,brief_file,region,age_min,age_max,dormant_days_min,dormant_days_max,total_spend_min,member_grade,pref_channel,opt_in_required,app_installed_required,matchable
-C01,휴면 고객 윈백,이메일,C01_winback.png,전국,25,54,90,,,,,Y,,Y
-C02,VIP 감사 프로모션,이메일,C02_vip.png,전국,,,,,1000000,VIP,,Y,,Y
-C03,활성 일반등급 리텐션,앱푸시,C03_active.png,전국,,,,14,,일반,,,,Y
-C04,앱푸시 한정 이벤트,앱푸시,C04_apppush.png,전국,,,,,,,앱푸시,,Y,Y
-C05,서울 오프라인 팝업 초대,SMS,C05_popup.png,서울특별시,20,39,,,,,,,,Y
-C06,골드 등급 전용 프로모션,이메일,C06_gold.png,전국,,,,,,골드,,Y,,Y
-C07,오프라인 매장 방문 고객 전용,오프라인,C07_offline.png,전국,,,,,,,,,,N
