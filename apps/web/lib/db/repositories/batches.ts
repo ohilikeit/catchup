@@ -73,8 +73,11 @@ export interface BatchListItem {
   name: string;
   orgId: string;
   orgName: string;
+  /** 대표 문제(seq=1) 제목. 회차에 문제가 여러 개면 problemCount로 개수를 함께 표시(예: "문제A 외 1개"). */
   problemTitle: string;
   problemVersion: number;
+  /** 이 회차의 출제 문제 개수(batch_problems). 1이면 단일 문제(0018). */
+  problemCount: number;
   capacity: number;
   status: BatchStatus;
   scheduledAt: Date | null;
@@ -91,17 +94,21 @@ interface BatchListRow extends BatchRow {
   org_name: string;
   problem_title: string;
   problem_version: number;
+  problem_count: string;
   attempt_count: string;
   submitted_count: string;
   accepted_count: string;
   // prompt_quota is inherited from BatchRow
 }
 
+// ⭐ problem_version_id = 대표 문제(seq=1). 표시용 조인은 대표 문제 기준(0018 — 기존 조인 무변경).
+//    전체 문제 개수는 batch_problems 스칼라 서브쿼리로(카테시안 곱·GROUP BY 영향 없음).
 const LIST_SELECT = `
   SELECT b.*,
          o.name  AS org_name,
          p.title AS problem_title,
          v.version AS problem_version,
+         (SELECT COUNT(*) FROM exam.batch_problems bp WHERE bp.batch_id = b.id) AS problem_count,
          COUNT(DISTINCT a.id) AS attempt_count,
          COUNT(DISTINCT a.id) FILTER (WHERE a.status = 'submitted') AS submitted_count,
          COUNT(DISTINCT s.id) FILTER (WHERE s.status = 'accepted')  AS accepted_count
@@ -121,6 +128,7 @@ function mapListRow(r: BatchListRow): BatchListItem {
     orgName: r.org_name,
     problemTitle: r.problem_title,
     problemVersion: r.problem_version,
+    problemCount: Number(r.problem_count),
     capacity: r.capacity,
     status: r.status,
     scheduledAt: r.scheduled_at,
@@ -176,18 +184,26 @@ export async function findDetailById(id: string): Promise<BatchListItem | null> 
   return rows[0] ? mapListRow(rows[0]) : null;
 }
 
-export async function create(input: {
-  orgId: string;
-  name: string;
-  problemVersionId: string;
-  capacity?: number;
-  scheduledAt?: Date | null;
-  model: string;
-  llmBudgetUsd?: number | null;
-  warmCount?: number | null;
-  promptQuota?: number;
-}): Promise<Batch> {
-  const row = await queryOne<BatchRow>(
+/**
+ * 회차 INSERT(트랜잭션) — problem_version_id 에는 대표 문제(첫 문제)를 넣는다. 전체 문제 목록은
+ * addBatchProblemsTx 로 batch_problems 에 seq 순서로 넣는다(호출부가 같은 트랜잭션에서 짝지어 호출).
+ */
+export async function createTx(
+  client: PoolClient,
+  input: {
+    orgId: string;
+    name: string;
+    /** 대표 문제(seq=1) = problemVersionIds[0]. */
+    problemVersionId: string;
+    capacity?: number;
+    scheduledAt?: Date | null;
+    model: string;
+    llmBudgetUsd?: number | null;
+    warmCount?: number | null;
+    promptQuota?: number;
+  },
+): Promise<Batch> {
+  const res = await client.query<BatchRow>(
     `INSERT INTO exam.batches (org_id, name, problem_version_id, capacity, scheduled_at, model, llm_budget_usd, warm_count, prompt_quota)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
     [
@@ -202,7 +218,61 @@ export async function create(input: {
       input.promptQuota ?? 30,
     ],
   );
-  return mapRow(row!);
+  return mapRow(res.rows[0]!);
+}
+
+/** 회차의 출제 문제 목록을 seq(1..N) 순서로 batch_problems 에 넣는다(같은 트랜잭션). */
+export async function addBatchProblemsTx(
+  client: PoolClient,
+  batchId: string,
+  problemVersionIds: string[],
+): Promise<void> {
+  for (let i = 0; i < problemVersionIds.length; i++) {
+    await client.query(
+      `INSERT INTO exam.batch_problems (batch_id, problem_version_id, seq) VALUES ($1, $2, $3)`,
+      [batchId, problemVersionIds[i], i + 1],
+    );
+  }
+}
+
+/** 회차 문제 목록(seq 순) — provision/seed 가 workspace 폴더(1번문제/2번문제)로 시드할 때 쓴다. */
+export interface BatchProblem {
+  seq: number;
+  problemVersionId: string;
+  problemCode: string;
+  problemTitle: string;
+  version: number;
+  scaffoldRef: string;
+}
+
+interface BatchProblemRow {
+  seq: number;
+  problem_version_id: string;
+  problem_code: string;
+  problem_title: string;
+  version: number;
+  public_scaffold_ref: string;
+}
+
+export async function listProblemVersionsByBatch(batchId: string): Promise<BatchProblem[]> {
+  const rows = await query<BatchProblemRow>(
+    `SELECT bp.seq, v.id AS problem_version_id, v.problem_code, p.title AS problem_title,
+            v.version, v.public_scaffold_ref
+       FROM exam.batch_problems bp
+       JOIN exam.problem_versions v ON v.id = bp.problem_version_id
+       JOIN exam.problems p ON p.code = v.problem_code
+      WHERE bp.batch_id = $1
+      ORDER BY bp.seq`,
+    [batchId],
+  );
+  return rows.map((r) => ({
+    seq: r.seq,
+    problemVersionId: r.problem_version_id,
+    problemCode: r.problem_code,
+    problemTitle: r.problem_title,
+    version: r.version,
+    scaffoldRef: r.public_scaffold_ref,
+  }));
 }
 
 /** 회차 모델 변경(provision 재확인 시 영속). allowlist 검증은 service 가 선행한다. */

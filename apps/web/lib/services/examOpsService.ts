@@ -1,5 +1,5 @@
 import 'server-only';
-import { attemptsRepo, batchesRepo, entryQueueRepo, problemsRepo, slotsRepo, withTransaction, getPool } from '../db';
+import { attemptsRepo, batchesRepo, entryQueueRepo, slotsRepo, withTransaction, getPool } from '../db';
 import { DEFAULT_DURATION_MIN, sweepDeadlines } from './examService';
 import { BUCKETS } from '../storage';
 import { generateVirtualKey, blockVirtualKeys, getKeyInfo } from '../litellm/keys';
@@ -58,8 +58,10 @@ export interface ProvisionResult {
   slots: number;
   /** 시작 시 미리 띄운 pod 수(warm_count, NULL=전부). */
   warm: number;
-  problemCode: string;
-  scaffoldRef: string;
+  /** 이 회차 출제 문제 개수(1번문제..N번문제). */
+  problemCount: number;
+  /** 출제 문제 코드들(seq 순). */
+  problemCodes: string[];
   /** 이 회차 환경에 적용된 AI 모델(litellm model_name). */
   model: string;
   warnings: string[];
@@ -83,8 +85,10 @@ export async function provisionBatch(
   // ── 1. 회차·문제 해석 (DB가 정보원) ──
   const batch = await batchesRepo.findById(batchId);
   if (!batch) throw new Error('회차를 찾을 수 없습니다.');
-  const version = await problemsRepo.findVersionById(batch.problemVersionId);
-  if (!version) throw new Error('회차에 연결된 문제 버전을 찾을 수 없습니다.');
+  // ⭐ N문제: 회차의 출제 문제 전체(seq 순). seeder 가 <seq>번문제 폴더로 각각 시드(0018).
+  const problems = await batchesRepo.listProblemVersionsByBatch(batchId);
+  if (problems.length === 0) throw new Error('회차에 연결된 문제가 없습니다.');
+  const scaffoldManifest = problems.map((p) => `${p.seq}번문제\t${p.scaffoldRef}`).join('\n');
   const slots = Math.min(batch.capacity, MAX_SLOTS);
   if (slots < 1) throw new Error('슬롯 수는 1 이상이어야 합니다.');
   const warm = Math.min(slots, Math.max(0, opts.warm ?? batch.warmCount ?? slots));
@@ -145,8 +149,7 @@ export async function provisionBatch(
     paths.configMap(ns, 'exam-batch'),
     examBatchConfigMap(ns, {
       batchId,
-      scaffoldRef: version.publicScaffoldRef,
-      problemCode: version.problemCode,
+      scaffoldManifest,
       model,
     }),
   );
@@ -203,7 +206,7 @@ export async function provisionBatch(
   warnings.push(
     `워밍 ${warm}/${slots} pod 기동 중 — Ready가 되면 자동으로 배정 가능해집니다(학생 화면이 대기→자동 진입).`,
   );
-  return { slots, warm, problemCode: version.problemCode, scaffoldRef: version.publicScaffoldRef, model, warnings };
+  return { slots, warm, problemCount: problems.length, problemCodes: problems.map((p) => p.problemCode), model, warnings };
 }
 
 export interface CloseResult {

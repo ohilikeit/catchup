@@ -51,7 +51,8 @@ export async function getBatchDetailForViewer(session: Session, batchId: string)
 export async function createBatch(input: {
   orgId: string;
   name: string;
-  problemVersionId: string;
+  /** 출제 문제 버전 ID들(seq 1..N). [0]=대표 문제. 최소 1개. */
+  problemVersionIds: string[];
   capacity?: number;
   scheduledAt?: Date | null;
   /** 회차 AI 모델(litellm model_name). 미지정=allowlist[0](기본). docs/11. */
@@ -83,7 +84,27 @@ export async function createBatch(input: {
   }
   // 쿼터: 미지정이면 30, 음수는 0으로 보정(DB CHECK >= 0 의 선행 방어).
   const promptQuota = Math.max(0, Math.round(input.promptQuota ?? 30));
-  const batch = await batchesRepo.create({ ...input, model, warmCount, promptQuota });
+
+  // 문제 목록: 순서 보존 중복 제거. 최소 1개(서버 검증 — 클라 입력은 적대적). [0]=대표.
+  const problemVersionIds = [...new Set(input.problemVersionIds)].filter(Boolean);
+  if (problemVersionIds.length === 0) throw new Error('출제할 문제를 최소 1개 선택하세요.');
+
+  // batch(대표 문제) + batch_problems(전체 seq 순)를 한 트랜잭션으로(불변식: seq=1 = 대표).
+  const batch = await withTransaction(async (client) => {
+    const created = await batchesRepo.createTx(client, {
+      orgId: input.orgId,
+      name: input.name,
+      problemVersionId: problemVersionIds[0]!,
+      capacity: input.capacity,
+      scheduledAt: input.scheduledAt,
+      model,
+      llmBudgetUsd: input.llmBudgetUsd,
+      warmCount,
+      promptQuota,
+    });
+    await batchesRepo.addBatchProblemsTx(client, created.id, problemVersionIds);
+    return created;
+  });
   await invalidateBatchLists();
   return batch;
 }

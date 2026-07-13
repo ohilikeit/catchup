@@ -61,7 +61,8 @@ catchup-bucket/            ← 유일 버킷(private, 익명 접근 none)
 
 > 컬럼명은 실제 마이그레이션(`db/migrations/`) 및 코드(`apps/web/lib/db/repositories/`)에서 확인한 값 기준.
 
-- `exam.batches`: 회차 (`id`, `org_id`, `problem_version_id`, `name`, `capacity`, `status`, `scheduled_at`, `llm_budget_usd` — `budget_per_attempt` 아님, `warm_count`, `mode`, `window_start_at`/`window_end_at`)
+- `exam.batches`: 회차 (`id`, `org_id`, `problem_version_id`=**대표 문제(seq=1)**, `name`, `capacity`, `status`, `scheduled_at`, `llm_budget_usd` — `budget_per_attempt` 아님, `warm_count`, `mode`, `window_start_at`/`window_end_at`)
+- `exam.batch_problems`: 회차 N문제(다대다) (`batch_id`, `problem_version_id`, `seq` PK=`(batch_id,seq)`) — `0018`. 한 회차에 문제 여러 개를 seq 순으로 출제. provision/seed 가 이걸 순회해 학생 workspace 를 `project/<seq>번문제/`(1번문제·2번문제…)로 시드. 불변식: seq=1 = `batches.problem_version_id`(대표, 기존 조인/UI 무변경). 단일 문제도 1행으로 동일 처리.
 - `exam.attempts`: 응시 (`batch_id`, `examinee_id`, `status` CHECK `ready|running|submitted|expired|void`, `deadline_at`, `trust`). ⚠️ slot 컬럼 없음 — 슬롯 매핑은 `hosted.slots.attempt_id`로 격리
 - `exam.submissions`: 제출 1건 (`attempt_id` UNIQUE, `status` `received→validating→accepted/rejected`, `captured_via='proxy'`, `trust='verified'`, `tool`, `chat_format_version`, `validation_error`)
 - `exam.submission_files`: 실물 메타 (`submission_id` FK, `kind='artifact'|'chat_log'`, `storage_key`, `sha256`, `size_bytes`)

@@ -24,7 +24,7 @@ export default async function OrgBatchDetailPage({
     { label: detail.name },
   ];
 
-  const subLine = `${detail.orgName} · ${detail.problemTitle} v${detail.problemVersion} · 정원 ${detail.capacity}명`;
+  const subLine = `${detail.orgName} · ${detail.problemTitle} v${detail.problemVersion}${detail.problemCount > 1 ? ` 외 ${detail.problemCount - 1}개` : ''} · 정원 ${detail.capacity}명`;
 
   return (
     <>

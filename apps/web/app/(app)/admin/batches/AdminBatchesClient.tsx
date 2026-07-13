@@ -111,8 +111,8 @@ export function AdminBatchesClient({
       key: 'problemTitle',
       header: '문제',
       truncate: '16rem',
-      titleValue: (r) => `${r.problemTitle} v${r.problemVersion}`,
-      render: (r) => `${r.problemTitle} v${r.problemVersion}`,
+      titleValue: (r) => `${r.problemTitle} v${r.problemVersion}${r.problemCount > 1 ? ` 외 ${r.problemCount - 1}개` : ''}`,
+      render: (r) => `${r.problemTitle} v${r.problemVersion}${r.problemCount > 1 ? ` 외 ${r.problemCount - 1}개` : ''}`,
     },
     {
       key: 'model',
@@ -251,6 +251,9 @@ function CreateBatchModal({
   onClose: () => void;
   onSubmit: (fd: FormData) => void;
 }) {
+  // 출제 문제 슬롯 개수(기본 2). 각 슬롯은 같은 name='problemVersionId' → 서버가 getAll 로 seq 순 수집.
+  const [problemCount, setProblemCount] = useState(2);
+
   function handlePrimary() {
     const fd = new FormData(document.getElementById('create-batch-form') as HTMLFormElement);
     onSubmit(fd);
@@ -272,14 +275,43 @@ function CreateBatchModal({
             ))}
           </Select>
         </Field>
-        <Field label="문제 버전">
-          <Select name="problemVersionId">
-            {versionOptions.map((v) => (
-              <option key={v.versionId} value={v.versionId}>
-                {v.problemTitle} v{v.version}
-              </option>
+        <Field
+          label="출제 문제"
+          helper="순서대로 학생 환경에 1번문제·2번문제 폴더로 주어집니다. 최소 1개, 문제 추가로 늘릴 수 있습니다."
+        >
+          <div className="flex flex-col gap-03">
+            {Array.from({ length: problemCount }).map((_, i) => (
+              <div key={i} className="flex items-center gap-02">
+                <span className="cds-label-01 text-text-secondary shrink-0 w-[68px]">{i + 1}번문제</span>
+                <div className="flex-1 min-w-0">
+                  <Select name="problemVersionId" defaultValue="">
+                    <option value="">— 선택 —</option>
+                    {versionOptions.map((v) => (
+                      <option key={v.versionId} value={v.versionId}>
+                        {v.problemTitle} v{v.version}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                {problemCount > 1 && (
+                  <Button
+                    type="button"
+                    kind="ghost"
+                    size="field"
+                    iconOnly
+                    icon="trash"
+                    aria-label={`${i + 1}번문제 제거`}
+                    onClick={() => setProblemCount((c) => Math.max(1, c - 1))}
+                  />
+                )}
+              </div>
             ))}
-          </Select>
+            <div>
+              <Button type="button" kind="ghost" size="sm" icon="add" onClick={() => setProblemCount((c) => c + 1)}>
+                문제 추가
+              </Button>
+            </div>
+          </div>
         </Field>
         <Field label="회차명">
           <Input name="name" placeholder="예: 2026 상반기 기획직무 1회차" />

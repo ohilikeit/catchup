@@ -121,11 +121,17 @@ async function main() {
       const found = await client.query('SELECT id FROM exam.batches WHERE org_id = $1 AND name = $2', [orgId, name]);
       if (found.rows[0]) return found.rows[0].id;
       const opened = status === 'open' ? 'NOW()' : 'NULL';
-      return (await client.query(
+      const id = (await client.query(
         `INSERT INTO exam.batches (org_id, name, problem_version_id, status, scheduled_at, opened_at)
          VALUES ($1, $2, $3, $4, NOW(), ${opened}) RETURNING id`,
         [orgId, name, pv, status],
       )).rows[0].id;
+      // 대표 문제(seq=1)를 batch_problems 에도 — provision 이 여기서 문제 목록을 읽는다(0018).
+      await client.query(
+        `INSERT INTO exam.batch_problems (batch_id, problem_version_id, seq) VALUES ($1, $2, 1) ON CONFLICT DO NOTHING`,
+        [id, pv],
+      );
+      return id;
     }
     const batchA1 = await ensureBatch(orgA, '2026 가을 1회차', 'open');
     const batchA2 = await ensureBatch(orgA, '2026 가을 2회차', 'scheduled');

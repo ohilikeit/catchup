@@ -28,10 +28,14 @@ export function sha256(buf: Buffer): string {
   return createHash('sha256').update(buf).digest('hex');
 }
 
-/** 파일명 정규화: 경로탈출/특수문자 차단. basename만, 안전문자 외는 '_'. */
+/**
+ * 파일명 정규화: 경로탈출/특수문자 차단. basename만, 안전문자 외는 '_'.
+ * ⭐ 유니코드 letter/number 보존(\p{L}\p{N}, u 플래그) — JS 기본 \w 는 ASCII 라
+ *    한글 파일명이 통째로 '____' 로 깨진다. NFC 정규화 후 한글·CJK 를 그대로 살린다.
+ */
 export function sanitizeFilename(name: string): string {
-  const base = name.split(/[/\\]/).pop() ?? 'file';
-  const safe = base.replace(/[^\w.\-]+/g, '_').replace(/^\.+/, '_');
+  const base = (name.split(/[/\\]/).pop() ?? 'file').normalize('NFC');
+  const safe = base.replace(/[^\p{L}\p{N}._-]+/gu, '_').replace(/^\.+/, '_');
   return safe.slice(0, 200) || 'file';
 }
 

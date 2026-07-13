@@ -53,7 +53,8 @@ export default async function AdminBatchDetailPage({
     ? new Date(detail.scheduledAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' })
     : '미정';
   const budgetLabel = detail.llmBudgetUsd == null ? '상한 없음' : `$${detail.llmBudgetUsd.toFixed(2)}/인`;
-  const subLine = `${detail.orgName} · ${detail.problemTitle} v${detail.problemVersion} · 정원 ${detail.capacity}명 · 예정 ${scheduledLabel} · LLM 예산 ${budgetLabel} · 프롬프트 ${detail.promptQuota}회`;
+  const problemLabel = `${detail.problemTitle} v${detail.problemVersion}${detail.problemCount > 1 ? ` 외 ${detail.problemCount - 1}개` : ''}`;
+  const subLine = `${detail.orgName} · ${problemLabel} · 정원 ${detail.capacity}명 · 예정 ${scheduledLabel} · LLM 예산 ${budgetLabel} · 프롬프트 ${detail.promptQuota}회`;
 
   return (
     <>

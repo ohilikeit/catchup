@@ -87,9 +87,10 @@ spec:
         fsGroup: 1000                 # PVC(/home/coder/project) 쓰기 권한 — code-server 가 씀
         seccompProfile:
           type: RuntimeDefault
-      # ── seeder(2a): scaffold 는 MinIO(exam-scaffold)에 객체로 저장, DB 엔 ref 포인터만(docs/5 §2). ──
-      # 1) fetch: mc 로 SCAFFOLD_REF(객체)를 /stage 로 받음   2) extract: 워크스페이스가 비었을 때만 tar 풀기.
-      # crash-safe: 재접속/재시작 시 작업물 보존(비어있지 않으면 스킵). 정식 운영은 exam-ops 가 문제별 ref 주입.
+      # ── seeder(2a): scaffold 는 MinIO(catchup-bucket/exam-scaffold)에 객체, DB 엔 ref 포인터만(docs/5 §2). ──
+      # 1) fetch: SCAFFOLD_MANIFEST(줄단위 <폴더>\t<ref>)를 순회해 각 scaffold 를 /stage/<폴더>.tgz 로 받음
+      # 2) extract: 워크스페이스가 비었을 때만, 각 tgz 를 /ws/project/<폴더>/ 로 풀기(1번문제/2번문제).
+      # crash-safe: 재접속/재시작 시 작업물 보존(비어있지 않으면 스킵). exam-ops 가 provision 시 매니페스트 주입.
       initContainers:
         - name: fetch-scaffold
           image: minio/mc:latest
@@ -97,8 +98,8 @@ spec:
             - { name: HOME, value: /tmp }            # mc config dir(uid 1000 쓰기 가능)
           envFrom:
             - secretRef: { name: app-secrets }       # MINIO_ENDPOINT/PORT/ACCESS_KEY/SECRET_KEY
-            # ⭐ SCAFFOLD_REF 는 회차(batch)의 문제다 — exam-ops 가 provision 시 그 회차 problem_versions.public_scaffold_ref
-            #    를 이 ConfigMap 에 써넣는다(회차마다 다른 문제 = 통일 scaffold). git 에 없으므로 selfHeal 무관.
+            # ⭐ SCAFFOLD_MANIFEST 는 회차의 문제 목록이다 — exam-ops 가 provision 시 batch_problems 를
+            #    seq 순으로 `<seq>번문제\t<public_scaffold_ref>` 줄로 써넣는다. git 에 없어 selfHeal 무관.
             - configMapRef: { name: exam-batch, optional: true }
           command:
             - /bin/sh
@@ -106,10 +107,15 @@ spec:
             - |
               set -e
               mc alias set m "http://${MINIO_ENDPOINT}:${MINIO_PORT}" "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY" >/dev/null
-              # ⭐ 버킷 단일화(catchup-bucket): SCAFFOLD_REF=`<접두>/<키>`(예: exam-scaffold/...)라 실 객체 키는
-              #    catchup-bucket/${SCAFFOLD_REF}. examResources 의 Job(m/${STORAGE_BUCKET}/${ref})과 동일 규약.
-              echo "[fetch] mc cp m/catchup-bucket/${SCAFFOLD_REF} → /stage/scaffold.tgz"
-              mc cp "m/catchup-bucket/${SCAFFOLD_REF}" /stage/scaffold.tgz
+              # ⭐ 버킷 단일화(catchup-bucket): ref=`<접두>/<키>`(예: exam-scaffold/…)라 실 객체 키는
+              #    catchup-bucket/${ref}. examResources 의 Job(m/${STORAGE_BUCKET}/${ref})과 동일 규약.
+              #    매니페스트를 파일로 써서 메인 셸에서 read(set -e 가 mc cp 실패를 잡도록 서브셸 회피).
+              printf '%s\n' "${SCAFFOLD_MANIFEST}" > /tmp/manifest
+              while IFS="$(printf '\t')" read -r dir ref; do
+                [ -z "$dir" ] && continue
+                echo "[fetch] $dir ← m/catchup-bucket/$ref"
+                mc cp "m/catchup-bucket/$ref" "/stage/$dir.tgz"
+              done < /tmp/manifest
           volumeMounts:
             - { name: stage, mountPath: /stage }
         # ⭐ PVC 레이아웃: 루트에 project/(작업물)·claude/(대화 로그) 두 칸 — subPath로 각각 마운트.
@@ -126,8 +132,14 @@ spec:
               if [ -n "$(ls -A /ws/project 2>/dev/null)" ]; then
                 echo "[seed] 워크스페이스 비어있지 않음 → 스킵(작업물 보존)"; exit 0
               fi
-              tar -xzf /stage/scaffold.tgz -C /ws/project
-              echo "[seed] 시드 완료: $(ls -A /ws/project | tr '\n' ' ')"
+              # 각 문제 tgz 를 <폴더>/ 로 풀기 — 문제 1개면 1번문제/ 하나, N개면 1번문제/…N번문제/.
+              for f in /stage/*.tgz; do
+                [ -e "$f" ] || continue
+                name=$(basename "$f" .tgz)
+                mkdir -p "/ws/project/$name"
+                tar -xzf "$f" -C "/ws/project/$name"
+                echo "[seed] $name 시드: $(ls -A "/ws/project/$name" | tr '\n' ' ')"
+              done
           volumeMounts:
             - { name: stage, mountPath: /stage }
             - { name: workspace, mountPath: /ws }

@@ -10,7 +10,11 @@ export async function createBatchAction(formData: FormData) {
   const session = await requireGlobalRole('admin');
   const orgId = formData.get('orgId') as string;
   const name = (formData.get('name') as string).trim();
-  const problemVersionId = formData.get('problemVersionId') as string;
+  // 문제 다중 선택(슬롯 여러 개) — 같은 name 의 값을 전부 모아 seq 순서로. 빈 슬롯 제외.
+  const problemVersionIds = formData
+    .getAll('problemVersionId')
+    .map((v) => String(v).trim())
+    .filter(Boolean);
   const capacityRaw = formData.get('capacity') as string;
   const capacity = capacityRaw ? Number(capacityRaw) : undefined;
 
@@ -46,11 +50,11 @@ export async function createBatchAction(formData: FormData) {
     return Number.isFinite(n) ? Math.max(0, Math.round(n)) : 30;
   })();
 
-  if (!orgId || !name || !problemVersionId) {
-    throw new Error('필수 항목을 모두 입력하세요.');
+  if (!orgId || !name || problemVersionIds.length === 0) {
+    throw new Error('필수 항목을 모두 입력하세요(문제 최소 1개).');
   }
 
-  await batchService.createBatch({ orgId, name, problemVersionId, capacity, scheduledAt, model, llmBudgetUsd, warmCount, promptQuota });
+  await batchService.createBatch({ orgId, name, problemVersionIds, capacity, scheduledAt, model, llmBudgetUsd, warmCount, promptQuota });
   revalidatePath('/admin/batches');
 }
 

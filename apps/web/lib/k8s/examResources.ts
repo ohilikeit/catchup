@@ -38,18 +38,21 @@ export function slotIdePath(slotNo: number): string {
   return `/exam-ide/${slotNo}`;
 }
 
-/** seeder(initContainer)가 읽는 회차 ConfigMap — 이 회차의 문제 scaffold 객체 키. */
+/**
+ * seeder(initContainer)가 읽는 회차 ConfigMap — 이 회차의 문제 scaffold 목록.
+ * ⭐ N문제: SCAFFOLD_MANIFEST 는 줄단위 `<폴더명>\t<ref>`(seq 순). seeder 가 순회하며
+ *   각 scaffold 를 /ws/project/<폴더명>/ 로 시드한다(1번문제/2번문제). 단일 문제도 1줄로 동일 처리(0018).
+ */
 export function examBatchConfigMap(
   ns: string,
-  input: { batchId: string; scaffoldRef: string; problemCode: string; model: string },
+  input: { batchId: string; scaffoldManifest: string; model: string },
 ): Record<string, unknown> {
   return {
     apiVersion: 'v1',
     kind: 'ConfigMap',
     metadata: { name: 'exam-batch', namespace: ns },
     data: {
-      SCAFFOLD_REF: input.scaffoldRef,
-      PROBLEM_ID: input.problemCode,
+      SCAFFOLD_MANIFEST: input.scaffoldManifest,
       BATCH_ID: input.batchId,
       // exam pod 가 envFrom 으로 흡수 → 활성 모델. 정적 env 는 템플릿에서 제거됨(envFrom 우선순위 함정 회피).
       ANTHROPIC_MODEL: input.model,

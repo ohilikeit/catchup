@@ -16,7 +16,7 @@ export function OrgBatchesTable({ rows }: { rows: BatchListItem[] }) {
       key: 'problemTitle',
       header: '문제',
       sortable: true,
-      render: (r) => `${r.problemTitle} v${r.problemVersion}`,
+      render: (r) => `${r.problemTitle} v${r.problemVersion}${r.problemCount > 1 ? ` 외 ${r.problemCount - 1}개` : ''}`,
     },
     {
       key: 'status',

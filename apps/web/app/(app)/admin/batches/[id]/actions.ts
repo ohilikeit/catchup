@@ -55,7 +55,7 @@ export async function openBatchEnvAction(batchId: string, model: string): Promis
     await batchService.setBatchStatus(batchId, 'open');
     revalidatePath(`/admin/batches/${batchId}`);
     const warn = r.warnings.length > 0 ? ` ${r.warnings.join(' ')}` : '';
-    return { ok: true, message: `슬롯 ${r.slots}개 준비 완료 (문제 ${r.problemCode} · 모델 ${r.model}).${warn}` };
+    return { ok: true, message: `슬롯 ${r.slots}개 준비 완료 (문제 ${r.problemCodes.join(', ')} · 모델 ${r.model}).${warn}` };
   } catch (e: unknown) {
     revalidatePath(`/admin/batches/${batchId}`);
     return { ok: false, message: e instanceof Error ? e.message : String(e) };
