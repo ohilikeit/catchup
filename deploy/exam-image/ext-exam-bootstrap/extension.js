@@ -9,10 +9,24 @@
 //  활성이라 정상 렌더된다 — 이 확장은 그 수동 우회를 자동화한다.
 //
 // 겸사겸사, VS Code 에는 "탐색기 전체 펼침" 설정이 없어 시작 시 list.expandAll 명령을 쏜다.
+// 그리고 Claude 확장이 무조건 켜는 "세션 목록"(왼쪽 액티비티 바) 뷰를 숨겨 우측 채팅 패널만 남긴다.
 
 const vscode = require('vscode');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function hideSessionsList() {
+  // Claude 확장(v2.1.207)은 활성화 시 setContext('claude-vscode.sessionsListEnabled', true)를
+  // 무조건 실행해 좌측 액티비티 바에 "세션 목록" 뷰 컨테이너(claude-sessions-sidebar)를 띄운다.
+  // 이를 끄는 설정 키는 없다. 컨텍스트 키는 전역이므로, Claude 가 켠 뒤 우리가 false 로 덮으면
+  // 그 뷰의 when 조건(claude-vscode.sessionsListEnabled)이 깨져 사라진다 → 우측 채팅 패널만 남는다.
+  // (우측 채팅은 claudeVSCodeSidebarSecondary, when=!doesNotSupportSecondarySidebar 라 영향 없음)
+  try {
+    await vscode.commands.executeCommand('setContext', 'claude-vscode.sessionsListEnabled', false);
+  } catch {
+    /* setContext 실패는 무시 — 레이아웃 정리일 뿐 */
+  }
+}
 
 async function expandExplorer() {
   // 탐색기 포커스 후 전체 펼침. 트리 자식 로드에 여유를 주고, 깊은 트리 대비 2회 시도.
@@ -51,8 +65,12 @@ function activate() {
   // 워크벤치 렌더·SW 활성화에 여유를 준 뒤 실행(학생 수동 조작 타이밍과 유사).
   void (async () => {
     await sleep(2000);
+    // Claude 활성화(onStartupFinished) 이후에 덮어야 하므로 우리 지연 뒤에 실행. 재확인 위해 뒤에서 1회 더.
+    await hideSessionsList();
     await expandExplorer();
     await reviveClaudePanel();
+    await sleep(1200);
+    await hideSessionsList();
   })();
 }
 

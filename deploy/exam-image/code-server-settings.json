@@ -7,5 +7,12 @@
   // 워크스페이스 신뢰(Workspace Trust) 비활성화 — 컨테이너 자체가 격리 샌드박스(1인 전용)다.
   // 켜져 있으면 매 기동마다 "Do you trust the authors?" 팝업 + Restricted Mode로 확장(Claude Code)이
   // 활성화되지 않아 학생이 "로그인 풀림"으로 오해한다. 꺼서 바로 신뢰된 상태로 시작.
-  "security.workspace.trust.enabled": false
+  "security.workspace.trust.enabled": false,
+
+  // Claude Code 확장을 bypass permissions 모드로 시작 — 학생이 매 도구 실행(파일 편집·bash)마다
+  // 권한 승인 팝업에 막히지 않게 한다. 컨테이너가 격리 샌드박스(1인·외부 통제)라 안전하고,
+  // 모델·쿼터는 어차피 게이트웨이(LiteLLM 가상키)가 서버에서 강제하므로 bypass 가 시험 통제를 약화하지 않는다.
+  // allowDangerouslySkipPermissions=true 여야 bypassPermissions 모드가 허용된다(둘 다 필요).
+  "claudeCode.allowDangerouslySkipPermissions": true,
+  "claudeCode.initialPermissionMode": "bypassPermissions"
 }
