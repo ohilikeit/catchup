@@ -33,9 +33,13 @@ export function slotEndpoint(ns: string, slotNo: number): string {
   return `http://${EXAM_STS}-${slotNo}.${EXAM_STS}.${ns}.svc.cluster.local:8080`;
 }
 
-/** 학생 브라우저가 쓰는 슬롯별 IDE 경로(같은 도메인 → 세션 쿠키 전달, ForwardAuth 검사 가능). */
-export function slotIdePath(slotNo: number): string {
-  return `/exam-ide/${slotNo}`;
+/**
+ * 슬롯별 IDE 서브도메인 호스트(webview 를 위한 subdomain 라우팅). code-server 가 루트로 서빙되어
+ * webview service worker 가 올바른 scope·secure context(.localhost=loopback)에서 등록된다.
+ * exam-authz 가 이 호스트의 N == 그 유저의 배정 슬롯을 대조해 격리(대원칙 ⑤). 세션 쿠키는 domain 공유로 전달.
+ */
+export function slotIdeHost(slotNo: number): string {
+  return `slot${slotNo}.${IDE_HOST}`;
 }
 
 /**
@@ -202,9 +206,10 @@ export function slotService(ns: string, slotNo: number): Record<string, unknown>
 }
 
 /**
- * 슬롯별 IDE Ingress — /exam-ide/{N} → exam-slot-{N}.
- * 미들웨어 순서: exam-authz(ForwardAuth: 세션 + 그 유저의 배정 슬롯 == N 검사) → exam-stripprefix(접두 제거).
- * 둘 다 55-exam-ide.yaml 의 정적 Middleware(이름이 ns 접두로 참조됨).
+ * 슬롯별 IDE Ingress — slotN.<host> → exam-slot-{N}(pod 고정 Service). ⭐ subdomain 라우팅:
+ * 슬롯마다 별도 host rule 이라 code-server 가 루트로 서빙 → webview service worker 정상(subpath 문제 해소).
+ * 미들웨어: exam-authz(ForwardAuth) 하나만 — stripPrefix 불필요(서브도메인 루트).
+ * (인증은 exam-authz 가 X-Forwarded-Host 의 슬롯 번호 == 그 유저 배정 슬롯을 재판단.)
  */
 export function slotsIngress(ns: string, slotCount: number): Record<string, unknown> {
   return {
@@ -214,23 +219,23 @@ export function slotsIngress(ns: string, slotCount: number): Record<string, unkn
       name: 'exam-ide-slots',
       namespace: ns,
       annotations: {
-        'traefik.ingress.kubernetes.io/router.middlewares': `${ns}-exam-authz@kubernetescrd,${ns}-exam-stripprefix@kubernetescrd`,
+        'traefik.ingress.kubernetes.io/router.middlewares': `${ns}-exam-authz@kubernetescrd`,
       },
     },
     spec: {
       ingressClassName: 'traefik',
-      rules: [
-        {
-          host: IDE_HOST,
-          http: {
-            paths: Array.from({ length: slotCount }, (_, i) => ({
-              path: slotIdePath(i),
+      rules: Array.from({ length: slotCount }, (_, i) => ({
+        host: slotIdeHost(i),
+        http: {
+          paths: [
+            {
+              path: '/',
               pathType: 'Prefix' as const,
               backend: { service: { name: `exam-slot-${i}`, port: { number: 8080 } } },
-            })),
-          },
+            },
+          ],
         },
-      ],
+      })),
     },
   };
 }

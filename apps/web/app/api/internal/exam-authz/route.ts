@@ -1,25 +1,26 @@
 import { getSession } from '@/lib/auth/session';
 import { queryOne } from '@/lib/db/pool';
 
-// GET /api/internal/exam-authz — traefik ForwardAuth 미들웨어가 /exam-ide/{slotNo}(코드서버 직결)의 모든 요청마다 호출.
-// 같은 도메인(catchup.localhost) 경로라 catchup_session 쿠키가 그대로 전달됨 → 세션 검증 가능.
-// ⭐ per-slot 격리(docs/2 §6): 경로의 슬롯 번호(X-Forwarded-Uri)가 "그 유저에게 배정된 슬롯"과 일치해야 통과.
-//   Ingress가 /exam-ide/{N} → exam-slot-{N}(pod 고정 Service)로 라우팅하므로,
-//   이 검사를 통과한 요청은 자기 pod 외에는 닿을 수 없다(학생 A→B 워크스페이스 차단).
-// 허용 조건: 로그인 + 그 유저의 'running' 응시 + 'assigned' 슬롯 + slot_no == 경로의 N.
+// GET /api/internal/exam-authz — traefik ForwardAuth 미들웨어가 slotN.catchup.localhost(코드서버 직결)의 모든 요청마다 호출.
+// ⭐ subdomain 라우팅(webview 정상화): 슬롯별 서브도메인이라 code-server 가 루트로 서빙 → webview service worker 가
+//   올바른 scope·secure context(.localhost=loopback)에서 등록된다. 세션 쿠키는 domain=.catchup.localhost 로 공유돼 전달.
+// ⭐ per-slot 격리(docs/2 §6): 호스트의 슬롯 번호(X-Forwarded-Host: slotN.…)가 "그 유저에게 배정된 슬롯"과 일치해야 통과.
+//   Ingress가 slotN.<host> → exam-slot-{N}(pod 고정 Service)로 라우팅하므로, 통과 요청은 자기 pod 외엔 닿지 못한다.
+// 허용 조건: 로그인 + 그 유저의 'running' 응시 + 'assigned' 슬롯 + slot_no == 서브도메인의 N.
 //   200 → traefik이 요청을 code-server로 통과. 401/403 → 차단.
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const SLOT_PATH_RE = /^\/exam-ide\/(\d{1,3})(?:[/?]|$)/;
+// 서브도메인 앞머리에서 슬롯 번호 추출(포트 포함 가능: slot3.catchup.localhost:8088).
+const SLOT_HOST_RE = /^slot(\d{1,3})\./;
 
 export async function GET(req: Request) {
   const session = await getSession();
   if (!session) return new Response('unauthorized', { status: 401 });
 
-  // traefik ForwardAuth는 원 요청 경로를 X-Forwarded-Uri로 전달한다. 슬롯 없는 경로(구판 /exam-ide/)는 거부.
-  const uri = req.headers.get('x-forwarded-uri') ?? '';
-  const m = SLOT_PATH_RE.exec(uri);
+  // traefik ForwardAuth는 원 요청 호스트를 X-Forwarded-Host로 전달한다. slotN 서브도메인이 아니면 거부.
+  const host = req.headers.get('x-forwarded-host') ?? '';
+  const m = SLOT_HOST_RE.exec(host);
   if (!m) return new Response('forbidden', { status: 403 });
   const slotNo = Number(m[1]);
 

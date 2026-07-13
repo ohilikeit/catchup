@@ -1,13 +1,13 @@
-# 학생 IDE 인증 미들웨어 — catchup.localhost/exam-ide/{slotNo} → (ForwardAuth + stripPrefix) → 그 슬롯의 code-server.
-# 같은 도메인 경로라 catchup_session 쿠키가 ForwardAuth 로 전달됨(인증 가능) + traefik 이 code-server 에
-# 직결하므로 WS·에셋 완전 동작(web 프록시 경유의 traefik WS 502 회피). docs/2 §6, docs/4.
+# 학생 IDE 인증 미들웨어 — slotN.catchup.localhost → (ForwardAuth) → 그 슬롯의 code-server(루트 직결).
+# ⭐ subdomain 라우팅: 슬롯별 서브도메인이라 code-server 가 루트로 서빙 → webview service worker 가 올바른
+#   scope·secure context(.localhost=loopback)에서 등록된다(구 /exam-ide/{N} subpath 의 webview CSP 에러 해소).
+#   세션 쿠키는 domain=.catchup.localhost 로 공유돼 ForwardAuth 로 전달, traefik 이 code-server 에 직결(WS·에셋 완전 동작).
 #
-# ⭐ per-slot 라우팅(Phase 3): Ingress(exam-ide-slots)와 슬롯별 Service(exam-slot-N, pod 고정)는
-#   exam-ops provision 이 동적으로 생성하고 close 가 삭제한다 — git 에는 정적 Middleware 만 둔다.
-#   (구판의 exam-direct(app=exam 라운드로빈)·정적 Ingress 는 제거 — 다중 pod 에서 학생 격리가 깨졌음.)
-#   인가는 exam-authz 가 경로의 슬롯 번호 == 그 유저의 배정 슬롯(DB)을 검사해 재판단한다.
+# ⭐ per-slot 라우팅: Ingress(exam-ide-slots, slotN.<host> → exam-slot-N)와 슬롯별 Service 는 exam-ops
+#   provision 이 동적 생성하고 close 가 삭제한다 — git 에는 정적 Middleware 만 둔다. stripPrefix 는 서브도메인
+#   루트라 불필요(제거). 인가는 exam-authz 가 서브도메인의 슬롯 번호 == 그 유저의 배정 슬롯(DB)을 재판단한다.
 ---
-# ForwardAuth: 매 요청 web 의 authz 로 세션 + "경로의 슬롯 == 배정 슬롯" 검사(그 유저만, 그 pod 만 통과).
+# ForwardAuth: 매 요청 web 의 authz 로 세션 + "서브도메인 슬롯 == 배정 슬롯" 검사(그 유저만, 그 pod 만 통과).
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -16,14 +16,3 @@ metadata:
 spec:
   forwardAuth:
     address: http://web.catchup-local.svc.cluster.local:3000/api/internal/exam-authz
----
-# stripPrefix: /exam-ide/{N} 접두 제거 후 code-server 루트로 전달(code-server 는 상대경로 서빙).
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: exam-stripprefix
-  namespace: catchup-local
-spec:
-  stripPrefixRegex:
-    regex:
-      - "^/exam-ide/[0-9]+"

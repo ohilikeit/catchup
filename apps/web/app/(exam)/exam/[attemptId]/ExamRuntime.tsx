@@ -26,14 +26,21 @@ export interface ExamRuntimeData {
 
 /* ── hosted: 웹 IDE — code-server 풀스크린 iframe (인증 ingress 경유) ── */
 export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
-  // IDE 경로 — 같은 도메인 /exam-ide/{슬롯번호} 를 traefik 이 ForwardAuth(세션+그 슬롯 소유권) 통과 시
-  // "그 슬롯의 pod"에만 직결(슬롯별 Service). 같은 오리진이라 세션 쿠키 전달 + WS·에셋 완전 동작.
+  // IDE URL — 슬롯별 서브도메인(slotN.<현재도메인>)에 code-server 직결. ⭐ subdomain 라우팅이라 code-server 가
+  // 루트로 서빙되어 webview service worker 가 정상 등록된다(구 /exam-ide/{N} subpath 의 webview CSP 에러 해소).
   // 슬롯 번호는 표시용일 뿐 권한이 아니다 — 서버(exam-authz)가 배정 슬롯과 대조해 재판단한다(대원칙 ⑤).
-  const IDE_URL = `/exam-ide/${runtime.slotNo}/?folder=/home/coder/project`;
   const router = useRouter();
   const { toast } = useToast();
   const [expired, setExpired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // 서브도메인 URL 은 window 기반이라 클라에서 계산(SSR 하이드레이션 불일치 회피) — 준비 전엔 src 미설정.
+  const [ideUrl, setIdeUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (runtime.slotNo === null) return;
+    const { protocol, hostname, port } = window.location;
+    const host = `slot${runtime.slotNo}.${hostname}${port ? `:${port}` : ''}`;
+    setIdeUrl(`${protocol}//${host}/?folder=/home/coder/project`);
+  }, [runtime.slotNo]);
 
   // 프롬프트 잔량 폴링(8초 간격). iframe 안 Claude 사용을 직접 감지 못하므로 주기 폴링.
   // 실패는 조용히 무시(이전 값 유지) — 학생 경험을 해치지 않는다.
@@ -111,7 +118,7 @@ export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
           )}
           <Countdown deadlineAt={runtime.deadlineAt} onExpire={handleExpire} />
           {ideReady && (
-            <Button kind="ghost" size="sm" icon="launch" onClick={() => window.open(IDE_URL, '_blank', 'noopener')}>
+            <Button kind="ghost" size="sm" icon="launch" disabled={!ideUrl} onClick={() => ideUrl && window.open(ideUrl, '_blank', 'noopener')}>
               새 창
             </Button>
           )}
@@ -133,7 +140,7 @@ export function ExamRuntime({ runtime }: { runtime: ExamRuntimeData }) {
       ) : runtime.slotNo !== null ? (
         /* 슬롯 배정됨: code-server 가 상단 바를 제외한 화면 전체를 차지. */
         <iframe
-          src={IDE_URL}
+          src={ideUrl ?? undefined}
           className="flex-1 w-full border-0 block"
           title="웹 IDE"
           allow="clipboard-read; clipboard-write"

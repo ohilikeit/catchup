@@ -1,0 +1,11 @@
+{
+  // 내장 VS Code "Chat"(AI 기능)을 끈다 — 학생이 Claude Code 사이드바와 헷갈리지 않게 Claude Code만 노출.
+  // 코어의 builtin chat 확장을 비활성화한다(activitybar/secondary sidebar의 "Chat" 아이콘 제거).
+  // Claude Code 확장은 자체 webview 사이드바라(chatParticipant 미사용) 영향받지 않는다.
+  "chat.disableAIFeatures": true,
+
+  // 워크스페이스 신뢰(Workspace Trust) 비활성화 — 컨테이너 자체가 격리 샌드박스(1인 전용)다.
+  // 켜져 있으면 매 기동마다 "Do you trust the authors?" 팝업 + Restricted Mode로 확장(Claude Code)이
+  // 활성화되지 않아 학생이 "로그인 풀림"으로 오해한다. 꺼서 바로 신뢰된 상태로 시작.
+  "security.workspace.trust.enabled": false
+}

@@ -70,6 +70,11 @@ export async function getSession(): Promise<Session | null> {
   return raw ? decode(raw) : null;
 }
 
+// ⭐ 쿠키 domain — SESSION_COOKIE_DOMAIN 이 있으면 그 값(예: '.catchup.localhost')으로 설정해
+//   슬롯 IDE 서브도메인(slotN.catchup.localhost)에도 세션 쿠키가 전달된다(webview 를 위한 subdomain 라우팅).
+//   미설정이면 host-only(현행) — 하위호환. prod 는 '.<실도메인>'.
+const COOKIE_DOMAIN = process.env.SESSION_COOKIE_DOMAIN || undefined;
+
 /** 로그인 성공 시 세션 쿠키 설정(route handler / server action에서). */
 export function setSessionCookie(session: Session): void {
   cookies().set(COOKIE, encode(session), {
@@ -78,12 +83,20 @@ export function setSessionCookie(session: Session): void {
     secure: process.env.NODE_ENV === 'production',
     path: '/',
     maxAge: 60 * 60 * 8, // 8h
+    ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
   });
 }
 
-/** 로그아웃. */
+/** 로그아웃. domain 쿠키는 name-only delete 로 안 지워질 수 있어 같은 domain 으로 만료시킨다. */
 export function clearSessionCookie(): void {
-  cookies().delete(COOKIE);
+  cookies().set(COOKIE, '', {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 0,
+    ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
+  });
 }
 
 /** examinee 라벨 등에 쓸 아바타 이니셜. */

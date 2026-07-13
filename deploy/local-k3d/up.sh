@@ -71,8 +71,8 @@ kubectl get nodes
 if (( BUILD )); then
   b "이미지 빌드 (catchup-web / catchup-exam)"
   docker build -f apps/web/Dockerfile -t catchup-web:local .
-  docker build -f experiments/s1-docker-spike/exam-image/Dockerfile \
-    -t catchup-exam:local experiments/s1-docker-spike/exam-image/
+  docker build -f deploy/exam-image/Dockerfile \
+    -t catchup-exam:local deploy/exam-image/
   ok "web·exam 이미지 빌드 완료"
 else
   ok "(--no-build) 이미지 빌드 건너뜀 — import 는 계속 진행"
