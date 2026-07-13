@@ -16,6 +16,7 @@ import {
   MAX_PREVIEW_BYTES,
   type TgzEntry,
 } from '../storage/tgzPreview';
+import { parseSheets, type SheetData } from '../storage/sheetPreview';
 
 // problemService — 문제 버전 업로드(admin). route/action은 얇게, 검증·트랜잭션·스토리지 적재는 여기서.
 // ⭐ scaffold 해시는 서버 재산출(클라 입력 신뢰 금지, 대원칙 ⑤).
@@ -192,19 +193,63 @@ export async function listScaffoldFiles(ref: string): Promise<ScaffoldListing> {
 
 export type ScaffoldFilePreview =
   | { kind: 'text'; text: string; size: number; truncated: boolean }
+  | { kind: 'markdown'; text: string; size: number; truncated: boolean }
+  | { kind: 'sheet'; sheets: SheetData[]; size: number }
+  | { kind: 'image'; dataUri: string; mime: string; size: number }
   | { kind: 'binary'; size: number }
   | { kind: 'missing' }
   | { kind: 'error'; message: string };
 
-/** 단일 파일 미리보기: 텍스트면 내용(상한 256KB), 바이너리면 크기만. */
+// 확장자 → MIME(인라인 이미지 미리보기). svg는 텍스트지만 이미지로 렌더.
+const IMAGE_MIME: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  bmp: 'image/bmp',
+  svg: 'image/svg+xml',
+};
+/** data URI 인라인 상한(이보다 큰 이미지는 다운로드 안내). */
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+
+function extOf(path: string): string {
+  return path.toLowerCase().split('.').pop() ?? '';
+}
+
+/**
+ * 단일 파일 미리보기 — 확장자·내용으로 렌더 종류를 정한다:
+ *   이미지(png/jpg/…) → data URI · xlsx → 시트 표 · md → 마크다운 · 그 외 텍스트 → 코드 · 나머지 → binary.
+ * 전부 서버측(archive 는 scaffold 버킷 고정). 상한(크기·행·열)으로 적대적 입력 방어.
+ */
 export async function previewScaffoldFile(ref: string, path: string): Promise<ScaffoldFilePreview> {
   try {
     const archive = await getScaffoldArchive(ref);
     const buf = readTgzEntry(archive, path);
     if (!buf) return { kind: 'missing' };
+    const ext = extOf(path);
+
+    // 이미지: data URI 인라인(상한 초과·svg 아닌 대형은 binary 로 강등).
+    const imgMime = IMAGE_MIME[ext];
+    if (imgMime) {
+      if (buf.length > MAX_IMAGE_BYTES) return { kind: 'binary', size: buf.length };
+      return { kind: 'image', dataUri: `data:${imgMime};base64,${buf.toString('base64')}`, mime: imgMime, size: buf.length };
+    }
+
+    // xlsx: 시트 표. 파싱 실패는 binary 로 강등(깨진 파일도 화면을 막지 않음).
+    if (ext === 'xlsx') {
+      try {
+        return { kind: 'sheet', sheets: await parseSheets(buf), size: buf.length };
+      } catch {
+        return { kind: 'binary', size: buf.length };
+      }
+    }
+
+    // 텍스트류: NUL 있으면 binary. md 는 마크다운 렌더, 그 외는 코드.
     if (!isProbablyText(buf)) return { kind: 'binary', size: buf.length };
     const truncated = buf.length > MAX_PREVIEW_BYTES;
     const text = buf.subarray(0, MAX_PREVIEW_BYTES).toString('utf8');
+    if (ext === 'md' || ext === 'markdown') return { kind: 'markdown', text, size: buf.length, truncated };
     return { kind: 'text', text, size: buf.length, truncated };
   } catch (e: unknown) {
     return { kind: 'error', message: e instanceof Error ? e.message : String(e) };
