@@ -106,8 +106,10 @@ spec:
             - |
               set -e
               mc alias set m "http://${MINIO_ENDPOINT}:${MINIO_PORT}" "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY" >/dev/null
-              echo "[fetch] mc cp m/${SCAFFOLD_REF} → /stage/scaffold.tgz"
-              mc cp "m/${SCAFFOLD_REF}" /stage/scaffold.tgz
+              # ⭐ 버킷 단일화(catchup-bucket): SCAFFOLD_REF=`<접두>/<키>`(예: exam-scaffold/...)라 실 객체 키는
+              #    catchup-bucket/${SCAFFOLD_REF}. examResources 의 Job(m/${STORAGE_BUCKET}/${ref})과 동일 규약.
+              echo "[fetch] mc cp m/catchup-bucket/${SCAFFOLD_REF} → /stage/scaffold.tgz"
+              mc cp "m/catchup-bucket/${SCAFFOLD_REF}" /stage/scaffold.tgz
           volumeMounts:
             - { name: stage, mountPath: /stage }
         # ⭐ PVC 레이아웃: 루트에 project/(작업물)·claude/(대화 로그) 두 칸 — subPath로 각각 마운트.
