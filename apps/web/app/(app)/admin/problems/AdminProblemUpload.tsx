@@ -5,7 +5,7 @@ import { useToast } from '@app/core';
 import { uploadProblemAction } from './actions';
 
 // 문제 버전 업로드(admin). 로스터 업로드(AdminBatchesClient)와 동형: Modal + useToast + useTransition.
-// scaffold 필수 / hidden 선택. 제출은 server action(uploadProblemAction)이 revalidate로 목록 갱신.
+// scaffold 필수. 제출은 server action(uploadProblemAction)이 revalidate로 목록 갱신.
 
 export function AdminProblemUpload() {
   const { toast } = useToast();
@@ -72,13 +72,6 @@ export function AdminProblemUpload() {
                 type="file"
                 name="scaffold"
                 accept=".zip,.tgz,.tar.gz,application/zip,application/gzip"
-                className="block w-full cds-body-01 text-text-primary file:mr-04 file:border file:border-border-strong-01 file:bg-layer-01 file:px-04 file:py-02 file:cds-label-01 file:text-text-primary hover:file:bg-layer-02"
-              />
-            </Field>
-            <Field label="히든 테스트 파일 (선택)" helper="서버 전용(exam-hidden 버킷). DB에는 기록되지 않으며 학생은 접근할 수 없습니다.">
-              <input
-                type="file"
-                name="hidden"
                 className="block w-full cds-body-01 text-text-primary file:mr-04 file:border file:border-border-strong-01 file:bg-layer-01 file:px-04 file:py-02 file:cds-label-01 file:text-text-primary hover:file:bg-layer-02"
               />
             </Field>

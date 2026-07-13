@@ -194,18 +194,16 @@ fi
 ok "워크로드 배포 완료"
 
 # ── 4. MinIO 버킷 보장 (클러스터 minio pod 안에서 mc) ──────────────────────
-# docs/5 §2 + docs/10: scaffold/hidden/artifacts/chatlogs/snapshots, 전부 private. 앱도 첫 put 에서 ensureBucket 하지만 미리 보장.
-# (snapshots = 과정 추적 스냅샷 — 쓰는 주체는 서버측 스냅샷 워커. 앱은 안 쓰므로 여기서 미리 만든다.)
+# docs/5 §2 + docs/10: 단일 버킷 catchup-bucket(private). 용도별(scaffold/artifacts/chatlogs/snapshots)은
+# 이 버킷 안의 최상위 폴더(키 접두)로 분리한다. 앱도 첫 put 에서 ensureBucket 하지만 미리 보장.
 step "MinIO 버킷 생성 (cluster)"
 wait_deploy minio 180 >/dev/null 2>&1 || true
 if kubectl -n "$NS" exec deploy/minio -- sh -c '
   mc alias set lo http://localhost:9000 "${MINIO_ROOT_USER:-catchup}" "${MINIO_ROOT_PASSWORD:-catchup-minio}" >/dev/null 2>&1
-  for bk in exam-scaffold exam-hidden exam-artifacts exam-chatlogs exam-snapshots; do
-    mc mb -p "lo/$bk" >/dev/null 2>&1; mc anonymous set none "lo/$bk" >/dev/null 2>&1
-  done
+  mc mb -p "lo/catchup-bucket" >/dev/null 2>&1; mc anonymous set none "lo/catchup-bucket" >/dev/null 2>&1
   mc ls lo
-' 2>/dev/null | grep -q exam-; then
-  ok "버킷 5종 준비(scaffold/hidden/artifacts/chatlogs/snapshots, 전부 private)"
+' 2>/dev/null | grep -q catchup-bucket; then
+  ok "버킷 catchup-bucket 준비(private) — scaffold/artifacts/chatlogs/snapshots 는 하위 폴더"
 else
   err "MinIO 버킷 생성 실패 — 앱이 첫 put 에서 자동 생성하므로 치명적 아님(kubectl -n $NS logs deploy/minio)"
 fi

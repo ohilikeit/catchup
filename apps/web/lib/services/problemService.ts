@@ -18,7 +18,7 @@ import {
 } from '../storage/tgzPreview';
 
 // problemService — 문제 버전 업로드(admin). route/action은 얇게, 검증·트랜잭션·스토리지 적재는 여기서.
-// ⭐ scaffold 해시는 서버 재산출(클라 입력 신뢰 금지, 대원칙 ⑤). hidden은 서버 전용 버킷 — DB에 기록하지 않는다.
+// ⭐ scaffold 해시는 서버 재산출(클라 입력 신뢰 금지, 대원칙 ⑤).
 
 const ROLE_TRACKS: readonly RoleTrack[] = ['planning', 'dev', 'marketing'];
 const CODE_RE = /^[a-z0-9][a-z0-9_-]{1,63}$/;
@@ -30,7 +30,7 @@ export interface UploadFilePart {
 }
 
 /**
- * 문제 업로드: 문제 upsert → 다음 버전 → scaffold(필수)·hidden(선택) MinIO 적재 → 버전 INSERT.
+ * 문제 업로드: 문제 upsert → 다음 버전 → scaffold(필수) MinIO 적재 → 버전 INSERT.
  * 전부 한 트랜잭션(게이트→put→insert 순서, submitByod와 동형). 키가 결정적이라 재시도 안전.
  * scaffold ref는 `exam-scaffold/<code>/v<version>/<name>` 포인터로만 DB에 남는다(실체는 MinIO).
  */
@@ -39,7 +39,6 @@ export async function uploadProblemVersion(input: {
   roleTrack: string;
   title: string;
   scaffold: UploadFilePart;
-  hidden?: UploadFilePart | null;
 }): Promise<{ code: string; version: number; normalize: NormalizeSummary }> {
   const code = input.code.trim();
   const title = input.title.trim();
@@ -57,7 +56,6 @@ export async function uploadProblemVersion(input: {
     throw new Error('스캐폴드 파일을 선택하세요.');
   }
   const roleTrack = input.roleTrack as RoleTrack;
-  const hidden = input.hidden && input.hidden.bytes.length > 0 ? input.hidden : null;
 
   // ⭐ 정규화: zip/tgz 어느 쪽이든 받아 쓰레기 제거·wrapping 평탄화 후 표준 tgz로 저장.
   //    seeder(tar -xzf)·미리보기는 tgz 단일 포맷만 본다. sha256은 저장 실체(정규화 tgz) 기준.
@@ -74,15 +72,6 @@ export async function uploadProblemVersion(input: {
       normalized.tgz,
       'application/gzip',
     );
-
-    if (hidden) {
-      await putObject(
-        BUCKETS.hidden,
-        `${code}/v${version}/${sanitizeFilename(hidden.filename)}`,
-        hidden.bytes,
-        hidden.mime,
-      );
-    }
 
     const saved = await problemsRepo.insertProblemVersionTx(client, {
       problemCode: code,
@@ -146,8 +135,7 @@ export async function setProblemActive(code: string, isActive: boolean): Promise
 
 /**
  * 문제 하드 삭제 — ⭐ 어떤 버전도 회차에 안 쓰였을 때만. 쓰인 적 있으면 비활성화로 유도.
- * DB(버전+문제)는 트랜잭션으로, MinIO(scaffold/hidden 객체)는 커밋 후 prefix 일괄 삭제(best-effort).
- * hidden은 키를 DB에 안 남기므로 `<code>/` prefix 로 쓸어낸다.
+ * DB(버전+문제)는 트랜잭션으로, MinIO(scaffold 객체)는 커밋 후 `<code>/` prefix 일괄 삭제(best-effort).
  */
 export async function deleteProblem(code: string): Promise<ProblemDeleteResult> {
   const c = code.trim();
@@ -163,7 +151,6 @@ export async function deleteProblem(code: string): Promise<ProblemDeleteResult> 
 
   // MinIO 정리(best-effort — DB가 정보원이므로 실패해도 삭제 자체는 확정). prefix=`<code>/`.
   await removeByPrefix(BUCKETS.scaffold, `${c}/`).catch(() => undefined);
-  await removeByPrefix(BUCKETS.hidden, `${c}/`).catch(() => undefined);
   return { ok: true };
 }
 

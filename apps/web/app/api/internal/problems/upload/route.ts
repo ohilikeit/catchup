@@ -5,7 +5,7 @@ import type { UploadFilePart } from '@/lib/services/problemService';
 
 // POST /api/internal/problems/upload — automation(예: exam-ops·CI)용 문제 업로드.
 // admin 폼(admin/problems/actions.ts)과 동일 서비스(uploadProblemVersion)를 호출하되,
-// 사람 세션 대신 x-internal-secret 으로 인가한다. scaffold(필수)·hidden(선택)을 multipart 로 받는다.
+// 사람 세션 대신 x-internal-secret 으로 인가한다. scaffold(필수)를 multipart 로 받는다.
 // scaffold 실체는 MinIO(exam-scaffold/<code>/v<n>/<name>), DB 엔 ref 포인터만(docs/5 §2).
 
 export const runtime = 'nodejs';
@@ -54,10 +54,9 @@ export async function POST(req: Request) {
   const title = ((form.get('title') as string) ?? '').trim();
   const scaffold = await filePart(form.get('scaffold'));
   if (!scaffold) return fail('invalid_body', 'scaffold 파일이 필요합니다.');
-  const hidden = await filePart(form.get('hidden'));
 
   try {
-    const result = await problemService.uploadProblemVersion({ code, roleTrack, title, scaffold, hidden });
+    const result = await problemService.uploadProblemVersion({ code, roleTrack, title, scaffold });
     return ok(result);
   } catch (e) {
     return fail('upload_failed', e instanceof Error ? e.message : '업로드 실패', 400);

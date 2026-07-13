@@ -1,4 +1,5 @@
 import 'server-only';
+import { STORAGE_BUCKET } from '../storage';
 
 // exam 동적 k8s 리소스 빌더 — provision/close/패키징이 만들고 지우는 오브젝트의 단일 정의처.
 // 근거: docs/2 §6(슬롯별 라우팅·격리), docs/5 §4(패키징 Job), docs/6 Phase 3.
@@ -295,8 +296,8 @@ export function packagingJob(
                 '-c',
                 'set -e\n' +
                   'mc alias set m "http://${MINIO_ENDPOINT}:${MINIO_PORT}" "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY" >/dev/null\n' +
-                  `mc cp /out/workspace.tgz "m/${artifactRef}"\n` +
-                  `if [ -f /out/chatlog.tgz ]; then mc cp /out/chatlog.tgz "m/${chatRef}"; fi`,
+                  `mc cp /out/workspace.tgz "m/${STORAGE_BUCKET}/${artifactRef}"\n` +
+                  `if [ -f /out/chatlog.tgz ]; then mc cp /out/chatlog.tgz "m/${STORAGE_BUCKET}/${chatRef}"; fi`,
               ],
               volumeMounts: [{ name: 'out', mountPath: '/out' }],
             },
@@ -516,7 +517,7 @@ export function snapshotJob(
                 '-c',
                 'set -e\n' +
                   'mc alias set m "http://${MINIO_ENDPOINT}:${MINIO_PORT}" "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY" >/dev/null\n' +
-                  `mc cp /out/snap.tgz "m/${snapshotRef}"`,
+                  `mc cp /out/snap.tgz "m/${STORAGE_BUCKET}/${snapshotRef}"`,
               ],
               volumeMounts: [{ name: 'out', mountPath: '/out' }],
             },

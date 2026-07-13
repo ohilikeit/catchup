@@ -11,5 +11,6 @@ export {
   sha256,
   sanitizeFilename,
   BUCKETS,
+  STORAGE_BUCKET,
   type BucketName,
 } from './storageService';

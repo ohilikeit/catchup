@@ -4,7 +4,7 @@ title: 스토리지 · 제출 파이프라인 · 재접속 안전망
 description: 학생 작업물이 어디에·어떻게 저장되고, 제출이 어떻게 영구화되며, 사고가 나도 환경으로 완벽히 복귀하는지 정의.
 resource: file:///docs/5-storage-submission-pipeline.md
 tags: [storage, minio, pvc, submission, packaging, reconnect, safety]
-timestamp: 2026-06-17T00:00:00Z
+timestamp: 2026-07-13T00:00:00Z
 ---
 
 # 스토리지 · 제출 파이프라인 · 재접속 안전망
@@ -35,22 +35,27 @@ timestamp: 2026-06-17T00:00:00Z
 
 ## MinIO 버킷 구조
 
+⭐ **단일 버킷 `catchup-bucket`(private)** — 운영 제약상 버킷은 1개만. 용도별 구분은 그 버킷 안의
+최상위 폴더(키 접두)로 한다. 정본: `apps/web/lib/storage/buckets.ts`(`STORAGE_BUCKET` + `BUCKETS` 접두).
+
 ```
-minio/
+catchup-bucket/            ← 유일 버킷(private, 익명 접근 none)
 ├── exam-scaffold/         ← 입력: scaffold (학생 환경에 시드, 읽기)
-│   └── ainc2026/ …
-├── exam-hidden/           ← ⚠️ 서버 전용: hidden-tests (학생 절대 접근 불가)
+│   └── <code>/v<n>/<name>
 ├── exam-artifacts/        ← 출력: 제출 코드 zip
 │   └── <회차명>/<학생명_이메일-attempt8>/workspace.tgz
-└── exam-chatlogs/         ← 출력: 대화 정규화 JSON
-    └── <회차명>/<학생명_이메일-attempt8>/chatlog.tgz
+├── exam-chatlogs/         ← 출력: 대화 정규화 JSON
+│   └── <회차명>/<학생명_이메일-attempt8>/chatlog.tgz
+└── exam-snapshots/        ← 출력: 시험 중 과정 스냅샷 시계열(docs/10)
+    └── <회차명>/<학생명_이메일-attempt8>/<ts>.tgz
 ```
 
-- 버킷 정책: 전부 private (익명 접근 none)
-- `exam-hidden`: 학생 pod 자격으로 접근 불가 (IAM/정책 분리)
-- `exam-artifacts`/`exam-chatlogs`: **서버(Job/앱)만 쓰기**
-- 학생 pod은 MinIO에 직접 쓰지 않음 — 서버측 패키징만 (클라 조작 차단)
-- 키 명명: uuid 나열 금지, 사람이 읽는 경로 사용
+- ref = `<접두>/<키>`(예: `exam-artifacts/…`) = 실 객체 키와 1:1 일치 → DB 포인터·호출부 무변경.
+  storageService 가 실 버킷(`catchup-bucket`)에 `<접두>/<키>`로 쓰고, Job 의 `mc cp`는 `m/catchup-bucket/<ref>`.
+- 학생 pod은 MinIO 자격증명이 없어 직접 쓰지 못함 — 서버(Job/앱)측 패키징만 (클라 조작 차단).
+- 키 명명: uuid 나열 금지, 사람이 읽는 경로 사용.
+- ⚠️ hidden-tests 버킷(`exam-hidden`)은 제거됨 — 저장만 되고 채점이 소비하지 않던 미구현 기능이라
+  버킷/업로드 경로를 걷어냈다. 히든 채점을 도입하면 `catchup-bucket/exam-hidden/` 접두 + prefix IAM 으로 재도입.
 
 ## Postgres 핵심 테이블 (정본: db/migrations/)
 

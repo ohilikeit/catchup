@@ -32,7 +32,7 @@ async function filePart(value: FormDataEntryValue | null): Promise<UploadFilePar
   };
 }
 
-/** 문제 + 버전 업로드. scaffold 필수, hidden 선택. 성공 시 목록 재검증. */
+/** 문제 + 버전 업로드. scaffold 필수. 성공 시 목록 재검증. */
 export async function uploadProblemAction(formData: FormData) {
   await requireGlobalRole('admin');
 
@@ -42,9 +42,8 @@ export async function uploadProblemAction(formData: FormData) {
 
   const scaffold = await filePart(formData.get('scaffold'));
   if (!scaffold) throw new Error('스캐폴드 파일을 선택하세요.');
-  const hidden = await filePart(formData.get('hidden'));
 
-  const result = await problemService.uploadProblemVersion({ code, roleTrack, title, scaffold, hidden });
+  const result = await problemService.uploadProblemVersion({ code, roleTrack, title, scaffold });
 
   revalidatePath('/admin/problems');
   return result;
