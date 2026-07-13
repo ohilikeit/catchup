@@ -163,6 +163,11 @@ spec:
               else
                 echo "[start] slot-${ORD} 가상키 없음 — LLM 비활성(provision 전 기동?)"
               fi
+              # ⭐ Claude Code 는 IDE '터미널 CLI'(claude)로만 쓴다 — VS Code 확장(anthropic.claude-code)은
+              #   code-server 를 subpath(/exam-ide/{N})로 프록시하는 이 구조에서 웹뷰 service worker 가 CSP 에
+              #   막혀 "Could not register service worker" 에러만 낸다(확장 UI 자체가 동작 불가). 학생이 확장을
+              #   누를 때마다 뜨는 에러를 없애려 기동 시 제거 — 터미널 `claude` CLI 는 그대로 동작(확장과 별개).
+              code-server --uninstall-extension anthropic.claude-code >/dev/null 2>&1 || true
               exec code-server --bind-addr 0.0.0.0:8080 --auth none /home/coder/project
           env:
             - name: ANTHROPIC_BASE_URL
