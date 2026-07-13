@@ -2,6 +2,7 @@ import { ok, fail } from '@/lib/http';
 import { env } from '@/lib/env';
 import * as problemService from '@/lib/services/problemService';
 import type { UploadFilePart } from '@/lib/services/problemService';
+import { decodeUploadFilename } from '@/lib/storage';
 
 // POST /api/internal/problems/upload — automation(예: exam-ops·CI)용 문제 업로드.
 // admin 폼(admin/problems/actions.ts)과 동일 서비스(uploadProblemVersion)를 호출하되,
@@ -30,7 +31,7 @@ function isFileLike(v: FormDataEntryValue | null): v is FileLike & FormDataEntry
 async function filePart(value: FormDataEntryValue | null): Promise<UploadFilePart | null> {
   if (!isFileLike(value) || value.size === 0) return null;
   return {
-    filename: value.name,
+    filename: decodeUploadFilename(value.name),
     mime: value.type || null,
     bytes: Buffer.from(await value.arrayBuffer()),
   };

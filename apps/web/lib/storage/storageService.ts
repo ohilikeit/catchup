@@ -29,9 +29,27 @@ export function sha256(buf: Buffer): string {
 }
 
 /**
+ * multipart 업로드 파일명 복원 — undici(Next FormData)는 Content-Disposition 의 filename 을
+ * latin1 바이트 문자열로 준다(각 바이트=한 코드포인트). 그래서 한글 UTF-8 이 'ì²´' 식 mojibake 가
+ * 되어 저장 시 '_ì_ì²_…' 로 깨진다. latin1→UTF-8 로 되돌리되, 왕복 검증이 성립할 때만 복원한다
+ * (ASCII·진짜 latin1 파일명은 원본 유지 — 오작동 0). 파일명을 쓰는 업로드 경계에서 호출한다.
+ */
+export function decodeUploadFilename(name: string): string {
+  try {
+    const utf8 = Buffer.from(name, 'latin1').toString('utf8');
+    // 무손실 복원인지 왕복으로 확인 — 깨진 바이트(invalid UTF-8)면 U+FFFD 가 껴 왕복이 어긋난다.
+    if (Buffer.from(utf8, 'utf8').toString('latin1') === name) return utf8.normalize('NFC');
+    return name;
+  } catch {
+    return name;
+  }
+}
+
+/**
  * 파일명 정규화: 경로탈출/특수문자 차단. basename만, 안전문자 외는 '_'.
  * ⭐ 유니코드 letter/number 보존(\p{L}\p{N}, u 플래그) — JS 기본 \w 는 ASCII 라
  *    한글 파일명이 통째로 '____' 로 깨진다. NFC 정규화 후 한글·CJK 를 그대로 살린다.
+ *    ⚠️ 업로드 파일명은 먼저 decodeUploadFilename 으로 latin1 mojibake 를 풀어야 한다.
  */
 export function sanitizeFilename(name: string): string {
   const base = (name.split(/[/\\]/).pop() ?? 'file').normalize('NFC');

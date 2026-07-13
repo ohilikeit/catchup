@@ -10,6 +10,7 @@ export {
   pingStorage,
   sha256,
   sanitizeFilename,
+  decodeUploadFilename,
   BUCKETS,
   STORAGE_BUCKET,
   type BucketName,

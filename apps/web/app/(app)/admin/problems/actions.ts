@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { requireGlobalRole } from '@/lib/auth/guard';
 import * as problemService from '@/lib/services/problemService';
 import type { UploadFilePart } from '@/lib/services/problemService';
+import { decodeUploadFilename } from '@/lib/storage';
 
 // admin/problems 서버 액션 — 문제 버전 업로드(MinIO). route는 얇게, 검증·적재는 service.
 // 로스터 xlsx 업로드(batches/actions.ts)와 동형: requireGlobalRole + FormData File 검증 + arrayBuffer.
@@ -26,7 +27,7 @@ function isFileLike(v: FormDataEntryValue | null): v is FileLike & FormDataEntry
 async function filePart(value: FormDataEntryValue | null): Promise<UploadFilePart | null> {
   if (!isFileLike(value) || value.size === 0) return null;
   return {
-    filename: value.name,
+    filename: decodeUploadFilename(value.name),
     mime: value.type || null,
     bytes: Buffer.from(await value.arrayBuffer()),
   };
