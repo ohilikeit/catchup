@@ -30,6 +30,29 @@ RUN runuser -u coder -- code-server --install-extension anthropic.claude-code \
     && echo "[ok] anthropic.claude-code 확장 프리설치됨" \
     || echo "[warn] 확장 프리설치 실패(Open VSX 미존재/네트워크 가능) — 런타임 GUI로 설치 폴백"
 
+# exam-bootstrap — 최초 진입 UX 보정 확장(언팩). Claude 패널 빈 화면(SW 레이스) 복구 + 파일트리 전체 펼침.
+#   code-server 는 언팩 폴더만으론 로드하지 않고 extensions/extensions.json 매니페스트를 신뢰한다
+#   → 폴더 COPY 후 그 매니페스트에 항목을 등록해야 실제로 로드된다(--list-extensions 로 검증).
+COPY --chown=coder:coder ext-exam-bootstrap \
+     /home/coder/.local/share/code-server/extensions/catchup.exam-bootstrap-0.0.1
+RUN runuser -u coder -- node -e ' \
+      const fs=require("fs"); \
+      const dir="/home/coder/.local/share/code-server/extensions"; \
+      const f=dir+"/extensions.json"; \
+      const rel="catchup.exam-bootstrap-0.0.1"; const abs=dir+"/"+rel; \
+      const arr=JSON.parse(fs.readFileSync(f,"utf8")); \
+      if(!arr.some(e=>e.identifier&&e.identifier.id==="catchup.exam-bootstrap")){ \
+        arr.push({identifier:{id:"catchup.exam-bootstrap"},version:"0.0.1", \
+          location:{"$mid":1,fsPath:abs,external:"file://"+abs,path:abs,scheme:"file"}, \
+          relativeLocation:rel, \
+          metadata:{installedTimestamp:Date.now(),source:"resource",updated:false,private:false,isPreReleaseVersion:false,hasPreReleaseVersion:false}}); \
+        fs.writeFileSync(f,JSON.stringify(arr)); \
+      } \
+    ' \
+    && runuser -u coder -- code-server --list-extensions 2>/dev/null | grep -qi exam-bootstrap \
+    && echo "[ok] exam-bootstrap 확장 등록·로드 확인" \
+    || (echo "[err] exam-bootstrap 등록 실패" && exit 1)
+
 COPY --chown=coder:coder code-server-settings.json /home/coder/.local/share/code-server/User/settings.json
 COPY --chmod=0755 seed-and-start.sh /usr/local/bin/seed-and-start.sh
 

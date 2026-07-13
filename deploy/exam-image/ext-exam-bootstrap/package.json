@@ -1,0 +1,11 @@
+{
+  "name": "exam-bootstrap",
+  "displayName": "Exam Bootstrap",
+  "description": "시험 IDE 최초 진입 UX 보정 — Claude Code 패널 빈 화면(SW 레이스) 복구 + 파일트리 전체 펼침",
+  "publisher": "catchup",
+  "version": "0.0.1",
+  "engines": { "vscode": "^1.80.0" },
+  "main": "./extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {}
+}
